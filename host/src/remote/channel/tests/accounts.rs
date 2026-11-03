@@ -19,9 +19,26 @@ async fn asked(hub: &Hub, p: &mut Phone, body: Value) -> Value {
 }
 
 #[tokio::test]
-async fn an_app_without_a_certificate_is_told_to_update_and_the_code_stays() {
-    let hub = temp_hub();
+async fn a_direct_app_without_a_certificate_is_asked_then_let_in() {
+    let hub = unowned_hub();
     let (mut p, code) = pairing_phone(&hub).await;
+    let body = json!({"code": code, "name": "Local app", "platform": "ios"});
+    let request = asked(&hub, &mut p, body).await;
+    crate::remote::pairing_requests::decide(&hub, request["requestId"].as_str().unwrap(), true).unwrap();
+    let reply = p.recv().await.unwrap();
+    assert_eq!(reply["ok"]["computerId"], hub.identity.computer_id());
+    assert!(reply["ok"]["claim"].is_null(), "no certificate, no account to claim");
+    assert_eq!(hub.store.device(&p.dk()).unwrap().account, None, "this fork pairs without an account");
+}
+
+#[tokio::test]
+async fn a_relay_app_without_a_certificate_is_told_to_update_and_the_code_stays() {
+    let hub = temp_hub();
+    let key = SigningKey::from_bytes(&crypto::random());
+    let dk = crypto::b64(key.verifying_key().as_bytes());
+    let code = hub.pairing.locked().issue().code;
+    let mut p = Phone::connect(&hub, key, ChannelKind::Relay { link: "l1".into(), dk, pair: true });
+    assert!(matches!(p.hello(&hub, true).await, Out::Msg(v) if v["t"] == "welcome"));
     p.send(json!({"id": 1, "m": "pair", "b": {"code": code, "name": "Old app", "platform": "ios"}})).await;
     let (close, reject) = p.recv().await.unwrap_err();
     assert_eq!((close, reject["code"].as_str()), (4400, Some("unsupportedVersion")));

@@ -19,10 +19,11 @@ data class Paired(val computer: Computer, val claim: JsonObject?)
 
 object HostConnector {
     /**
-     * Pairs with [certificate] as the account proof; a computer in no account first asks its user (up to 90 seconds),
-     * then signs [claim] to join the phone's account.
+     * Pairs with [certificate] as the account proof when there is one; a build with no cloud sends none and the QR
+     * code is the credential. A computer in no account first asks its user (up to 90 seconds), then signs [claim] to
+     * join the phone's account.
      */
-    suspend fun pair(pairing: Pairing, identity: DeviceIdentity, deviceName: String, certificate: DeviceCertificate,
+    suspend fun pair(pairing: Pairing, identity: DeviceIdentity, deviceName: String, certificate: DeviceCertificate?,
         claim: PairingClaim? = null): Paired {
         require(deviceName.isNotBlank() && deviceName.codePointCount(0, deviceName.length) <= 100)
         val channel = connect(pairing.computer, identity, pairing)
@@ -30,7 +31,7 @@ object HostConnector {
             val response = try {
                 channel.call("pair", buildJsonObject {
                     put("code", pairing.code); put("name", deviceName); put("platform", "android")
-                    put("certificate", certificate.json)
+                    certificate?.let { put("certificate", it.json) }
                     claim?.let { put("claim", it.json) }
                 }, timeoutMillis = 150_000)
             } catch (error: HostError) {

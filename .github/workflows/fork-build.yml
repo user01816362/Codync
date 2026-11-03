@@ -1,0 +1,119 @@
+name: Fork build (macOS, unsigned)
+
+# Builds the desktop app on every push to main so it can be downloaded and tried without
+# Xcode, a Rust toolchain or disk space. No repository secrets are used: the app is built
+# for Apple Silicon only and signed ad-hoc, so macOS needs one `xattr` command to open it.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # One macOS job on purpose: two jobs asking for a macOS arm64 runner at once race for
+  # scarce capacity, and a job that waits 15 minutes without one is cancelled.
+  # `xcode-27` is GitHub's macOS 27 image, with Xcode 27 as the default.
+  macos:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the iOS package
+        working-directory: apps/ios/Kit
+        run: >-
+          xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
+          -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install Rust (host/rust-toolchain.toml)
+        working-directory: host
+        run: rustup toolchain install
+
+      - name: Add macOS targets
+        working-directory: host
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: host
+          # A late failure (signing, network) still leaves the expensive release build cached.
+          cache-on-failure: true
+
+      - name: Check and test the host
+        working-directory: host
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --bin codync-host
+
+      - name: Install desktop dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Native pieces
+        run: |
+          mkdir -p apps/desktop/build/native
+          # The host the app bundles (tools/native-host.mjs builds it; universal for release,
+          # this build is Apple Silicon only).
+          node apps/desktop/tools/account-config.mjs main
+          node apps/desktop/tools/native-host.mjs main
+          # The screen target embeds the pinned cua-driver from GitHub. Fetch it here, with
+          # retries, so a slow runner network doesn't fail the Xcode build phase; the script
+          # checks the pinned SHA-256 and keeps the archive in build/cua-driver.
+          for attempt in 1 2 3 4 5; do
+            node packaging/cua-driver/fetch.mjs darwin "$RUNNER_TEMP/cua-driver" "$RUNNER_TEMP/cua-driver" && break
+            if [ "$attempt" = 5 ]; then exit 1; fi
+            sleep 15
+          done
+          # Remote screen helper, unsigned; the ad-hoc signing step signs it after packaging.
+          command -v xcodegen >/dev/null || brew install xcodegen
+          xcodegen generate --spec apps/project.yml
+          node apps/desktop/tools/native-screen.mjs main
+          # On-device speech for calls.
+          swift build -c release --arch arm64 --package-path apps/desktop/native/speech-macos
+          cp "$(swift build -c release --arch arm64 --package-path apps/desktop/native/speech-macos --show-bin-path)/codync-speech" \
+            apps/desktop/build/native/codync-speech
+
+      - name: Build and package (ad-hoc, no notarization)
+        working-directory: apps/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          # The shipped config notarizes with the repository's Apple secrets; a fork has none.
+          sed -i '' 's/^  notarize: true$/  notarize: false/' electron-builder.yml
+          npm run build
+          npx electron-builder --mac dir --arm64 --publish never
+
+      - name: Sign ad-hoc and pack the app
+        working-directory: apps/desktop
+        run: |
+          # An unsigned arm64 binary is killed on launch; an ad-hoc signature runs locally.
+          # Electron's helpers ship sealed, and packaging changes their resources, so re-sign
+          # the whole bundle recursively: an outer-only signature trips over their stale seals.
+          APP="$(ls -d dist/mac-*/Codync.app | head -n 1)"
+          echo "app: $APP"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          # Gatekeeper still quarantines a download: FORK.md has the one `xattr` command.
+          ditto -c -k --keepParent "$APP" "dist/Codync-arm64-unsigned.zip"
+          shasum -a 256 "dist/Codync-arm64-unsigned.zip" > "dist/Codync-arm64-unsigned.zip.sha256"
+          cat "dist/Codync-arm64-unsigned.zip.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codync-macos-arm64-unsigned
+          path: |
+            apps/desktop/dist/Codync-arm64-unsigned.zip
+            apps/desktop/dist/Codync-arm64-unsigned.zip.sha256
+          retention-days: 14

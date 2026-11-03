@@ -63,11 +63,14 @@ pub fn current(store: &Store) -> Option<Address> {
     }
     let (env_url, env_token) = (std::env::var("CODYNC_CLOUD_URL").ok(), std::env::var("CODYNC_CLOUD_TOKEN").ok());
     let (saved_url, saved_token) = (store.kv_get(SAVED_URL), store.kv_get(SAVED_TOKEN));
+    // Fork: no built-in cloud. The computer is local-only unless a person names an address
+    // (`CODYNC_CLOUD_URL`, or one saved in Settings); `Environment::cloud_url` still names the
+    // official addresses so a saved one is recognized as a Codync cloud.
     resolve(
         off,
         Candidate { url: env_url.as_deref(), token: env_token.as_deref() },
         Candidate { url: saved_url.as_deref(), token: saved_token.as_deref() },
-        Environment::current().cloud_url(),
+        "",
     )
 }
 
@@ -93,7 +96,7 @@ fn resolve(off: bool, env: Candidate, saved: Candidate, builtin: &str) -> Option
         let kind = if official { RelayKind::Codync } else { RelayKind::Private };
         return Some(Address { url, token: token(saved), kind });
     }
-    let url = parse_url(builtin).unwrap_or_else(|| builtin.to_owned());
+    let url = parse_url(builtin)?;
     Some(Address { url, token: None, kind: RelayKind::Codync })
 }
 

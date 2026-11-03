@@ -108,12 +108,19 @@ public final class AccountStore {
     /// one in none asks its user, then joins this account. The computer is saved in this context and connected.
     public func pair(_ pairing: Pairing, deviceName: String, platform: String) async throws -> Computer {
         let identity = try DeviceIdentity.load(context: storage)
-        guard let cloud else { throw Self.noCertificate }
-        let certificate = try await pairingCertificate(cloud, deviceName: deviceName, platform: platform)
-        // Without a claim the computer still pairs; it joins the account on a later connection (`Hello.joinAccount`).
+        // No cloud in this build: pair in person, with no certificate and nothing to claim. The
+        // computer in no account still asks its user before it lets this phone in.
+        let certificate: DeviceCertificate?
         let claim: CloudClaim?
-        do { claim = try await cloud.createClaim() } catch {
-            log.info("pairing without a claim: \(error.localizedDescription, privacy: .public)")
+        if let cloud {
+            certificate = try await pairingCertificate(cloud, deviceName: deviceName, platform: platform)
+            // Without a claim the computer still pairs; it joins the account on a later connection (`Hello.joinAccount`).
+            do { claim = try await cloud.createClaim() } catch {
+                log.info("pairing without a claim: \(error.localizedDescription, privacy: .public)")
+                claim = nil
+            }
+        } else {
+            certificate = nil
             claim = nil
         }
         pairingCheck = pairing.checkCode(for: identity)

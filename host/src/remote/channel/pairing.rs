@@ -1,6 +1,7 @@
 //! The pairing channel (§4.1): one `pair`, answered, then closed with `4100`. The phone proves its account with a
 //! certificate from the cloud (docs/plans/require-sign-in.md, phase 2): a computer in an account lets in phones of
-//! that account only; one in no account asks first, then joins the phone's account.
+//! that account only; one in no account asks first, then joins the phone's account. This fork also lets a direct,
+//! in-person pairing in without a certificate, so a build with no cloud can pair at all.
 
 use super::*;
 use crate::remote::certificate::{self, Certified, Refusal};
@@ -25,8 +26,12 @@ impl Channel {
         &mut self,
         incoming: &mut mpsc::Receiver<Value>,
         opener: Opener,
-        source: &str,
+        kind: &ChannelKind,
     ) -> CloseWith {
+        let source = kind.source();
+        // This fork lets a device pair in person without a cloud-signed certificate, but only over a
+        // direct link: a relay link must still prove its account.
+        let direct = matches!(kind, ChannelKind::Direct { .. });
         let (id, b) = match read_pair(incoming, opener).await {
             Ok(request) => request,
             Err(close) => return close,
@@ -38,16 +43,19 @@ impl Channel {
             return PROTOCOL;
         };
         let code = b["code"].as_str().unwrap_or_default();
-        let account = match self.admit(id, &b, code, source).await {
+        let account = match self.admit(id, &b, code, &source, direct).await {
             Ok(account) => account,
             Err(close) => return close,
         };
-        let mut let_in = owner::while_unchanged(&self.hub, || self.let_in(&account, false, code, name, platform));
+        let mut let_in =
+            owner::while_unchanged(&self.hub, || self.let_in(account.as_ref(), false, code, name, platform));
         if matches!(let_in, Err(Kept::Unasked)) {
-            if let Err(close) = self.ask(id, name, platform, account.email.as_deref(), incoming).await {
+            if let Err(close) =
+                self.ask(id, name, platform, account.as_ref().and_then(|a| a.email.as_deref()), incoming).await
+            {
                 return close;
             }
-            let_in = owner::while_unchanged(&self.hub, || self.let_in(&account, true, code, name, platform));
+            let_in = owner::while_unchanged(&self.hub, || self.let_in(account.as_ref(), true, code, name, platform));
         }
         let owner = match let_in {
             Ok(owner) => owner,
@@ -61,7 +69,7 @@ impl Channel {
         tracing::info!(device = self.key, platform, "device paired");
         crate::analytics::device_paired(&self.hub, crate::analytics::Via::Qr, platform, false);
         let mut ok = json!({"computerId": self.hub.identity.computer_id(), "name": crate::service::host_name()});
-        if owner.is_none() {
+        if let Some(account) = account.as_ref().filter(|_| owner.is_none()) {
             // Joining the phone's account: the computer signs the claim the phone made; the phone, which holds
             // the account's session, completes it with the cloud.
             ok["claim"] = self.claim(&b["claim"], &account.user_id).await;
@@ -71,7 +79,16 @@ impl Channel {
     }
 
     /// Before anything about this computer's account reaches the phone: a live code, then the phone's account.
-    async fn admit(&self, id: u64, b: &Value, code: &str, source: &str) -> Result<Certified, CloseWith> {
+    /// A direct, in-person pairing may come without a certificate in this fork (`direct`): the QR code is the
+    /// credential, as it was before 2.36. A relay link still has to prove its account.
+    async fn admit(
+        &self,
+        id: u64,
+        b: &Value,
+        code: &str,
+        source: &str,
+        direct: bool,
+    ) -> Result<Option<Certified>, CloseWith> {
         if !self.hub.pairing.locked().attempt(source) {
             return Err(self.reject(RejectCode::RateLimited).await);
         }
@@ -79,7 +96,8 @@ impl Channel {
             return Err(self.refuse(id, EXPIRED, "unauthorized").await);
         }
         match certificate::check(&b["certificate"], &self.key, now_ms()) {
-            Ok(account) => Ok(account),
+            Ok(account) => Ok(Some(account)),
+            Err(Refusal::Missing) if direct => Ok(None),
             Err(Refusal::Missing) => Err(self.reject(RejectCode::UnsupportedVersion).await),
             Err(Refusal::Invalid) => {
                 let message = "Couldn't confirm your Codync account. Sign in again, then scan a new code.";
@@ -94,7 +112,7 @@ impl Channel {
     /// right one, and while the computer asks the relay keeps the offer, and with it this socket.
     fn let_in(
         &self,
-        account: &Certified,
+        account: Option<&Certified>,
         asked: bool,
         code: &str,
         name: &str,
@@ -117,7 +135,7 @@ impl Channel {
             lease_until: None,
             created_at: now_ms(),
             last_seen_at: None,
-            account: Some(account.user_id.clone()),
+            account: account.map(|a| a.user_id.clone()),
         };
         if let Err(e) = self.hub.store.put_device(&device) {
             tracing::error!(error = format!("{e:#}"), "couldn't save a paired device");
@@ -126,10 +144,13 @@ impl Channel {
         Ok(owner)
     }
 
-    /// This computer's account, or what to tell a phone of another account.
-    fn owner_for(&self, account: &Certified) -> Result<Option<Owner>, String> {
+    /// This computer's account, or what to tell a phone of another account. Without a certificate (a direct
+    /// pairing in this fork) there is no account to compare, so the computer's own account stands as it is.
+    fn owner_for(&self, account: Option<&Certified>) -> Result<Option<Owner>, String> {
         let owner = owner::owner(&self.hub.store);
-        if let Some(owner) = owner.as_ref().filter(|o| o.user_id != account.user_id) {
+        if let (Some(account), Some(owner)) = (account, owner.as_ref())
+            && owner.user_id != account.user_id
+        {
             let whose =
                 owner.email.as_deref().map_or_else(|| "another".into(), |e| format!("{}'s", certificate::masked(e)));
             return Err(format!(

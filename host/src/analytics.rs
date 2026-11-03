@@ -215,8 +215,9 @@ enum Msg {
 }
 
 impl Analytics {
-    pub fn load(store: &Store) -> Self {
-        let enabled = store.kv_get(KV_ENABLED).as_deref() != Some("0");
+    pub fn load(_store: &Store) -> Self {
+        // Fork: telemetry is off, always. Nothing is queued and nothing is sent.
+        let enabled = false;
         let (tx, rx) = mpsc::unbounded_channel();
         Self {
             enabled: Mutex::new(enabled),
@@ -232,8 +233,10 @@ impl Analytics {
     }
 
     pub fn set_enabled(&self, store: &Store, on: bool) -> Result<()> {
+        // Fork: remember the owner's choice, but telemetry stays off whatever it says. The switch
+        // and `codync-host analytics on` still round-trip without an error.
         save_choice(store, on)?;
-        *self.enabled.locked() = on;
+        *self.enabled.locked() = false;
         Ok(())
     }
 }
@@ -383,13 +386,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn on_until_the_owner_turns_it_off() {
+    fn telemetry_is_always_off_in_this_fork() {
         let store = Store::open(std::path::Path::new(":memory:")).unwrap();
-        assert!(Analytics::load(&store).state());
-        Analytics::load(&store).set_enabled(&store, false).unwrap();
-        assert!(!Analytics::load(&store).state(), "an off stays off");
+        assert!(!Analytics::load(&store).state());
+        Analytics::load(&store).set_enabled(&store, true).unwrap();
+        assert!(!Analytics::load(&store).state(), "the switch cannot turn telemetry on");
         save_choice(&store, true).unwrap();
-        assert!(Analytics::load(&store).state(), "a choice saved before the host starts counts");
+        assert!(!Analytics::load(&store).state(), "a saved choice cannot turn telemetry on either");
     }
 
     #[test]

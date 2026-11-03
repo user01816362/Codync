@@ -28,8 +28,9 @@ internal fun AccountStore.pair(text: String, via: PairedVia) {
             require(old == null || old.signKey == pairing.computer.signKey) { "This computer's identity changed. Start over before pairing again." }
             val identity = withContext(Dispatchers.IO) { local.identity() }
             mutableState.update { it.copy(pairingCheck = pairing.checkCode(identity)) }
-            val certificate = accountProof()
+            // A build with no cloud pairs in person: no certificate, and nothing to claim.
             val client = cloud
+            val certificate = if (client == null) null else accountProof()
             // Without a claim a computer in no account still lets the phone in; it joins the account on a later connection.
             val claim = client?.let { bestEffort("start a claim") { it.createClaim() } }
             val paired = HostConnector.pair(pairing, identity, Build.MODEL.take(100), certificate, claim)

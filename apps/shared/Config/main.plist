@@ -2,9 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Fork: no account and no Codync cloud. An empty key makes every client take its
+	     signed-out path; the computer is local-only unless an address is named explicitly. -->
 	<key>clerkPublishableKey</key>
-	<string>pk_live_Y2xlcmsuY29keW5jLmRldiQ</string>
+	<string></string>
 	<key>cloudURL</key>
-	<string>https://api.codync.dev</string>
+	<string></string>
 </dict>
 </plist>

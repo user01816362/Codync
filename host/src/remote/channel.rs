@@ -195,7 +195,7 @@ pub async fn run(hub: Arc<Hub>, t: Transport, kind: ChannelKind) {
         ch.serve(&mut incoming, opener, &mut writer).await
     } else {
         ch.caller = Arc::new(Caller::Pairing { key: ch.key.clone() });
-        ch.pair(&mut incoming, opener, &kind.source()).await
+        ch.pair(&mut incoming, opener, &kind).await
     };
     for job in ch.jobs.locked().drain() {
         if let (_, Job::Sub(h)) = job {
