@@ -9,7 +9,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # The release step at the end publishes the build; everything else only reads.
+  contents: write
 
 concurrency:
   group: fork-build-${{ github.ref }}
@@ -117,3 +118,21 @@ jobs:
             apps/desktop/dist/Codync-arm64-unsigned.zip
             apps/desktop/dist/Codync-arm64-unsigned.zip.sha256
           retention-days: 14
+
+      # Actions artifacts need an account and expire; a release is a plain download link. The
+      # `latest` tag moves with each build on main, so its release is replaced rather than
+      # accumulated.
+      - name: Publish the latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest \
+            --target "$GITHUB_SHA" \
+            --title "Latest fork build" \
+            --notes "Codync, local fork — build of $GITHUB_SHA ($(date -u +%Y-%m-%dT%H:%MZ)).
+          Apple Silicon, ad-hoc signed, not notarized. See FORK.md for the one-time \`xattr\` command." \
+            apps/desktop/dist/Codync-arm64-unsigned.zip \
+            apps/desktop/dist/Codync-arm64-unsigned.zip.sha256
