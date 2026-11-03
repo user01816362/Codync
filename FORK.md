@@ -16,8 +16,9 @@ account and without the hosted Codync cloud.
 
 ## Download and run the macOS app
 
-1. Open **Actions → Fork build (macOS, unsigned) → the newest run → Artifacts** and download
-   `codync-macos-arm64-unsigned`.
+1. Open **Releases** and download `codync-macos.zip` (or `codync-macos.dmg`) from the newest
+   `vX.Y.Z` release. Every push to `main` publishes one; a build without a version bump replaces
+   that version's assets.
 2. Unzip it, then move `Codync.app` to `/Applications`.
 3. The app is ad-hoc signed, not notarized. Clear the download quarantine once:
 

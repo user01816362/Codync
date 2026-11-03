@@ -107,32 +107,40 @@ jobs:
           codesign --force --deep --sign - "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           # Gatekeeper still quarantines a download: FORK.md has the one `xattr` command.
-          ditto -c -k --keepParent "$APP" "dist/Codync-arm64-unsigned.zip"
-          shasum -a 256 "dist/Codync-arm64-unsigned.zip" > "dist/Codync-arm64-unsigned.zip.sha256"
-          cat "dist/Codync-arm64-unsigned.zip.sha256"
+          # Asset names match the upstream release, so a download reads the same.
+          ditto -c -k --keepParent "$APP" "dist/codync-macos.zip"
+          hdiutil create -volname "Codync" -srcfolder "$APP" -ov -format UDZO "dist/codync-macos.dmg"
+          (cd dist && shasum -a 256 codync-macos.zip > codync-macos.zip.sha256 \
+            && shasum -a 256 codync-macos.dmg > codync-macos.dmg.sha256)
+          cat dist/codync-macos.zip.sha256 dist/codync-macos.dmg.sha256
 
       - uses: actions/upload-artifact@v4
         with:
           name: codync-macos-arm64-unsigned
           path: |
-            apps/desktop/dist/Codync-arm64-unsigned.zip
-            apps/desktop/dist/Codync-arm64-unsigned.zip.sha256
+            apps/desktop/dist/codync-macos.zip
+            apps/desktop/dist/codync-macos.zip.sha256
+            apps/desktop/dist/codync-macos.dmg
+            apps/desktop/dist/codync-macos.dmg.sha256
           retention-days: 14
 
-      # Actions artifacts need an account and expire; a release is a plain download link. The
-      # `latest` tag moves with each build on main, so its release is replaced rather than
-      # accumulated.
-      - name: Publish the latest release
+      # Actions artifacts need an account and expire; a release is a plain download link.
+      # Releases follow upstream's shape: tagged and titled `v<version>` with the same asset
+      # names. Pushes without a version bump replace that version's assets.
+      - name: Publish the release
         if: github.ref == 'refs/heads/main'
+        working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest \
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v$VERSION"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" \
             --target "$GITHUB_SHA" \
-            --title "Latest fork build" \
-            --notes "Codync, local fork — build of $GITHUB_SHA ($(date -u +%Y-%m-%dT%H:%MZ)).
-          Apple Silicon, ad-hoc signed, not notarized. See FORK.md for the one-time \`xattr\` command." \
-            apps/desktop/dist/Codync-arm64-unsigned.zip \
-            apps/desktop/dist/Codync-arm64-unsigned.zip.sha256
+            --title "$TAG" \
+            --notes "Codync, local fork — build of \`$GITHUB_SHA\` ($(date -u +%Y-%m-%dT%H:%MZ)).
+          Apple Silicon, ad-hoc signed, not notarized; see FORK.md for the one-time \`xattr\` command." \
+            dist/codync-macos.zip dist/codync-macos.zip.sha256 \
+            dist/codync-macos.dmg dist/codync-macos.dmg.sha256
