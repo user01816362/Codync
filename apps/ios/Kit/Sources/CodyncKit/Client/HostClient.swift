@@ -242,6 +242,13 @@ public extension HostClient {
         return res.entry
     }
 
+    /// Edits one of the user's sent messages; the bot answers the edited version in a new turn.
+    func editMessage(botId: String, id: String, text: String) async throws -> Entry {
+        struct Res: Decodable { var entry: Entry }
+        let res: Res = try await call("editMessage", ["botId": botId, "id": id, "text": text])
+        return res.entry
+    }
+
     /// `replyTo`: the chat message this one quotes.
     /// `pasted`: what the user pasted rather than typed, which memory never takes as their own words.
     /// `call`: the voice call it was said in (on-device or speech to text).

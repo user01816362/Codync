@@ -22,6 +22,8 @@ public struct EntryData: Codable, Hashable, Sendable {
     /// user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired
     public var status: String?
     public var clientNonce: String?
+    /// user: when the message was edited (ms); the chat marks it "Edited" and its new answer comes after it.
+    public var editedAt: Int64?
     public var title: String?
     public var toolKind: String?
     /// tool: whether it's the bot's own bookkeeping (composing its message, keeping its memory), left out of the

@@ -58,7 +58,7 @@ struct ArtifactView: View {
         .safeAreaInset(edge: .bottom) {
             // An artifact published without a card (a routine run, another bot's request) has nothing to reply to.
             if let artifact, artifact.entryId != nil {
-                Composer(botId: botId, replyingTo: .constant(nil), artifact: artifact)
+                Composer(botId: botId, replyingTo: .constant(nil), editingMessage: .constant(nil), artifact: artifact)
             }
         }
         .background(Palette.background)

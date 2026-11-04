@@ -34,11 +34,14 @@ type Trailing = 'interrupt' | 'stop' | 'call' | 'send'
  * message it quotes sits at the top of the box and goes out with the next send. Under an artifact, `about` is the
  * artifact: the box keeps a draft of its own, and every message replies to the artifact's card.
  */
-export function Composer({ botId, reply = null, about = null, cancelReply, onCall, onInterrupt }: {
+export function Composer({ botId, reply = null, editing = null, about = null, cancelReply, cancelEdit, onCall, onInterrupt }: {
   botId: string
   reply?: Entry | null
+  /** A sent message being edited: the box holds its text, and sending edits it and asks the bot again. */
+  editing?: Entry | null
   about?: Artifact | null
   cancelReply?: () => void
+  cancelEdit?: () => void
   /** Starts a voice call; while the box is empty it takes the send button's place. */
   onCall?: (() => void) | null
   /** Interrupts the bot while it is speaking in a voice call. */
@@ -46,19 +49,19 @@ export function Composer({ botId, reply = null, about = null, cancelReply, onCal
 }) {
   const store = useStore()
   // Remount transient editor state (selection, attachments, IME) when its destination changes.
-  return <DestinationComposer key={JSON.stringify([store.contextId, store.computer.id, botId, about?.id])}
-    botId={botId} reply={reply} about={about} cancelReply={cancelReply} onCall={onCall} onInterrupt={onInterrupt} />
+  return <DestinationComposer key={JSON.stringify([store.contextId, store.computer.id, botId, about?.id, editing?.id])}
+    botId={botId} reply={reply} editing={editing} about={about} cancelReply={cancelReply} cancelEdit={cancelEdit} onCall={onCall} onInterrupt={onInterrupt} />
 }
 
-function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInterrupt }: {
-  botId: string; reply: Entry | null; about: Artifact | null; cancelReply?: () => void; onCall?: (() => void) | null; onInterrupt?: (() => void) | null
+function DestinationComposer({ botId, reply, editing, about, cancelReply, cancelEdit, onCall, onInterrupt }: {
+  botId: string; reply: Entry | null; editing: Entry | null; about: Artifact | null; cancelReply?: () => void; cancelEdit?: () => void; onCall?: (() => void) | null; onInterrupt?: (() => void) | null
 }) {
   const store = useStore()
   const tr = useTr()
   const plugins = useModel(pluginsFor(store))
   const bot = store.bots.get(botId) ?? null
   const drafts = store.composerDrafts
-  const draftKey = about ? artifactDraftKey(about) : botId
+  const draftKey = editing ? `edit:${editing.id}` : about ? artifactDraftKey(about) : botId
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(draftKey))
   const setDraft = (text: string) => drafts.set(draftKey, text)
   const [files, setFiles] = useState<OutgoingFile[]>([])
@@ -72,12 +75,15 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
   const working = !!bot && isWorkingIn(bot, botId)
   const empty = !draft.trim() && !files.length
   const canSend = !empty && (store.connection.kind === 'online' || (store.canQueue && !files.length))
-  const canAttach = !!bot
+  // An edit only replaces the message's text; its attachments stay as they were.
+  const canAttach = !!bot && !editing
 
   const members = bot && isGroup(bot) ? store.members(bot) : []
 
   const name = bot?.name ?? ''
-  const placeholder = about
+  const placeholder = editing
+    ? tr('Edit message')
+    : about
     ? tr('Message about “{title}”').replace('{title}', about.title)
     : reply
     ? tr('Reply…')
@@ -87,10 +93,10 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
         ? tr('Queue a message for {name}').replace('{name}', name)
         : tr('Ask {name}').replace('{name}', name)
 
-  // Picking a message to reply to brings the caret here.
+  // Picking a message to reply to, or to edit, brings the caret here.
   useEffect(() => {
-    if (reply) field.current?.focus()
-  }, [reply])
+    if (reply || editing) field.current?.focus()
+  }, [reply, editing])
 
   // Measure a separate, wrapping copy: collapsing the live textarea to zero breaks its
   // height transition, caret scroll and IME composition. Observe font/width changes too.
@@ -130,7 +136,7 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
   }
 
   const slash = slashQuery(draft)
-  const commands = slash === null ? [] : slashCommands(bot, slash, plugins.installedSkills, members)
+  const commands = slash === null || editing ? [] : slashCommands(bot, slash, plugins.installedSkills, members)
 
   const run = (command: SlashCommand) => {
     if (!bot) return
@@ -166,12 +172,20 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
     setFiles((list) => [...list, ...accepted])
   }
 
-  const submit = () => {
-    const command = files.length ? null : builtInCommand(bot, draft, members)
+  const submit = async () => {
+    const command = editing ? null : files.length ? null : builtInCommand(bot, draft, members)
     if (!command && !canSend) return
     // Words still on their way would land in the emptied box (and the shortcut's tap would send them again).
     dictation.cancel()
     if (command) return run(command)
+    if (editing) {
+      const saved = await store.edit(editing, draft)
+      if (!saved) return
+      store.composerDrafts.set(draftKey, '')
+      cancelEdit?.()
+      field.current?.focus()
+      return
+    }
     store.send(draft, botId, { files, pasted: pasted.current, replyTo: reply ? quoteOf(reply) : about && artifactQuote(about) })
     cancelReply?.()
     pasted.current = []
@@ -215,6 +229,15 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
       >
         <div className="composer-surface">
           <CommandMenu commands={menu.shown} index={menu.index} hover={menu.hover} pick={run} />
+          <ComposerReveal open={!!editing}>
+            {editing ? (
+              <HStack gap={4} className="composer-reply">
+                <Icon name="pencil" size={12} color="var(--secondary)" />
+                <Text size="footnote" tone="secondary" truncate grow>{tr('Editing message')}</Text>
+                <IconButton title="Cancel editing" icon="xmark" size={24} onClick={cancelEdit} />
+              </HStack>
+            ) : null}
+          </ComposerReveal>
           <ComposerReveal open={!!reply}>
             {reply ? (
               <HStack gap={4} className="composer-reply">
@@ -245,7 +268,7 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
                 value={draft}
                 placeholder={placeholder}
                 spellCheck
-                aria-label={reply ? 'Reply' : 'Message'}
+                aria-label={editing ? 'Edit message' : reply ? 'Reply' : 'Message'}
                 aria-keyshortcuts="Enter Shift+Enter"
                 onCompositionStart={() => { composing.current = true }}
                 onCompositionEnd={() => { composing.current = false }}
@@ -256,9 +279,10 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
                 }}
                 onKeyDown={(e) => {
                   if (menu.onKey(e, composing.current || e.nativeEvent.isComposing || e.keyCode === 229)) return
-                  if (e.key === 'Escape' && reply) {
+                  if (e.key === 'Escape' && (reply || editing)) {
                     e.preventDefault()
-                    cancelReply?.()
+                    if (reply) cancelReply?.()
+                    else cancelEdit?.()
                     return
                   }
                   // Return sends, Shift-Return adds a line; an input method's Return picks its candidate.

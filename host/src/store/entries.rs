@@ -81,11 +81,17 @@ impl Store {
     }
 
     pub fn update_entry(&self, id: &str, data: &Value) -> Result<Option<Entry>> {
+        self.update_entry_in_turn(id, data, None)
+    }
+
+    /// Updates an entry and, when `turn` is given, the turn it belongs to (an edited message is answered again in
+    /// a new turn, though it keeps its place in the chat).
+    pub fn update_entry_in_turn(&self, id: &str, data: &Value, turn: Option<i64>) -> Result<Option<Entry>> {
         let c = self.db.locked();
         let rev = next_rev(&c)?;
         c.execute(
-            "UPDATE entries SET rev = ?2, data = ?3, updated_at = ?4 WHERE id = ?1",
-            params![id, rev, data.to_string(), now_ms()],
+            "UPDATE entries SET rev = ?2, data = ?3, updated_at = ?4, turn = COALESCE(?5, turn) WHERE id = ?1",
+            params![id, rev, data.to_string(), now_ms(), turn],
         )?;
         Ok(c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry).optional()?)
     }

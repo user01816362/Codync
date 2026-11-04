@@ -82,16 +82,18 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
  * trailing button morphs between call, send, stop and interrupt. `onInterrupt` cuts the bot off
  * while it speaks in a voice call. `replyTo` is the message the next send quotes, shown on top. `about`, in an artifact's
  * viewer: the artifact's title, which the box names in place of the quote (its card) it sends with; `draftKey` is then the
- * artifact's draft, apart from the chat's.
+ * artifact's draft, apart from the chat's. `editing`: a sent message the box holds to edit, which sending asks the bot
+ * again.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable fun MessageComposer(bot: Bot, state: AppState, store: AppStore, onCall: (() -> Unit)?,
     onInterrupt: (() -> Unit)? = null, replyTo: ReplyQuote? = null, cancelReply: () -> Unit = {}, about: String? = null,
-    draftKey: String = bot.id) {
+    draftKey: String = bot.id, editing: Entry? = null, cancelEditing: () -> Unit = {}) {
     val draft = state.drafts[draftKey]
     val text = rememberTextFieldState(initialText = draft?.text.orEmpty())
     val files = draft?.files.orEmpty()
-    val queuing = "draft-send:$draftKey" in state.busy
+    val saving = editing != null && "edit:" + editing.id in state.busy
+    val queuing = "draft-send:$draftKey" in state.busy || saving
     val importing = "attachments" in state.busy
     // What this box sent to the store, so a draft set elsewhere (a routine request) can be told from our own echo.
     val echoes = remember(draftKey) { ArrayDeque<String>() }
@@ -101,9 +103,11 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
             store.editDraft(draftKey, it)
         }
     }
-    // Choosing a message to reply to goes straight to typing.
+    // A message starting an edit, or one to reply to, goes straight to typing.
     val focus = remember { FocusRequester() }
-    LaunchedEffect(replyTo?.id) { if (replyTo != null && about == null) focus.requestFocus() }
+    LaunchedEffect(replyTo?.id, editing?.id) {
+        if ((replyTo != null || editing != null) && about == null) focus.requestFocus()
+    }
     LaunchedEffect(draft?.text) {
         val external = draft?.text.orEmpty()
         if (external != text.text.toString() && external !in echoes) text.setTextAndPlaceCursorAtEnd(external)
@@ -142,6 +146,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
         else -> Trailing.Send
     }
     val placeholder = when {
+        editing != null -> tr("Edit message")
         about != null -> tr("Message about “{title}”").replace("{title}", about)
         replyTo != null -> tr("Reply…")
         bot.kind == "group" -> tr("Ask everyone · @ to ask one bot")
@@ -150,12 +155,12 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
     }
     val typed = text.text.toString()
     val members = bot.memberBots(state.bots)
-    val commands = SlashCommands.query(typed)?.let { SlashCommands.list(bot, it, state.plugins?.skills.orEmpty(), members) }.orEmpty()
+    val commands = if (editing != null) emptyList() else SlashCommands.query(typed)?.let { SlashCommands.list(bot, it, state.plugins?.skills.orEmpty(), members) }.orEmpty()
     // Starting a command: list the computer's skills again, once each time the draft becomes "/".
     val startingCommand = typed == "/"
     LaunchedEffect(startingCommand) { if (startingCommand && online) store.refreshPlugins() }
     // The one way a group's box differs: @ asks one of its bots.
-    val mentions = if (bot.kind != "group") emptyList() else mentionQuery(typed)?.let { query ->
+    val mentions = if (bot.kind != "group" || editing != null) emptyList() else mentionQuery(typed)?.let { query ->
         members.filter { query.isEmpty() || it.name.contains(query, true) }
     }.orEmpty()
     fun clear() = text.edit { replace(0, length, "") }
@@ -169,6 +174,15 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
     fun send() {
         // Words still on their way would land in the emptied box.
         dictation.stop()
+        val target = editing
+        if (target != null) {
+            // An edit replaces the message's text; its attachments stay as they were.
+            store.edit(target, typed) {
+                clear()
+                cancelEditing()
+            }
+            return
+        }
         val command = if (files.isEmpty()) SlashCommands.builtIn(bot, typed, members) else null
         if (command != null) run(command) else store.sendDraft(draftKey, bot.id, typed, replyTo) { clear(); cancelReply() }
     }
@@ -182,7 +196,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
     }
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp), verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DropdownMenu({ buildList {
+        if (editing == null) DropdownMenu({ buildList {
             add(MenuItem("Photos", icon = "photo.on.rectangle") { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
             add(MenuItem("Files", icon = "folder") { documents.launch(arrayOf("*/*")) })
             // Only the clip's description: reading the clip itself would show Android's paste notice.
@@ -195,15 +209,21 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
             Symbol("plus", size = 26.dp, tint = Palette.text)
         }
         Column(Modifier.weight(1f).glass(RoundedRectangle(24.dp)).animateContentSize(Motion.layoutSize)) {
+            if (editing != null) Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 8.dp).semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Symbol("pencil", size = 12.dp, tint = Palette.secondary)
+                Text(tr("Editing message"), Modifier.weight(1f), style = Type.subheadline, color = Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                IconButton("Cancel editing", "xmark", action = cancelEditing)
+            }
             // Each quote keeps its own bar through the transition, so a cancelled one fades out with its text.
-            AnimatedContent(replyTo?.text?.takeIf { about == null }, transitionSpec = { fadeIn(Motion.fade()) togetherWith fadeOut(Motion.fade()) },
+            AnimatedContent(replyTo?.text?.takeIf { about == null && editing == null }, transitionSpec = { fadeIn(Motion.fade()) togetherWith fadeOut(Motion.fade()) },
                 label = "Reply") { quote ->
                 if (quote != null) Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     QuoteLine(quote, Modifier.weight(1f))
                     IconButton("Cancel reply", "xmark", action = cancelReply)
                 }
             }
-            if (files.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(start = 10.dp, end = 10.dp, top = 8.dp),
+            if (files.isNotEmpty() && editing == null) Row(Modifier.horizontalScroll(rememberScrollState()).padding(start = 10.dp, end = 10.dp, top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (file in files) ComposerAttachment(file) { store.removeDraftFile(draftKey, file) }
             }

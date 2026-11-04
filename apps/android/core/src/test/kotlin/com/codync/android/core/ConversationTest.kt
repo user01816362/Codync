@@ -28,6 +28,16 @@ class ConversationTest {
         assertNull(Entry("x", 3, "b", rev = 3, kind = "user", data = buildJsonObject { put("replyTo", "e") }).replyTo)
     }
 
+    @Test fun `a sent message of theirs can be edited, and one still queued can't`() {
+        assertTrue(entry("user").isEditable)
+        assertTrue(Entry("s", 2, "b", rev = 2, kind = "user", data = buildJsonObject { put("text", "hi"); put("status", "sent") }).isEditable)
+        assertFalse(Entry("q", 3, "b", rev = 3, kind = "user", data = buildJsonObject { put("text", "hi"); put("status", "queued") }).isEditable)
+        assertFalse(entry("agent", true).isEditable)
+        assertNull(entry("user").editedAt)
+        val edited = Entry("e", 4, "b", rev = 4, kind = "user", data = buildJsonObject { put("text", "hi"); put("editedAt", 1_700_000_000_000) })
+        assertEquals(1_700_000_000_000, edited.editedAt)
+    }
+
     @Test fun `a sending reply quotes who wrote the message and falls back to its file names`() {
         assertEquals(ReplyQuote("e", "user", "message"), entry("user").replyQuote)
         assertEquals("b", entry("agent", true).replyQuote.author)

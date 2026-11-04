@@ -10,6 +10,8 @@ struct Composer: View {
     let botId: String
     /// The message the next send quotes, shown above the field until sent or cancelled.
     @Binding var replyingTo: Entry?
+    /// A sent message being edited: the field holds its text, and sending edits it and asks the bot again.
+    @Binding var editingMessage: Entry?
     /// Starts a voice call; while the box is empty it takes the send button's place.
     var onCall: (() -> Void)?
     /// Interrupts the bot while it is speaking in a voice call.
@@ -38,20 +40,27 @@ struct Composer: View {
     @ScaledMetric(relativeTo: .body) private var lineHeight: CGFloat = 22
 
     private var bot: Bot? { model.bots[botId] }
-    private var draftKey: String { artifact.map(BotStore.artifactDraftKey) ?? botId }
+    private var draftKey: String {
+        if let editingMessage { return "edit:\(editingMessage.id)" }
+        return artifact.map(BotStore.artifactDraftKey) ?? botId
+    }
     private var working: Bool { bot?.isWorking(in: botId) == true }
 
-    private var isEmpty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty }
+    private var isEmpty: Bool {
+        let blank = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return editingMessage != nil ? blank : blank && files.isEmpty
+    }
 
     private var canSend: Bool {
         // Offline computers still take messages when the relay can hold them for it (text only).
         !isEmpty && (model.connection == .online || (model.canQueue && files.isEmpty))
     }
 
-    private var canAttach: Bool { bot != nil }
+    private var canAttach: Bool { bot != nil && editingMessage == nil }
 
     private var placeholder: String {
         let name = bot?.name ?? ""
+        if editingMessage != nil { return L10n.tr("Edit message") }
         if let artifact { return L10n.tr("Message about “{title}”").replacingOccurrences(of: "{title}", with: artifact.title) }
         if replyingTo != nil { return L10n.tr("Reply…") }
         if bot?.isGroup == true { return L10n.tr("Ask everyone · @ to ask one bot") }
@@ -124,10 +133,13 @@ struct Composer: View {
         HStack(alignment: .bottom, spacing: 8) {
             if canAttach { addButton }
             VStack(alignment: .leading, spacing: 0) {
+                if editingMessage != nil {
+                    editingBar.transition(.move(edge: .bottom).combined(with: .opacity))
+                }
                 if let replyingTo {
                     quoteBar(replyingTo).transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                if !files.isEmpty {
+                if !files.isEmpty, editingMessage == nil {
                     fileChips.transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 box
@@ -138,6 +150,7 @@ struct Composer: View {
         }
         .animation(Motion.layout, value: files.map(\.id))
         .animation(Motion.reduced(Motion.layout, reduceMotion), value: replyingTo?.id)
+        .animation(Motion.reduced(Motion.layout, reduceMotion), value: editingMessage?.id)
         .dropDestination(for: PickedFile.self) { picked, _ in
             guard canAttach else { return false }
             append(picked.map(\.file))
@@ -278,8 +291,15 @@ struct Composer: View {
             dictation.stop()
             draft = model.composerDraft(for: draftKey)
         }
-        // Another chat in the same view never inherits the reply.
-        .onChange(of: botId) { replyingTo = nil }
+        // Starting an edit clears any picked files and brings the caret to the field; another chat
+        // never inherits the reply or the edit.
+        .onChange(of: editingMessage?.id) {
+            if editingMessage != nil { files = []; focused = true }
+        }
+        .onChange(of: botId) {
+            cancelEditing()
+            replyingTo = nil
+        }
         .onChange(of: replyingTo?.id) { if replyingTo != nil { focused = true } }
         .onDisappear { dictation.stop() }
         .onChange(of: draft) { _, value in
@@ -287,6 +307,30 @@ struct Composer: View {
             // Starting a command: list the computer's skills again.
             if value == "/" { Task { await model.refreshPlugins() } }
         }
+    }
+
+    /// The message being edited, with a way to leave it as it was.
+    private var editingBar: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "pencil")
+                .font(.footnote)
+                .foregroundStyle(Palette.secondary)
+            Text(L10n.tr("Editing message"))
+                .font(.subheadline)
+                .foregroundStyle(Palette.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            IconButton("Cancel editing", systemImage: "xmark") { cancelEditing() }
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 6)
+        .padding(.top, 6)
+    }
+
+    /// Leaves the message as it was and restores the chat's own draft.
+    private func cancelEditing() {
+        if let editingMessage { model.setComposerDraft("", for: "edit:\(editingMessage.id)") }
+        editingMessage = nil
     }
 
     /// The quoted message, one line, with a way to drop the reply.
@@ -404,8 +448,22 @@ struct Composer: View {
     private func submit() {
         // Words still on their way would land in the emptied box.
         dictation.stop()
-        if files.isEmpty, let command = SlashCommands.builtIn(for: bot, members: members, draft: draft) { return run(command) }
+        if editingMessage == nil, files.isEmpty,
+           let command = SlashCommands.builtIn(for: bot, members: members, draft: draft) { return run(command) }
         guard canSend else { return }
+        if let target = editingMessage {
+            let (text, key) = (draft, draftKey)
+            Task {
+                guard await model.edit(target, text: text) else { return }
+                model.setComposerDraft("", for: key)
+                withAnimation(Motion.reduced(Motion.conversation, reduceMotion)) {
+                    draft = ""
+                    editingMessage = nil
+                }
+                focused = true
+            }
+            return
+        }
         withAnimation(Motion.reduced(Motion.conversation, reduceMotion)) {
             guard model.sendComposerDraft(to: botId, draft: draftKey, replyTo: artifact?.replyQuote ?? replyingTo?.replyQuote,
                                           files: files) else { return }

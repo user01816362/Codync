@@ -454,12 +454,31 @@ impl Hub {
     /// meanwhile elsewhere (a reaction from another device) isn't written over. `edit` returns `false` to leave the
     /// entry as it is.
     pub fn edit_entry(&self, id: &str, edit: impl FnOnce(&mut Entry) -> Result<bool>) -> Result<Entry> {
+        self.edit_entry_at(id, None, edit)
+    }
+
+    /// Like [`Self::edit_entry`], and moves the entry to `turn`: an edited message is answered again in a new turn.
+    pub fn edit_entry_in_turn(
+        &self,
+        id: &str,
+        turn: i64,
+        edit: impl FnOnce(&mut Entry) -> Result<bool>,
+    ) -> Result<Entry> {
+        self.edit_entry_at(id, Some(turn), edit)
+    }
+
+    fn edit_entry_at(
+        &self,
+        id: &str,
+        turn: Option<i64>,
+        edit: impl FnOnce(&mut Entry) -> Result<bool>,
+    ) -> Result<Entry> {
         let _g = self.emit_lock.locked();
         let mut e = self.store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
         if !edit(&mut e)? {
             return Ok(e);
         }
-        let e = self.store.update_entry(id, &e.data)?.ok_or_else(|| anyhow!("unknown message"))?;
+        let e = self.store.update_entry_in_turn(id, &e.data, turn)?.ok_or_else(|| anyhow!("unknown message"))?;
         let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
         Ok(e)
     }

@@ -52,6 +52,11 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
         (kind == "user" || (kind == "agent" && data.final == true)) && !id.hasPrefix("local-")
     }
 
+    /// A user message whose turn ran: it can be edited in place, and the bot answers the edited version again.
+    public var isEditable: Bool {
+        kind == "user" && !id.hasPrefix("local-") && (data.status == nil || data.status == "sent")
+    }
+
     /// How a reply quotes this message until the computer's own quote arrives: who wrote it and its
     /// text, or its file names.
     public var replyQuote: ReplyQuote {

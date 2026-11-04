@@ -95,6 +95,13 @@ fun AppStore.discard(send: PendingSend) = action("discard:" + send.nonce) {
     withContext(Dispatchers.IO) { requireNotNull(database).discard(send.nonce) }
     refresh()
 }
+
+/** Edits one of the user's sent messages; the bot answers the edited version again. [done] runs once it went through. */
+fun AppStore.edit(entry: Entry, text: String, done: () -> Unit) {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty() || "edit:" + entry.id in state.value.busy) return
+    command("editMessage", body("botId" to entry.botId, "id" to entry.id, "text" to trimmed), "edit:" + entry.id, onSuccess = done)
+}
 fun AppStore.cancelQueued(send: PendingSend) = action("cancel:" + send.nonce) {
     val active = requireNotNull(channel) { "Reconnect to the relay to cancel this message." }
     when (active.cancelQueued(send.nonce)) {

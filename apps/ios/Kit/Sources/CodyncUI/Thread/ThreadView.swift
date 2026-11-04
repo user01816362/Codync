@@ -13,6 +13,8 @@ public struct ThreadView: View {
     @State var showTrace = false
     /// The message the composer's next send quotes.
     @State var replyingTo: Entry?
+    /// A sent message being edited in the composer; sending asks the bot again.
+    @State var editingMessage: Entry?
     @State var botChat: BotChatTarget?
     @State var openArtifact: ArtifactTarget?
     @State var openCall: Entry?
@@ -42,7 +44,7 @@ public struct ThreadView: View {
                         .padding(.bottom, 8)
                         .transition(.opacity)
                 } else {
-                    Composer(botId: botId, replyingTo: $replyingTo,
+                    Composer(botId: botId, replyingTo: $replyingTo, editingMessage: $editingMessage,
                              onCall: !calling && bot != nil ? { calling = true } : nil,
                              onInterrupt: callSpeaking ? interruptCall : nil)
                 }
@@ -116,6 +118,8 @@ public struct ThreadView: View {
                 ChatRow(entry: e, groupStart: groupStart, chat: bot, openTrace: { showTrace = true },
                         // An update card takes the composer's place, so there's nothing to reply with.
                         reply: e.isReplyable && model.mismatch == nil ? { reply(to: e) } : nil,
+                        // Only a sent message of a one-to-one chat can be edited and answered again.
+                        edit: e.isEditable && bot?.isGroup != true && model.mismatch == nil ? { beginEditing(e) } : nil,
                         // In a group, the bot whose agent failed.
                         addFallback: { details = DetailsRequest(botId: e.data.author ?? e.botId) },
                         openArtifact: { openArtifact = ArtifactTarget(botId: e.botId, id: $0.id, title: $0.title) },
@@ -127,6 +131,15 @@ public struct ThreadView: View {
 
     private func reply(to entry: Entry) {
         withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { replyingTo = entry }
+    }
+
+    /// Opens a sent message in the composer; sending edits it and asks the bot again.
+    private func beginEditing(_ entry: Entry) {
+        model.setComposerDraft(entry.data.text ?? "", for: "edit:\(entry.id)")
+        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) {
+            replyingTo = nil
+            editingMessage = entry
+        }
     }
 
     // MARK: chrome

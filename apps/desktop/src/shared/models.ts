@@ -309,6 +309,8 @@ export interface EntryData {
   /** user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired */
   status?: string
   clientNonce?: string
+  /** user: when the message was edited (ms); the chat marks it "Edited" and its new answer comes after it. */
+  editedAt?: number
   title?: string
   toolKind?: string
   /** tool: whether it's the bot's own bookkeeping (composing its message, keeping its memory), left out of the
@@ -378,6 +380,11 @@ export function isChat(e: Entry): boolean {
 /** Messages a reply can quote: the user's and the bots' final replies, once the computer has them. */
 export function isReplyable(e: Entry): boolean {
   return !e.id.startsWith('local-') && (e.kind === 'user' || (e.kind === 'agent' && e.data.final === true))
+}
+
+/** A user message whose turn ran: it can be edited in place, and the bot answers the edited version again. */
+export function isEditable(e: Entry): boolean {
+  return e.kind === 'user' && !e.id.startsWith('local-') && (e.data.status === undefined || e.data.status === 'sent')
 }
 
 /** The quote a sending reply shows until the computer's own replaces it. */

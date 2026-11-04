@@ -199,6 +199,13 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             }
             json!({"entry": crate::chat::messages::post(hub, &row.config, data)?})
         }
+        // The user fixed one of their messages: it's edited in place and answered again in a new turn.
+        "editMessage" => {
+            let bot = str_arg(&b, "botId")?;
+            let row = hub.store.bot(bot)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
+            let text = b["text"].as_str().unwrap_or_default();
+            json!({"entry": crate::chat::messages::edit(hub, &row.config, str_arg(&b, "id")?, text)?})
+        }
         // A voice call is on (its audio flows): the lead speaks first.
         "callStarted" => {
             let call = b["callId"].as_str().map(crate::chat::calls::checked).transpose()?;

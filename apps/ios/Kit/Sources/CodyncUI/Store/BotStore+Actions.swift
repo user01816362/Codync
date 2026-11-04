@@ -107,6 +107,15 @@ extension BotStore {
         }
     }
 
+    /// Edits one of the user's sent messages; the bot answers the edited version again. Whether it went through.
+    func edit(_ entry: Entry, text: String) async -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return await attempt(replay: true) { client in
+            self.upsert(try await client.editMessage(botId: entry.botId, id: entry.id, text: trimmed))
+        }
+    }
+
     /// A card's button: `entry` shows `choice` as answering (its spinner) while `op` runs.
     private func answer(_ entry: Entry, _ choice: String, _ op: @escaping @MainActor (HostClient) async throws -> Void) {
         guard answering[entry.id] == nil else { return }

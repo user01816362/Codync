@@ -12,6 +12,8 @@ struct ChatRow: View {
     let openTrace: () -> Void
     /// Quotes this message in the composer; nil where it can't be.
     var reply: (() -> Void)?
+    /// Opens this sent message in the composer; its edit is answered again.
+    var edit: (() -> Void)?
     /// A failure notice's "Add a fallback": the bot's details.
     var addFallback: (() -> Void)?
     /// An artifact card's artifact, full size.
@@ -25,7 +27,7 @@ struct ChatRow: View {
         switch entry.kind {
         case "user":
             VStack(alignment: .trailing, spacing: 4) {
-                UserBubble(entry: entry, botWorking: chat?.isWorking == true, reply: reply)
+                UserBubble(entry: entry, botWorking: chat?.isWorking == true, reply: reply, edit: edit)
                 ReactionsRow(entry: entry)
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.reactions)
@@ -118,6 +120,7 @@ struct UserBubble: View {
     let entry: Entry
     let botWorking: Bool
     var reply: (() -> Void)?
+    var edit: (() -> Void)?
     @Environment(BotStore.self) private var model
 
     var body: some View {
@@ -148,6 +151,7 @@ struct UserBubble: View {
                 .contextActions(reactions: model.reactionPick(entry)) {
                     var items = [MenuItem("Copy", icon: "square.on.square") { Pasteboard.copy(entry.data.text) }]
                     if let reply { items.append(MenuItem("Reply", icon: "arrowshape.turn.up.left", action: reply)) }
+                    if let edit { items.append(MenuItem("Edit", icon: "pencil", action: edit)) }
                     return items
                 }
     }
@@ -183,7 +187,9 @@ struct UserBubble: View {
         case "delivering":
             Text(L10n.tr("Delivered to the computer")).font(.caption2).foregroundStyle(Palette.tertiary)
         default:
-                EmptyView()
+            if entry.data.editedAt != nil {
+                Text(L10n.tr("Edited")).font(.caption2).foregroundStyle(Palette.tertiary)
+            }
         }
     }
 }
@@ -412,5 +418,6 @@ extension ChatRow: @MainActor Equatable {
     static func == (a: Self, b: Self) -> Bool {
         a.entry == b.entry && a.groupStart == b.groupStart && a.chat?.isGroup == b.chat?.isGroup
             && a.chat?.isWorking == b.chat?.isWorking && (a.reply == nil) == (b.reply == nil)
+            && (a.edit == nil) == (b.edit == nil)
     }
 }

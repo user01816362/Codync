@@ -34,12 +34,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -95,7 +97,22 @@ import com.kyant.shapes.Capsule
     // The message the composer quotes, until it sends or this chat closes.
     var replyId by rememberSaveable(bot.id) { mutableStateOf<String?>(null) }
     val replyTo = state.entries.firstOrNull { it.id == replyId && it.botId == bot.id }?.replyQuote
-    val reply = { entry: Entry -> replyId = entry.id }
+    // The user's sent message open in the box for editing; sending asks the bot again.
+    var editingId by rememberSaveable(bot.id) { mutableStateOf<String?>(null) }
+    val editing = state.entries.firstOrNull { it.id == editingId && it.botId == bot.id }
+    val cancelEditing = {
+        editingId?.let { store.editDraft("edit:$it", "") }
+        editingId = null
+    }
+    val reply = { entry: Entry -> cancelEditing(); replyId = entry.id }
+    val edit = { entry: Entry ->
+        replyId = null
+        store.editDraft("edit:${entry.id}", entry.text)
+        editingId = entry.id
+    }
+    // A message left mid-edit doesn't keep its text as a draft in the chat it left.
+    val editingNow by rememberUpdatedState(editingId)
+    DisposableEffect(bot.id) { onDispose { editingNow?.let { store.editDraft("edit:$it", "") } } }
     // The chat ignores Full conversation over it: it stays put underneath.
     val chatState = state.copy(trace = false)
     GlassStage(Modifier.fillMaxSize().background(Palette.background), chrome = {
@@ -115,13 +132,16 @@ import com.kyant.shapes.Capsule
             val mismatch = state.mismatch
             if (mismatch != null) UpdateNeededCard(state, mismatch, store::requestHostUpdate, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
             // An artifact's viewer has its own box for the same draft; two would overwrite each other.
-            else if (viewing == null) MessageComposer(bot, chatState, store, onCall = if (state.voice == null && state.actualConnection is LinkState.Ready) startCall else null,
-                onInterrupt = if (state.voice?.botId == bot.id && state.voice.state.phase == VoicePhase.Speaking) store::interruptVoice else null,
-                replyTo = replyTo, cancelReply = { replyId = null })
+            else if (viewing == null) key(editingId) {
+                MessageComposer(bot, chatState, store, onCall = if (state.voice == null && state.actualConnection is LinkState.Ready) startCall else null,
+                    onInterrupt = if (state.voice?.botId == bot.id && state.voice.state.phase == VoicePhase.Speaking) store::interruptVoice else null,
+                    replyTo = replyTo, cancelReply = { replyId = null },
+                    draftKey = editing?.let { "edit:${it.id}" } ?: bot.id, editing = editing, cancelEditing = cancelEditing)
+            }
         }
     }) {
         Transcript(bot, chatState, store, connect, PaddingValues(start = 16.dp, end = 16.dp, top = top + 60.dp,
-            bottom = with(density) { composerHeight.toDp() } + 8.dp), indicatorTop = top + 50.dp, openRoutine = openRoutine, reply = reply,
+            bottom = with(density) { composerHeight.toDp() } + 8.dp), indicatorTop = top + 50.dp, openRoutine = openRoutine, reply = reply, edit = edit,
             addFallback = { details = DetailsRequest(botId = it.id) }, openArtifact = { viewing = it }, openCall = { callLine = it }) { peer = it }
     }
     CodyncDialog("Microphone access is off", micDenied, { micDenied = false },
@@ -199,8 +219,8 @@ import com.kyant.shapes.Capsule
 
 /** The messages: all this phone has, earlier ones from the computer near the top, following the newest. */
 @Composable private fun Transcript(bot: Bot, state: AppState, store: AppStore, connect: ConnectionRequestActions, padding: PaddingValues,
-    indicatorTop: Dp, openRoutine: (String) -> Unit, reply: (Entry) -> Unit, addFallback: (Bot) -> Unit, openArtifact: (OpenArtifact) -> Unit,
-    openCall: (String) -> Unit, openPeer: (String) -> Unit) {
+    indicatorTop: Dp, openRoutine: (String) -> Unit, reply: (Entry) -> Unit, edit: (Entry) -> Unit, addFallback: (Bot) -> Unit,
+    openArtifact: (OpenArtifact) -> Unit, openCall: (String) -> Unit, openPeer: (String) -> Unit) {
     // What voice calls carried shows in each call's conversation, not in the chat.
     val entries = state.entries.filter { it.botId == bot.id && it.isChat }.hidingCalls()
     // A call's message that failed to send stays here, to be sent again.
@@ -231,8 +251,10 @@ import com.kyant.shapes.Capsule
                     }
                     else ChatRow(item.entry, item.groupStart, bot, state, store, openTrace = { store.showTrace(true) },
                         // An update card takes the composer's place, so there's nothing to reply with.
-                        reply = if (item.entry.isReplyable && state.mismatch == null) { { reply(item.entry) } } else null, connect = connect,
-                        addFallback = addFallback, openArtifact = openArtifact)
+                        reply = if (item.entry.isReplyable && state.mismatch == null) { { reply(item.entry) } } else null,
+                        // A sent message of a one-to-one chat can be edited and answered again.
+                        edit = if (item.entry.isEditable && bot.kind != "group" && state.mismatch == null) { { edit(item.entry) } } else null,
+                        connect = connect, addFallback = addFallback, openArtifact = openArtifact)
                 }
                 is ChatItem.Pending -> PendingBubble(item.send, item.groupStart, state, store)
                 is ChatItem.Exchanges -> BotMessageRow(item.group, state) { openPeer(item.group.peerId) }

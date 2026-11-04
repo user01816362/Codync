@@ -52,6 +52,10 @@ data class Entry(
     }
     /** A message the user can quote in a reply: theirs, or a final reply (a group member's too). */
     val isReplyable: Boolean get() = kind == "user" || kind == "agent" && data["final"]?.jsonPrimitive?.booleanOrNull == true
+    /** Theirs once the computer ran it: it can be edited in place, and the bot answers the edited version again. */
+    val isEditable: Boolean get() = kind == "user" && (status == null || status == "sent")
+    /** When the user edited this message (ms), as the chat marks it "Edited". */
+    val editedAt: Long? get() = data["editedAt"]?.jsonPrimitive?.longOrNull
     /** The message this one replies to, as the computer quoted it. */
     val replyTo: ReplyQuote? get() = (data["replyTo"] as? JsonObject)?.let { runCatching { WireJson.decodeFromJsonElement<ReplyQuote>(it) }.getOrNull() }
     /** What the composer shows of the message it replies to: its text, or the names of its files. */
@@ -86,6 +90,7 @@ const val MAX_FILE_BYTES = 100L * 1024 * 1024
 @Serializable
 private data class EntryFields(
     val text: String? = null, val clientNonce: String? = null, val status: String? = null,
+    val editedAt: Long? = null,
     val final: Boolean? = null, val title: String? = null, val command: String? = null,
     val detail: String? = null, val output: String? = null, val author: String? = null,
     val options: List<PermissionChoice>? = null, val reactions: List<String>? = null,

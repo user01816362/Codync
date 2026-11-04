@@ -1,7 +1,7 @@
 import { FileDownloadCard } from './FileDownloadCard'
 import { ArtifactCard } from '../library/ArtifactCard'
 import { memo, useRef, useState } from 'react'
-import { groupBotReactions, isGroup, isReplyable, isWorking, type Bot, type Entry, type ReplyQuote } from '@shared/models'
+import { groupBotReactions, isEditable, isGroup, isReplyable, isWorking, type Bot, type Entry, type ReplyQuote } from '@shared/models'
 import { BotAvatar } from '../../components/Avatar'
 import { Button, IconButton } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
@@ -25,24 +25,27 @@ export function reactionPick(store: BotStore, entry: Entry): ReactionPick {
 }
 
 /** One chat-visible entry, with what can be done to it. */
-export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrace, onReply, openAgent, openArtifact }: {
+export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrace, onReply, onEdit, openAgent, openArtifact }: {
   entry: Entry
   groupStart: boolean
   chat: Bot | null
   openTrace: () => void
   /** Quotes this message in the composer; absent where the computer can't take replies. */
   onReply?: (e: Entry) => void
+  /** Opens this sent message in the composer; its edit is answered again. */
+  onEdit?: (e: Entry) => void
   /** Opens a bot's Agent settings (a failure notice's "Add a fallback"). */
   openAgent?: (botId: string) => void
   /** Opens an artifact card's artifact over the chat. */
   openArtifact?: (artifactId: string) => void
 }) {
   const reply = onReply && isReplyable(entry) ? () => onReply(entry) : undefined
+  const edit = onEdit && !(chat && isGroup(chat)) && isEditable(entry) ? () => onEdit(entry) : undefined
   switch (entry.kind) {
     case 'user':
       return (
         <VStack align="flex-end" gap={4} className={groupStart ? 'chat-row group-start' : 'chat-row'}>
-          <UserBubble entry={entry} botWorking={!!chat && isWorking(chat)} reply={reply} />
+          <UserBubble entry={entry} botWorking={!!chat && isWorking(chat)} reply={reply} edit={edit} />
           <ReactionsRow entry={entry} />
         </VStack>
       )
@@ -120,7 +123,7 @@ export function TimeSeparator({ date }: { date: number }) {
 
 const fullDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export function UserBubble({ entry, botWorking, reply }: { entry: Entry; botWorking: boolean; reply?: () => void }) {
+export function UserBubble({ entry, botWorking, reply, edit }: { entry: Entry; botWorking: boolean; reply?: () => void; edit?: () => void }) {
   const store = useStore()
   const [hovering, setHovering] = useState(false)
   const status = entry.data.status
@@ -136,15 +139,16 @@ export function UserBubble({ entry, botWorking, reply }: { entry: Entry; botWork
             items={() => [
               { title: 'Copy', icon: 'square.on.square', action: copy },
               ...(reply ? [{ title: 'Reply', icon: 'arrowshape.turn.up.left', action: reply }] : []),
+              ...(edit ? [{ title: 'Edit', icon: 'pencil', action: edit }] : []),
             ]}
           >
             {entry.data.replyTo ? <QuoteRow quote={entry.data.replyTo} /> : null}
             {entry.data.text}
           </Bubble>
         ) : null}
-        {status && status !== 'sent' ? <UserStatus entry={entry} botWorking={botWorking} hovering={hovering} /> : null}
+        {(status && status !== 'sent') || entry.data.editedAt ? <UserStatus entry={entry} botWorking={botWorking} hovering={hovering} /> : null}
         {/* Beside the bubble, inside its hover region: showing them never changes the height. */}
-        <MessageActions className="leading" visible={hovering} reactions={reactionPick(store, entry)} reply={reply} copy={copy} />
+        <MessageActions className="leading" visible={hovering} reactions={reactionPick(store, entry)} reply={reply} edit={edit} copy={copy} />
       </div>
     </div>
   )
@@ -169,7 +173,7 @@ function UserStatus({ entry, botWorking, hovering }: { entry: Entry; botWorking:
     case 'cancelled':
       return <Text size="caption2" tone="tertiary">{tr(`Not sent — stopped`)}</Text>
     default:
-      return <Text size="caption" tone="tertiary" className={hovering ? 'user-status-time shown' : 'user-status-time'}>{relativeTime.time(entry.createdAt)}</Text>
+      return <Text size="caption" tone="tertiary" className={hovering || entry.data.editedAt ? 'user-status-time shown' : 'user-status-time'}>{entry.data.editedAt ? (hovering ? `${tr('Edited')} · ${relativeTime.time(entry.createdAt)}` : tr('Edited')) : hovering ? relativeTime.time(entry.createdAt) : ''}</Text>
   }
 }
 
@@ -265,12 +269,13 @@ export function ReactionsRow({ entry }: { entry: Entry }) {
   )
 }
 
-/** Compact actions beside the bubble: a reaction strip, reply, and more (copy, what it did). */
-function MessageActions({ visible, className, reactions, reply, trace, copy }: {
+/** Compact actions beside the bubble: a reaction strip, reply, edit, and more (copy, what it did). */
+function MessageActions({ visible, className, reactions, reply, edit, trace, copy }: {
   visible: boolean
   className: string
   reactions: ReactionPick
   reply?: () => void
+  edit?: () => void
   trace?: () => void
   copy: () => void
 }) {
@@ -284,6 +289,7 @@ function MessageActions({ visible, className, reactions, reply, trace, copy }: {
         <Icon name="face.smiling" size={14} />
       </button>
       {reply ? <IconButton title="Reply" icon="arrowshape.turn.up.left" size={26} onClick={reply} /> : null}
+      {edit ? <IconButton title="Edit" icon="pencil" size={26} onClick={edit} /> : null}
       <button ref={more} className="message-action" title="More message actions" aria-label="More message actions" onClick={() => setMenu('more')}>
         <Icon name="ellipsis" size={14} />
       </button>

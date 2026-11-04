@@ -123,6 +123,20 @@ export class BotStore extends BotSync {
     this.scheduleSave()
   }
 
+  /** Edits one of the user's sent messages; the bot answers the edited version again. Whether it went through. */
+  async edit(entry: Entry, text: string) {
+    const trimmed = text.trim()
+    if (!trimmed || this.retired) return false
+    try {
+      this.upsert(await this.withLink((c) => c.editMessage(entry.botId, entry.id, trimmed), true))
+      this.changed()
+      return true
+    } catch (error) {
+      this.setError(error instanceof Error ? error.message : String(error))
+      return false
+    }
+  }
+
   private markLocal(nonce: string, botId: string, status: string) {
     const list = this.entries.get(botId)
     const i = list?.findIndex((e) => e.id === `local-${nonce}`) ?? -1
