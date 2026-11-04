@@ -43,10 +43,10 @@ pub fn edit(hub: &Arc<Hub>, cfg: &BotConfig, id: &str, text: &str) -> Result<Ent
     let before = before.ok_or_else(|| anyhow!("unknown message"))?;
     match before.data["status"].as_str() {
         None | Some("sent") => {}
-        Some("queued") | Some("sending") => bail!("this message is still waiting to be sent"),
+        Some("queued" | "sending") => bail!("this message is still waiting to be sent"),
         Some(_) => bail!("this message wasn't sent"),
     }
-    if text.is_empty() && before.data["attachments"].as_array().is_none_or(|a| a.is_empty()) {
+    if text.is_empty() && before.data["attachments"].as_array().is_none_or(Vec::is_empty) {
         bail!("empty message");
     }
     // Sent again unchanged (a retried request): the message is already right, and it needs no second answer.
