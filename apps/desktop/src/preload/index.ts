@@ -58,6 +58,8 @@ const bridge: CodyncBridge = {
     onChange: (cb) => listen('host:change', cb),
     install: () => ipcRenderer.send('host:install'),
     restart: () => ipcRenderer.send('host:restart'),
+    keepRunningAfterQuit: () => ipcRenderer.invoke('host:keepRunningAfterQuit') as Promise<boolean>,
+    setKeepRunningAfterQuit: (on) => ipcRenderer.invoke('host:setKeepRunningAfterQuit', on) as Promise<boolean>,
     async call(baseURL, token, method, body, timeoutMs) {
       const result = (await ipcRenderer.invoke('host:call', baseURL, token, method, body, timeoutMs)) as
         | { ok: true; value: unknown }

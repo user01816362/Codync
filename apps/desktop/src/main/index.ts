@@ -167,6 +167,11 @@ function registerIPC(tray: Tray) {
   })
   ipcMain.on('app:debugOpen', (e) => (e.returnValue = app.isPackaged ? null : (process.env.CODYNC_DEBUG_OPEN ?? null)))
   ipcMain.handle('host:snapshot', () => snapshot())
+  ipcMain.handle('host:keepRunningAfterQuit', () => host.keepRunningAfterQuit())
+  ipcMain.handle('host:setKeepRunningAfterQuit', (_e, on: boolean) => {
+    host.setKeepRunningAfterQuit(on === true)
+    return host.keepRunningAfterQuit()
+  })
   ipcMain.on('host:install', () => void host.install())
   ipcMain.on('host:restart', () => host.restart())
   ipcMain.on('app:openExternal', (_e, url: string) => {
@@ -276,11 +281,13 @@ if (yieldsToInstall()) {
     })
     // Quitting ends the host too: no background service outlives the app, or starts again at sign-in without
     // it. The next launch installs it again. Quitting waits for the service to go, so nothing is left behind.
+    // Settings → General can keep the host running instead (`host.keepRunningAfterQuit()`).
     // Registered here, not at startup: a second instance that loses the single-instance lock must not stop the
     // host the running one is using.
     let quitState: 'idle' | 'stopping' | 'stopped' = 'idle'
     app.on('before-quit', (event) => {
       if (quitState === 'stopped') return
+      if (host.keepRunningAfterQuit()) return
       event.preventDefault()
       if (quitState === 'stopping') return
       quitState = 'stopping'

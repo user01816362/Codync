@@ -138,6 +138,8 @@ function GeneralSettings() {
   useEffect(() => void window.codync.app.showInDock().then(setShowInDock), [])
   const [launchAtLogin, setLaunchAtLogin] = useState(false)
   useEffect(() => void window.codync.app.launchAtLogin().then(setLaunchAtLogin), [])
+  const [keepRunning, setKeepRunning] = useState(false)
+  useEffect(() => void window.codync.host.keepRunningAfterQuit().then(setKeepRunning), [])
   const [island, setIsland] = useState(false)
   useEffect(() => void window.codync.island.enabled().then(setIsland), [])
   const [voiceShortcut, setVoiceShortcut] = useState<VoiceShortcut>('off')
@@ -231,6 +233,12 @@ function GeneralSettings() {
         <Switch on={launchAtLogin} onChange={(on) => void window.codync.app.setLaunchAtLogin(on).then(setLaunchAtLogin)}>
           Open at login
         </Switch>
+        <SwitchRow
+          title="Keep the host running after quitting"
+          detail="Off, quitting also stops this computer's host. On, bots keep working after the window closes."
+          on={keepRunning}
+          onChange={(on) => void window.codync.host.setKeepRunningAfterQuit(on).then(setKeepRunning)}
+        />
       </CardSection>
       <PrivacySettings />
       <HiddenBotsSection />

@@ -1819,5 +1819,7 @@
   "Update Codync on {host}: sending now and taking back need {version} or newer.": "Aktualisiere Codync auf {host}: Jetzt senden und Zurücknehmen brauchen {version} oder neuer.",
   "Add {name} to your account first": "Füge {name} zuerst zu deinem Konto hinzu",
   "Your phone reaches {name} from anywhere through your account. Adding it also turns this on.": "Dein Telefon erreicht {name} von überall über dein Konto. Beim Hinzufügen wird dies auch aktiviert.",
-  "Use your own relay": "Eigenes Relay verwenden"
+  "Use your own relay": "Eigenes Relay verwenden",
+  "Keep the host running after quitting": "Host nach dem Beenden weiterlaufen lassen",
+  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "Aus: Beim Beenden wird auch der Host dieses Computers gestoppt. An: Deine Bots arbeiten nach dem Schließen des Fensters weiter."
 }

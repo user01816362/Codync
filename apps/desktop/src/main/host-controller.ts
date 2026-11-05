@@ -221,13 +221,23 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     return (await res.json()) as T
   }
 
+  /** Settings → General: whether quitting leaves this computer's host service in place. */
+  keepRunningAfterQuit() {
+    return prefs.get('hostKeepRunningAfterQuit') === true
+  }
+
+  setKeepRunningAfterQuit(on: boolean) {
+    prefs.set('hostKeepRunningAfterQuit', on)
+  }
+
   /**
    * Quitting the app ends this computer's host too: nothing of Codync keeps running (or stays reachable)
    * behind the person's back. The service is removed rather than only stopped, so launchd doesn't start it
    * again at sign-in; the next launch installs it again. A service belonging to another installation is
-   * left alone, as `uninstall` does.
+   * left alone, as `uninstall` does. Settings → General can keep the host running instead.
    */
   async stopForQuit(): Promise<void> {
+    if (this.keepRunningAfterQuit()) return
     this.quitting = true
     this.stopLoop()
     const bin = this.binary

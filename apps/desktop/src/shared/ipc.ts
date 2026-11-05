@@ -163,6 +163,9 @@ export interface CodyncBridge {
     onChange(cb: (s: HostSnapshot) => void): () => void
     install(): void
     restart(): void
+    /** Whether quitting leaves this computer's host service running (Settings → General). */
+    keepRunningAfterQuit(): Promise<boolean>
+    setKeepRunningAfterQuit(on: boolean): Promise<boolean>
     /** POST /api/<method> on a loopback host. Rejects with a `CallError`. */
     call(baseURL: string, token: string, method: string, body: unknown, timeoutMs: number): Promise<unknown>
     /** SSE on a loopback host: each `data:` line, then `onEnd` (with an error when it failed). */
