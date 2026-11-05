@@ -324,8 +324,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.";
         put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
     } else if f.current() == Field::Groups {
-        let line =
-            "Let this bot create group chats and add or remove their members. Deleting a group stays yours.";
+        let line = "Let this bot create group chats and add or remove their members. Deleting a group stays yours.";
         put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
     } else if f.current() == Field::Network {
         let line = tr("Offered to the network: bots on your other computers can see and message this bot.");

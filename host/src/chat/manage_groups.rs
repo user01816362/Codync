@@ -63,12 +63,8 @@ pub fn tools() -> Value {
 }
 
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
-    let source = hub
-        .store
-        .bot(bot)?
-        .filter(|r| !r.deleted && !r.config.is_group())
-        .map(|r| r.config)
-        .context("unknown bot")?;
+    let source =
+        hub.store.bot(bot)?.filter(|r| !r.deleted && !r.config.is_group()).map(|r| r.config).context("unknown bot")?;
     if !source.manage_groups {
         bail!("this bot may not manage groups: the user turns that on in its settings");
     }
@@ -228,11 +224,9 @@ fn describe(hub: &Hub, group: &BotConfig, before: Option<&BotConfig>) -> String 
 fn ids(value: &Value) -> Result<Vec<String>> {
     match value {
         Value::Null => Ok(vec![]),
-        Value::Array(list) => list
-            .iter()
-            .map(|v| v.as_str().map(|s| s.trim().to_owned()).context("member ids must be strings"))
-            .collect(),
+        Value::Array(list) => {
+            list.iter().map(|v| v.as_str().map(|s| s.trim().to_owned()).context("member ids must be strings")).collect()
+        }
         _ => bail!("member ids must be a list of strings"),
     }
 }
-

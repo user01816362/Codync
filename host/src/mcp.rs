@@ -84,7 +84,9 @@ pub async fn serve(bot: String, port: u16, server: Server) -> Result<()> {
         }
         Server::Team => ("codync-team", crate::chat::team::INSTRUCTIONS, crate::chat::team::tools()),
         Server::Manage => ("codync-manage", crate::chat::manage::INSTRUCTIONS, crate::chat::manage::tools()),
-        Server::Groups => ("codync-groups", crate::chat::manage_groups::INSTRUCTIONS, crate::chat::manage_groups::tools()),
+        Server::Groups => {
+            ("codync-groups", crate::chat::manage_groups::INSTRUCTIONS, crate::chat::manage_groups::tools())
+        }
         Server::Memory => ("codync-memory", crate::chat::memory::INSTRUCTIONS, crate::chat::memory::tools()),
         Server::Composio => {
             ("codync-composio", crate::market::composio::INSTRUCTIONS, crate::market::composio::tools())

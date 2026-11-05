@@ -67,8 +67,7 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             crate::chat::manage::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"]).await?
         }
         "manageGroupsCall" => {
-            crate::chat::manage_groups::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"])
-                .await?
+            crate::chat::manage_groups::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"]).await?
         }
         "history" => {
             let bot = str_arg(&b, "botId")?;
