@@ -103,6 +103,7 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, busy: B
     val units = mutableListOf<Pair<Long, Any>>()
     var run = mutableListOf<BotExchange>()
     val marks = mutableMapOf<String, Pair<List<Entry>, Int>>()
+    fun flush() { if (run.isNotEmpty()) { units += run.first().createdAt to BotExchangeGroup(run); run = mutableListOf() } }
     fun show(entry: Entry, at: Long = entry.createdAt) {
         val exchange = BotExchange.of(entry)
         if (exchange == null) { flush(); units += at to entry; return }
@@ -219,8 +220,9 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
 
 /** The arrows through a message's edits: one version and the answer it got at a time. */
 @Composable private fun VersionSwitch(versions: List<Entry>, index: Int, pick: (Entry) -> Unit) {
+    val label = tr("Version {n} of {count}").replace("{n}", "${index + 1}").replace("{count}", "${versions.size}")
     Row(Modifier.padding(end = 4.dp)
-        .semantics(mergeDescendants = true) { contentDescription = tr("Version {n} of {count}").replace("{n}", "${index + 1}").replace("{count}", "${versions.size}") },
+        .semantics(mergeDescendants = true) { contentDescription = label },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         IconButton("Previous version", "chevron.left", enabled = index > 0) { pick(versions[index - 1]) }
         Text("${index + 1}/${versions.size}", style = Type.caption2, color = Palette.tertiary)
