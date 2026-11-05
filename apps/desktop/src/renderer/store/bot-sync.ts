@@ -253,6 +253,11 @@ export class BotSync extends BotMirror {
         if (this.selection === event.id) this.selection = null
         this.onRosterChanged?.()
         break
+      case 'chatCleared':
+        this.entries.delete(event.botId)
+        this.floors.delete(event.botId)
+        this.bump(event.rev)
+        break
       case 'entry':
         // Old entries re-stamped by the host (new rev) belong to history paging, not the live window.
         if (!this.isBelowFloor(event.entry)) this.upsert(event.entry)

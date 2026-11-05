@@ -278,6 +278,14 @@
 .user-status-time.shown {
   opacity: 1;
 }
+/* The arrows through an edited message's versions. */
+.message-versions {
+  margin-inline-end: 8px;
+  opacity: 0.85;
+}
+.message-versions:hover {
+  opacity: 1;
+}
 .message-actions {
   position: absolute;
   bottom: 0;

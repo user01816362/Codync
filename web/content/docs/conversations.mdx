@@ -95,6 +95,18 @@ You can reply to any of your messages or any message from the bot. The reply goe
 
 While you reply, the box shows the quote above it and reads "Reply…". The bot gets the quoted text with your reply, so it knows what you mean even when that message is from an earlier session.
 
+## Editing a message
+
+You can change a message you sent and have the bot answer the new version. The message keeps its place in the chat; the earlier versions and their answers stay behind it.
+
+- **iPhone and Android:** touch and hold your message, then **Edit**.
+- **Desktop:** hover your message and click **Edit**, or right-click it.
+- **Terminal UI:** pick the message (`v`), press `e`, change the text and press Enter.
+
+The message is marked **Edited**, and the bot answers it in a new turn. The arrows under it walk through its versions: each shows that version and the answer it got. Files stay with the message; a message a voice call carried can't be edited. Earlier versions stay out of search, memory and the Library.
+
+Only a bot's own chat can be edited this way: a group's messages can't.
+
 ## Reactions
 
 - **iPhone:** touch and hold a message; the reactions are at the top of the menu.
@@ -110,7 +122,7 @@ Type `/` at the start of a message to see the bot's commands:
 - `/fast`: turns [Fast mode](/docs/agents#models-and-options) on or off, when the bot's agent offers it.
 - `/` followed by a skill's ID: tells the bot to read that skill first and follow it for this message. The bot's skills are listed after the built-in commands.
 
-Any other `/command` goes to the agent unchanged, so the agent's own commands keep working. There's no command to start a new session: Codync starts one on its own when a conversation needs it. See [Bots](/docs/bots#sessions).
+Any other `/command` goes to the agent unchanged, so the agent's own commands keep working. There's no command to start a new session: Codync starts one on its own when a conversation needs it, or you can clear the chat. See [Bots](/docs/bots#sessions).
 
 ## Fresh conversations
 
@@ -125,6 +137,16 @@ Before your next message, you can:
 - **Terminal UI:** pick the card (`v`), then `o` to show what it carries, `e` to edit it, or `K` to keep the conversation.
 
 Afterwards the card folds into one line that unfolds to what was carried.
+
+## Clearing a chat
+
+To start a bot's conversation from nothing, clear its chat:
+
+- **iPhone and Android:** touch and hold the bot in the bot list, then **Clear chat**.
+- **Desktop:** right-click the bot in the sidebar, then **Clear chat**.
+- **Terminal UI:** select the bot and press `E`.
+
+Its messages are removed on every device and the bot starts a new conversation. Its memory, files and Library stay. Clearing can't be undone.
 
 ## Notifications
 

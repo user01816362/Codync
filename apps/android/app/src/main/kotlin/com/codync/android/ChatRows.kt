@@ -69,26 +69,55 @@ import kotlinx.serialization.json.longOrNull
 internal sealed interface ChatItem {
     val id: String
     data class Separator(override val id: String, val at: Long) : ChatItem
-    data class Message(override val id: String, val entry: Entry, val groupStart: Boolean) : ChatItem
+    data class Message(override val id: String, val entry: Entry, val groupStart: Boolean,
+        val versions: List<Entry>? = null, val versionIndex: Int? = null) : ChatItem
     data class Pending(override val id: String, val send: PendingSend, val groupStart: Boolean) : ChatItem
     /** Consecutive bot-to-bot exchanges with one peer, as one line. */
     data class Exchanges(override val id: String, val group: BotExchangeGroup) : ChatItem
 }
 
-/** Chat-visible entries plus time separators (gaps over an hour) and author grouping. */
-internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<ChatItem> {
+/**
+ * Chat-visible entries plus time separators (gaps over an hour) and author grouping. An edited message is one
+ * slot: it shows the version the reader picked (`picked`, by its first entry's id; the newest by default) and
+ * that version's answers, where the message first was.
+ */
+internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, picked: Map<String, VersionPick> = emptyMap()): List<ChatItem> {
     val out = mutableListOf<ChatItem>()
     var last: Long? = null
     var author: String? = null
+    val groups = messageVersions(entries)
+    val editedTurns = groups.values.flatMap { it.versions }.map { it.turn }.toSet()
+    // Each edited version's answer shares its turn, and is shown with the version instead of at the end of the chat.
+    val answers = mutableMapOf<Long, MutableList<Entry>>()
+    for (entry in entries) if (entry.kind != "user" && entry.turn in editedTurns) answers.getOrPut(entry.turn) { mutableListOf() } += entry
+    val visible = entries.filter { entry ->
+        // Where the message is shown, even when its first version is older than what the chat loaded.
+        if (groups.containsKey(entry.id)) true
+        else if (entry.kind == "user" && entry.editOf != null) false
+        // Left behind by an edit: its version and answer stand behind the arrows.
+        else if (entry.superseded) false
+        else entry.turn !in editedTurns
+    }
     // Exchanges with the same peer in a row collapse into one line; anything shown in between ends the run.
     val units = mutableListOf<Pair<Long, Any>>()
     var run = mutableListOf<BotExchange>()
+    val marks = mutableMapOf<String, Pair<List<Entry>, Int>>()
     fun flush() { if (run.isNotEmpty()) { units += run.first().createdAt to BotExchangeGroup(run); run = mutableListOf() } }
-    for (entry in entries) {
+    fun show(entry: Entry, at: Long = entry.createdAt) {
         val exchange = BotExchange.of(entry)
-        if (exchange == null) { flush(); units += entry.createdAt to entry; continue }
+        if (exchange == null) { flush(); units += at to entry; return }
         if (run.isNotEmpty() && run.last().peerId != exchange.peerId) flush()
         run += exchange
+    }
+    for (entry in visible) {
+        val group = groups[entry.id]
+        if (group == null) { show(entry); continue }
+        // The chosen version and its answer, kept together where the message first was.
+        val chosen = group.selected(picked[group.anchor.id])
+        marks[chosen.id] = group.versions to group.versions.indexOf(chosen)
+        show(chosen, group.anchor.createdAt)
+        // With the version they answer, so the pair stays in the place the message was first sent.
+        for (answer in answers[chosen.turn].orEmpty()) show(answer, group.anchor.createdAt)
     }
     flush()
     val slots = units + pending.filter { send -> entries.none { it.clientNonce == send.nonce } }.map { it.createdAt to it }
@@ -101,7 +130,8 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
         when (slot) {
             is Entry -> {
                 val who = when (slot.kind) { "user" -> "user"; "agent" -> "agent:" + slot.data.text("author").orEmpty(); else -> slot.kind }
-                out += ChatItem.Message(id, slot, who != author)
+                val mark = marks[slot.id]
+                out += ChatItem.Message(id, slot, who != author, mark?.first, mark?.second)
                 author = if (who == "user" || slot.kind == "agent") who else null
             }
             is PendingSend -> { out += ChatItem.Pending(id, slot, author != "user"); author = "user" }
@@ -118,14 +148,18 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
 }
 
 /** One chat-visible entry, with what can be done to it. `reply` quotes it in the composer; `addFallback` opens a bot's fallbacks;
- *  `openArtifact` opens an artifact card's artifact. */
+ *  `openArtifact` opens an artifact card's artifact. `versions` are an edited message's versions, the one shown at `versionIndex`. */
 @Composable internal fun ChatRow(entry: Entry, groupStart: Boolean, chat: Bot?, state: AppState, store: AppStore,
-    openTrace: () -> Unit, reply: (() -> Unit)?, edit: (() -> Unit)?, connect: ConnectionRequestActions, addFallback: (Bot) -> Unit, openArtifact: (OpenArtifact) -> Unit) {
+    openTrace: () -> Unit, reply: (() -> Unit)?, edit: (() -> Unit)?, connect: ConnectionRequestActions, addFallback: (Bot) -> Unit, openArtifact: (OpenArtifact) -> Unit,
+    versions: List<Entry>? = null, versionIndex: Int? = null, pickVersion: ((Entry) -> Unit)? = null) {
     val group = chat?.kind == "group"
     when (entry.kind) {
         "user" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             UserBubble(entry, state, store, reply, edit)
+            if (versions != null && versions.size > 1 && versionIndex != null && pickVersion != null) {
+                VersionSwitch(versions, versionIndex, pickVersion)
+            }
             ReactionsRow(entry, state, store)
         }
         "agent" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
@@ -182,6 +216,17 @@ private fun reactionPick(entry: Entry, store: AppStore) = ReactionPick(quickReac
 }
 
 internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonArray)?.map { it.jsonPrimitive.content }.orEmpty()
+
+/** The arrows through a message's edits: one version and the answer it got at a time. */
+@Composable private fun VersionSwitch(versions: List<Entry>, index: Int, pick: (Entry) -> Unit) {
+    Row(Modifier.padding(end = 4.dp)
+        .semantics(mergeDescendants = true) { contentDescription = tr("Version {n} of {count}").replace("{n}", "${index + 1}").replace("{count}", "${versions.size}") },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        IconButton("Previous version", "chevron.left", enabled = index > 0) { pick(versions[index - 1]) }
+        Text("${index + 1}/${versions.size}", style = Type.caption2, color = Palette.tertiary)
+        IconButton("Next version", "chevron.right", enabled = index < versions.size - 1) { pick(versions[index + 1]) }
+    }
+}
 
 @Composable private fun UserBubble(entry: Entry, state: AppState, store: AppStore, reply: (() -> Unit)?, edit: (() -> Unit)?) {
     val context = LocalContext.current

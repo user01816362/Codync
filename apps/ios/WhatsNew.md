@@ -6,13 +6,11 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.38.0
+## 2.39.0
 ### zh-Hant
-- 介面新增巴西葡萄牙文：可在設定選擇「Português (Brasil)」，或跟隨系統的葡萄牙文語言。
-- 新增俄文介面：在設定選擇「Русский」，或跟隨系統的俄文語言。
-- 用 QR Code 配對時，如果電腦當下沒能加入你的帳號（例如手機連不上 Codync 雲端，或電腦的雲端關著），下次連上時會自動補上。
+- 可以編輯已送出的訊息，讓機器人回答修改後的版本；用訊息下方的箭頭查看前後版本和各自得到的回答。
+- 可以清除對話，讓機器人從頭開始；它的記憶、檔案和資料庫都會保留。
 
 ### en-US
-- Choose Português (Brasil) in Settings, or follow your Portuguese system language.
-- Choose Русский in Settings, or follow your Russian system language.
-- A computer you pair with a QR code that couldn't join your account at the time (the phone couldn't reach the Codync cloud, or the computer's cloud was off, say) joins it the next time it connects.
+- Edit a message you sent and the bot answers the changed version; the arrows under it walk through its versions and the answers they got.
+- Clear a chat to start the bot's conversation over; its memory, files and Library stay.

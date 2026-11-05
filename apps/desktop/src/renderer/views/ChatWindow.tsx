@@ -209,6 +209,7 @@ function ChatSplitView() {
   const [naming, setNaming] = useState<SectionNaming | null>(null)
   const [editing, setEditing] = useState<EditTarget | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<BotTarget | null>(null)
+  const [confirmClear, setConfirmClear] = useState<BotTarget | null>(null)
   const [marketplace, setMarketplace] = useState<string | null>(null)
   const [settings, setSettings] = useState<SettingsPage | null>(null)
   const openVoiceSettings = useCallback(() => setSettings('voice'), [])
@@ -306,6 +307,7 @@ function ChatSplitView() {
     { title: 'Copy conversation ID', icon: 'square.on.square', action: () => window.codync.app.copy(bot.id) },
     ...makeLeadItems(bot, store),
     ...(bot.lead ? [] : [{ title: 'Hide from sidebar', icon: 'eye.slash', action: () => store.setHidden(bot, true) }]),
+    { title: 'Clear chat', icon: 'eraser', destructive: true, action: () => setConfirmClear({ bot, store }) },
     ...(offersDelete(bot, store) ? [{ title: 'Delete', icon: 'trash', destructive: true, action: () => setConfirmDelete({ bot, store }) }] : []),
   ]
 
@@ -483,6 +485,13 @@ function ChatSplitView() {
       <Sheet open={settings !== null} onClose={() => setSettings(null)} width={Math.min(800, windowSize.width - 80)} height={Math.min(620, sheetHeight)}>
         {settings ? <SettingsView page={settings} setPage={setSettings} /> : null}
       </Sheet>
+      <Dialog
+        open={confirmClear !== null}
+        title={tr('Clear this chat?')}
+        message={tr('Its messages go and the bot starts a new conversation. Its memory and files stay.')}
+        actions={confirmClear ? [{ title: 'Clear chat', destructive: true, action: () => confirmClear.store.clearChat(confirmClear.bot) }] : []}
+        onClose={() => setConfirmClear(null)}
+      />
       <Dialog
         open={confirmDelete !== null}
         title={`Delete ${confirmDelete?.bot.name ?? 'bot'}?`}

@@ -96,6 +96,15 @@ fun AppStore.discard(send: PendingSend) = action("discard:" + send.nonce) {
     refresh()
 }
 
+/** Empties the chat: its messages go and the bot starts a new conversation. Its memory and files stay. */
+fun AppStore.clearChat(bot: Bot) = action("clear:" + bot.id) {
+    val active = ready()
+    active.call("clearChat", body("botId" to bot.id))
+    // The event says so too; dropping them now takes the screen straight there.
+    withContext(Dispatchers.IO) { requireNotNull(database).clearChat(bot.id) }
+    refresh()
+}
+
 /** Edits one of the user's sent messages; the bot answers the edited version again. [done] runs once it went through. */
 fun AppStore.edit(entry: Entry, text: String, done: () -> Unit) {
     val trimmed = text.trim()

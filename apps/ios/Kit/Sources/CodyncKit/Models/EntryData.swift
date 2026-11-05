@@ -22,8 +22,13 @@ public struct EntryData: Codable, Hashable, Sendable {
     /// user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired
     public var status: String?
     public var clientNonce: String?
-    /// user: when the message was edited (ms); the chat marks it "Edited" and its new answer comes after it.
+    /// user: when the message was edited (ms); the chat marks it "Edited".
     public var editedAt: Int64?
+    /// user: this message's place among its edits (1 for the first) and the id of that first version.
+    public var version: Int?
+    public var editOf: String?
+    /// An older version of an edited message, or an answer it got: kept behind the version arrows and out of memory.
+    public var superseded: Bool?
     public var title: String?
     public var toolKind: String?
     /// tool: whether it's the bot's own bookkeeping (composing its message, keeping its memory), left out of the

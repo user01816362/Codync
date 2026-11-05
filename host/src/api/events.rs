@@ -66,6 +66,9 @@ pub fn events_stream(
     for e in hub.store.entries_since(since, CATCH_UP_PER_BOT)? {
         catch_up.push(json!({"type": "entry", "rev": e.rev, "entry": e}));
     }
+    for (bot_id, rev) in hub.store.clears_since(since)? {
+        catch_up.push(json!({"type": "chatCleared", "rev": rev, "botId": bot_id}));
+    }
     catch_up.extend(crate::chat::artifacts::since(&hub.store, since));
     let icons = crate::icons::snapshot(&hub.store)?;
     catch_up.push(json!({"type": "icons", "icons": icons.icons, "iconsRevision": icons.icons_revision}));

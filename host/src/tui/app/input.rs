@@ -19,6 +19,8 @@ impl App {
         let s = s.replace("\r\n", "\n").replace('\r', "\n");
         if let Some(ed) = self.top_editor() {
             ed.insert(&s);
+        } else if let Some(id) = self.editing.clone() {
+            self.drafts.entry(Self::edit_key(&id)).or_default().insert(&s);
         } else if let Some(key) = self.selected.clone() {
             self.typing = true;
             self.focus = Focus::Chat;
@@ -90,19 +92,40 @@ impl App {
             self.typing = false;
             return;
         };
-        if self.slash_key(k) {
+        // The message being edited has its own draft beside the chat's; slash commands and files wait until it's sent.
+        let editing = self.editing.clone();
+        if editing.is_none() && self.slash_key(k) {
             return;
         }
         let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
         let newline = k.modifiers.intersects(KeyModifiers::SHIFT | KeyModifiers::ALT);
-        let reply = self.reply.clone();
-        let draft = self.drafts.entry(key.clone()).or_default();
+        let reply = if editing.is_some() { None } else { self.reply.clone() };
+        let draft_key = editing.as_deref().map_or_else(|| key.clone(), Self::edit_key);
+        let draft = self.drafts.entry(draft_key).or_default();
         match k.code {
-            KeyCode::Esc => self.typing = false,
+            KeyCode::Esc => {
+                self.typing = false;
+                self.cancel_edit();
+            }
             KeyCode::Enter if newline => draft.insert("\n"),
             KeyCode::Char('j') if ctrl => draft.insert("\n"),
             KeyCode::Enter => {
                 let text = draft.text.trim().to_owned();
+                if let Some(id) = editing.clone() {
+                    // An edit carries no files, reply or commands; the host answers the edited version again.
+                    if text.is_empty() {
+                        return;
+                    }
+                    if let Some(m) = &self.mismatch {
+                        let why = mismatch_text(m, &self.host);
+                        self.flash(&why);
+                        return;
+                    }
+                    self.chat_scroll = 0;
+                    self.call("editMessage", json!({"botId": key, "id": id, "text": text}), After::Edited(id));
+                    self.flash("Saving… Your draft stays here until it's sent.");
+                    return;
+                }
                 let files = self.files.get(&key).cloned().unwrap_or_default();
                 if text.is_empty() && files.is_empty() {
                     return;
@@ -145,7 +168,7 @@ impl App {
                 }
                 self.flash("Sending… Your draft stays here until delivered.");
             }
-            KeyCode::Backspace if draft.text.is_empty() => {
+            KeyCode::Backspace if draft.text.is_empty() && editing.is_none() => {
                 if let Some(files) = self.files.get_mut(&key) {
                     files.pop();
                 }
@@ -167,7 +190,9 @@ impl App {
                 draft.key(k);
             }
         }
-        self.slash_typed();
+        if self.editing.is_none() {
+            self.slash_typed();
+        }
     }
 
     pub(super) fn scroll_chat(&mut self, delta: isize) {
@@ -331,6 +356,7 @@ impl App {
                 }
             }
             KeyCode::Char('*') => self.make_lead(),
+            KeyCode::Char('E') if !roster_page => self.ask_clear_chat(),
             KeyCode::Char('x') => {
                 // An older host keeps its lead.
                 let kept = self.bot().is_some_and(|b| b.lead) && !self.lead_choice_supported();

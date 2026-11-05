@@ -1,39 +1,94 @@
 import { useRef } from 'react'
 import type { Entry } from '@shared/models'
-import { groupExchanges, type BotExchange, type ChatSlot } from './bot-exchange'
+import { groupExchanges, type BotExchange, type ChatSlot } from './bot-exchange.ts'
+import { selectedVersion, versionGroups, type VersionPick } from './message-versions.ts'
 
 export type ChatItem =
   | { id: string; kind: 'separator'; date: number }
-  | { id: string; kind: 'entry'; entry: Entry; groupStart: boolean }
+  /** `versions`: a message the user edited, and where `entry` (the version shown) sits among them. */
+  | { id: string; kind: 'entry'; entry: Entry; groupStart: boolean; versions?: Entry[]; versionIndex?: number }
   | { id: string; kind: 'exchanges'; entry: Entry; exchanges: BotExchange[] }
 
 /**
  * Chat-visible entries plus time separators (gaps > 1 h) and author grouping. A bot's messages
  * arrive whole (Grok Bot's `send_message`); what it writes along the way is trace. Runs of bot
  * exchanges with one peer fold into one item.
+ *
+ * An edited message is one slot: it shows the version the reader picked (`picked`, by its first entry's id;
+ * the newest by default) and that version's answers, where the message first was.
  */
-export function buildChat(entries: Entry[]): ChatItem[] {
+export function buildChat(entries: Entry[], picked: ReadonlyMap<string, VersionPick> = new Map()): ChatItem[] {
   const out: ChatItem[] = []
   let lastDate: number | null = null
   let lastAuthor: string | null = null
-  const slots: ChatSlot[] = groupExchanges(entries)
-  for (const { entry: e, exchanges } of slots) {
+
+  const groups = versionGroups(entries)
+  const editedTurns = new Set<number>()
+  for (const group of groups.values()) {
+    for (const version of group.versions) editedTurns.add(version.turn)
+  }
+  // Each edited version's answer shares its turn, and is shown with the version instead of at the end of the chat.
+  const answers = new Map<number, Entry[]>()
+  for (const e of entries) {
+    if (e.kind === 'user' || !editedTurns.has(e.turn)) continue
+    const list = answers.get(e.turn)
+    if (list) list.push(e)
+    else answers.set(e.turn, [e])
+  }
+  const visible = entries.filter((e) => {
+    // Where the message is shown, even when the first version is older than what the chat loaded.
+    if (groups.has(e.id)) return true
+    if (e.kind === 'user' && e.data.editOf) return false
+    // Left behind by an edit: its version and answer stand behind the arrows.
+    if (e.data.superseded) return false
+    return !editedTurns.has(e.turn)
+  })
+
+  const emit = (e: Entry, date: number, versions?: Entry[], versionIndex?: number) => {
     const id = e.kind === 'user' && e.data.clientNonce ? `user-${e.data.clientNonce}` : e.id
-    if (lastDate === null || e.createdAt - lastDate > 3_600_000) {
-      out.push({ id: `sep-${id}`, kind: 'separator', date: e.createdAt })
+    if (lastDate === null || date - lastDate > 3_600_000) {
+      out.push({ id: `sep-${id}`, kind: 'separator', date })
       lastAuthor = null
-    }
-    if (exchanges) {
-      out.push({ id, kind: 'exchanges', entry: e, exchanges })
-      lastAuthor = null
-      lastDate = e.createdAt
-      continue
     }
     // In a group each bot is its own author.
     const author = e.kind === 'user' ? 'user' : e.kind === 'agent' ? `agent:${e.data.author ?? ''}` : e.kind
-    out.push({ id, kind: 'entry', entry: e, groupStart: author !== lastAuthor })
+    out.push({ id, kind: 'entry', entry: e, groupStart: author !== lastAuthor, versions, versionIndex })
     lastAuthor = author === 'user' || e.kind === 'agent' ? author : null
-    lastDate = e.createdAt
+    lastDate = date
+  }
+
+  const emitSlot = (slot: ChatSlot, date: number, versions?: Entry[], versionIndex?: number) => {
+    const { entry: e, exchanges } = slot
+    if (!exchanges) {
+      emit(e, date, versions, versionIndex)
+      return
+    }
+    const id = e.kind === 'user' && e.data.clientNonce ? `user-${e.data.clientNonce}` : e.id
+    if (lastDate === null || date - lastDate > 3_600_000) {
+      out.push({ id: `sep-${id}`, kind: 'separator', date })
+      lastAuthor = null
+    }
+    out.push({ id, kind: 'exchanges', entry: e, exchanges })
+    lastAuthor = null
+    lastDate = date
+  }
+
+  for (const slot of groupExchanges(visible)) {
+    const { entry: e, exchanges } = slot
+    const group = exchanges ? undefined : groups.get(e.id)
+    if (!group) {
+      emitSlot(slot, e.createdAt)
+      continue
+    }
+    // The edited message and the answer of the version shown, in the place the message was first sent.
+    const chosen = selectedVersion(group, picked.get(group.anchor.id))
+    const index = group.versions.indexOf(chosen)
+    const shown: ChatSlot[] = groupExchanges([chosen, ...(answers.get(chosen.turn) ?? [])])
+    shown.forEach((part, i) => {
+      const first = i === 0
+      emitSlot(part, first ? group.anchor.createdAt : part.entry.createdAt,
+        first ? group.versions : undefined, first ? index : undefined)
+    })
   }
   return out
 }

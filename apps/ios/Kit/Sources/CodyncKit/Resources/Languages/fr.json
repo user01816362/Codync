@@ -1523,5 +1523,11 @@
   "Code {code} copied. Paste it on the sign-in page, then Enter checks. Ctrl+X cancels.": "Code {code} copié. Collez-le sur la page de connexion, puis Entrée pour vérifier. Ctrl+X pour annuler.",
   "Sign in instead of using a saved token": "Se connecter au lieu d’utiliser un jeton enregistré",
   "↵ sign in instead of the token": "↵ se connecter au lieu du jeton",
-  "Code {code} copied: paste it at {url}, then Enter checks. Ctrl+X cancels.": "Code {code} copié : collez-le sur {url}, puis Entrée pour vérifier. Ctrl+X pour annuler."
+  "Code {code} copied: paste it at {url}, then Enter checks. Ctrl+X cancels.": "Code {code} copié : collez-le sur {url}, puis Entrée pour vérifier. Ctrl+X pour annuler.",
+  "Clear chat": "Effacer la conversation",
+  "Clear this chat?": "Effacer cette conversation ?",
+  "Its messages go and the bot starts a new conversation. Its memory and files stay.": "Ses messages disparaissent et le bot commence une nouvelle conversation. Sa mémoire et ses fichiers restent.",
+  "Previous version": "Version précédente",
+  "Next version": "Version suivante",
+  "Version {n} of {count}": "Version {n} sur {count}"
 }

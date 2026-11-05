@@ -88,6 +88,8 @@ private class ComputerRoster(private val context: Context, val key: String) {
 @Composable internal fun BotListView(app: AccountContext, states: List<AppState>, accounts: AccountStore, account: () -> Unit, manage: () -> Unit,
     newBot: (String) -> Unit, newGroup: (String) -> Unit, edit: (String, Bot) -> Unit, extensions: (String) -> Unit, bottomInset: Dp) {
     var confirmDelete by remember { mutableStateOf<Pair<String, Bot>?>(null) }
+    // The chat to empty, once the user confirms.
+    var confirmClear by remember { mutableStateOf<Pair<String, Bot>?>(null) }
     var naming by remember { mutableStateOf<SectionNaming?>(null) }
     val context = LocalContext.current
     var folded by remember { mutableStateOf(FoldedSections.load(context)) }
@@ -170,10 +172,17 @@ private class ComputerRoster(private val context: Context, val key: String) {
                     rename = { name -> naming = SectionNaming("Rename section", name) { renameSection(roster, store, name, it) } },
                     remove = { name -> renameSection(roster, store, name, null) },
                     newSection = { bot -> naming = SectionNaming("New section", "") { store.setSection(bot.id, it) } },
-                    edit = { bot -> edit(id, bot) }, delete = { bot -> confirmDelete = id to bot }))
+                    edit = { bot -> edit(id, bot) }, delete = { bot -> confirmDelete = id to bot }, clear = { bot -> confirmClear = id to bot }))
             }
         }
         }
+    }
+    val clearing = confirmClear?.second
+    CodyncDialog("Clear this chat?", clearing != null, { confirmClear = null },
+        message = "Its messages go and the bot starts a new conversation. Its memory and files stay.") {
+        listOf(DialogAction("Clear chat", destructive = true) {
+            confirmClear?.let { (id, bot) -> accounts.store(id)?.clearChat(bot) }
+        })
     }
     val deleting = confirmDelete?.second
     CodyncDialog("Delete ${deleting?.name ?: "bot"}?", deleting != null, { confirmDelete = null },
@@ -200,7 +209,7 @@ private class ComputerRoster(private val context: Context, val key: String) {
 
 /** What a computer's rows and section headings ask of the roster. */
 private class RosterActions(val toggleSection: (String) -> Unit, val rename: (String) -> Unit, val remove: (String) -> Unit,
-    val newSection: (Bot) -> Unit, val edit: (Bot) -> Unit, val delete: (Bot) -> Unit)
+    val newSection: (Bot) -> Unit, val edit: (Bot) -> Unit, val delete: (Bot) -> Unit, val clear: (Bot) -> Unit)
 
 /** One computer's bots: pinned ones, then each section's heading with its bots (none while folded), then the bots in no section. */
 private fun LazyListScope.botLines(state: AppState, store: AppStore, roster: ComputerRoster, folded: Set<String>, grouped: Boolean, actions: RosterActions) {
@@ -224,7 +233,7 @@ private fun LazyListScope.botLines(state: AppState, store: AppStore, roster: Com
                     .then(if (lifted) Modifier.zIndex(1f).graphicsLayer { translationY = reorder.offset; scaleX = 1.02f; scaleY = 1.02f }
                         else Modifier.animateItem())) {
                     BotRowItem(bot, state, store, reorder.handle(bot.id) { store.reorder(it) }, sections, grouped, edit = { actions.edit(bot) },
-                        delete = { actions.delete(bot) }, newSection = { actions.newSection(bot) })
+                        delete = { actions.delete(bot) }, clear = { actions.clear(bot) }, newSection = { actions.newSection(bot) })
                 }
             }
         }
@@ -291,7 +300,7 @@ internal fun moved(roster: List<Bot>, id: String, offset: Int): List<String>? {
 private fun Bot.movesWith(other: Bot) = band == other.band && (pinned || section == other.section)
 
 @Composable private fun BotRowItem(bot: Bot, state: AppState, store: AppStore, drag: ContextDrag, sections: List<String>, grouped: Boolean,
-    edit: () -> Unit, delete: () -> Unit, newSection: () -> Unit) {
+    edit: () -> Unit, delete: () -> Unit, clear: () -> Unit, newSection: () -> Unit) {
     Box(Modifier.fillMaxWidth().contextActions(onClick = { store.openBot(bot.id) }, reorder = drag, preview = {
         Box(Modifier.padding(horizontal = 8.dp)) { BotRow(bot, state) }
     }) {
@@ -305,6 +314,7 @@ private fun Bot.movesWith(other: Bot) = band == other.band && (pinned || section
             MenuItem("Mark as read", icon = "checkmark.message") {
                 store.command("markRead", buildJsonObject { put("botId", bot.id) }, "roster:" + bot.id)
             },
+            MenuItem("Clear chat", icon = "eraser", destructive = true, action = clear),
             MenuItem("Make lead agent", icon = "star") {
                 store.command("setLead", buildJsonObject { put("botId", bot.id) }, "roster:" + bot.id)
             }.takeIf { !bot.lead && bot.kind != "group" && state.supportsLeadChoice },

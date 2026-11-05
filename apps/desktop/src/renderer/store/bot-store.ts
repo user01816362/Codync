@@ -364,6 +364,14 @@ export class BotStore extends BotSync {
     this.perform((c) => c.call('deleteBot', { botId: bot.id }), true)
   }
 
+  /** Empties the chat: its messages go and the bot starts a new conversation. Its memory and files stay. */
+  clearChat(bot: Bot) {
+    this.entries.delete(bot.id)
+    this.changed()
+    this.scheduleSave()
+    this.perform((c) => c.clearChat(bot.id), true)
+  }
+
   /** Creates a group chat (or opens the one these bots already share) and selects it. */
   async createGroup(name: string, description: string, members: string[]) {
     const draft: GroupDraft = { kind: 'group', name, description, members }

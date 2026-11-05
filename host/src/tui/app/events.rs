@@ -62,6 +62,21 @@ impl App {
                 }
             }
             Some("usage") => self.usage = v["usage"].clone(),
+            Some("chatCleared") => {
+                if let Some(id) = v["botId"].as_str() {
+                    // The chat starts over: its messages, its paging floors and the versions picked in it go.
+                    self.entries.remove(id);
+                    self.floors.remove(id);
+                    self.history_busy.remove(id);
+                    self.history_done.remove(id);
+                    self.versions.clear();
+                    if self.selected.as_deref() == Some(id) {
+                        self.pick = None;
+                        self.reply = None;
+                        self.cancel_edit();
+                    }
+                }
+            }
             Some("screen") => self.screen = v["screen"].clone(),
             Some("network") => self.network_changed(&v["network"]),
             Some("cloud") => self.cloud = v["cloud"].clone(),
@@ -117,6 +132,7 @@ impl App {
                 self.selected = None;
                 self.reply = None;
                 self.pick = None;
+                self.cancel_edit();
                 self.chat_page = false;
                 self.typing = false;
             }
@@ -150,6 +166,18 @@ impl App {
         }
         if let After::Sent(key) = after {
             self.sent(&key, r);
+            return;
+        }
+        if let After::Edited(id) = after {
+            match r {
+                Ok(_) => {
+                    self.drafts.remove(&Self::edit_key(&id));
+                    self.editing = None;
+                    self.flash("Sent");
+                }
+                // The draft stays, so Enter tries again.
+                Err(e) => self.flash(&e),
+            }
             return;
         }
         if let After::Answered(entry) = after {
@@ -215,6 +243,7 @@ impl App {
             | After::Sheet(_)
             | After::Network(_)
             | After::Sent(_)
+            | After::Edited(_)
             | After::Connection(_, _)
             | After::Pairing
             | After::Cloud

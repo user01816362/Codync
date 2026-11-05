@@ -70,6 +70,8 @@ export type HostEvent =
   | { type: 'hello'; hostId: string; rev: number; usage: Usage; screen: ScreenState | null; network: NetworkView | null; icons?: import('@shared/custom-icons').CustomIcons }
   | { type: 'bot'; bot: Bot }
   | { type: 'botDeleted'; id: string; rev: number }
+  /** A chat's transcript was emptied; its messages are gone from the computer. */
+  | { type: 'chatCleared'; botId: string; rev: number }
   | { type: 'entry'; entry: Entry }
   | { type: 'usage'; usage: Usage }
   /** An artifact was published, updated or renamed (the catch-up replays it too). */
@@ -140,6 +142,8 @@ export function parseEvent(line: string): HostEvent | null {
       const cue = parseCallCue(raw)
       return cue ? { type, cue } : null
     }
+    case 'chatCleared':
+      return typeof raw.botId === 'string' ? { type, botId: raw.botId, rev: Number(raw.rev ?? 0) } : null
     case 'resync':
       return { type }
     default:
@@ -202,6 +206,11 @@ export class HostClient {
   /** Edits one of the user's sent messages; the bot answers the edited version in a new turn. */
   async editMessage(botId: string, id: string, text: string) {
     return (await this.call<{ entry: Entry }>('editMessage', { botId, id, text })).entry
+  }
+
+  /** Empties a chat's messages; the bot starts a new conversation. */
+  async clearChat(botId: string) {
+    await this.call('clearChat', { botId })
   }
 
   /** Bytes per `upload` call: base64 of it stays well under the channel's 1 MiB message. */

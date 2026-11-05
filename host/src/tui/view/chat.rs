@@ -86,16 +86,30 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
     let inner = usize::from(r.width.saturating_sub(4)).max(1);
     let (clines, cursor) = composer_lines(&draft, inner);
     let ch = u(clines.len().clamp(1, 8));
-    // The message it replies to, then attached files: a row each above the text.
+    // The message being edited, the one it replies to, then attached files: a row each above the text.
+    let editing = app.editing.is_some();
     let quote = app.replying_to().map(Entry::quoted);
     let qh = u16::from(quote.is_some());
+    let eh = u16::from(editing);
     let files = app.draft_files();
     let fh = u16::from(!files.is_empty());
-    let box_top = r.bottom().saturating_sub(ch + qh + fh + 2);
+    let box_top = r.bottom().saturating_sub(ch + eh + qh + fh + 2);
     let typing = app.typing && app.overlays.is_empty();
     let rule = if typing { t.text } else { t.line };
     hline(buf, r.x, box_top, r.width, rule);
-    hline(buf, r.x, box_top + qh + fh + ch + 1, r.width, rule);
+    hline(buf, r.x, box_top + eh + qh + fh + ch + 1, r.width, rule);
+    if editing {
+        let hint = if typing { "" } else { "esc cancels" };
+        put(
+            buf,
+            r.x + 3,
+            box_top + 1,
+            r.width.saturating_sub(u(w(hint)) + 6),
+            &format!("✎ {}", tr("Editing message")),
+            t.secondary,
+        );
+        rput(buf, r.right() - 1, box_top + 1, hint, t.dim);
+    }
     if let Some(quote) = quote {
         let quote = super::roster::plain(&quote);
         let hint = if typing { "" } else { "esc cancels" };
@@ -103,12 +117,12 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
         put(
             buf,
             r.x + 3,
-            box_top + 1,
+            box_top + eh + 1,
             room,
             &format!("↳ “{}”", truncate(&quote, usize::from(room).saturating_sub(3))),
             t.secondary,
         );
-        rput(buf, r.right() - 1, box_top + 1, hint, t.dim);
+        rput(buf, r.right() - 1, box_top + eh + 1, hint, t.dim);
     }
     if fh > 0 {
         let names: Vec<String> = files
@@ -116,13 +130,13 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
             .map(|p| format!("▤ {}", p.file_name().map(|n| n.to_string_lossy()).unwrap_or_default()))
             .collect();
         let hint = if draft.text.is_empty() { "⌫ removes" } else { "" };
-        let row = box_top + qh + 1;
+        let row = box_top + eh + qh + 1;
         put(buf, r.x + 3, row, r.width.saturating_sub(u(w(hint)) + 6), &names.join("  "), t.secondary);
         rput(buf, r.right() - 1, row, hint, t.dim);
     }
-    let comp_top = box_top + qh + fh;
+    let comp_top = box_top + eh + qh + fh;
     put(buf, r.x + 1, comp_top + 1, 1, "›", if typing { t.bold } else { t.dim });
-    let comp_rect = Rect::new(r.x, box_top, r.width, ch + qh + fh + 2);
+    let comp_rect = Rect::new(r.x, box_top, r.width, ch + eh + qh + fh + 2);
     app.hits.clicks.push((comp_rect, Click::Composer));
     let first = clines.len().saturating_sub(usize::from(ch)).min(cursor.1.saturating_sub(usize::from(ch) - 1));
     // Where the first composer line's text ends, so the chip on its right never covers it.
@@ -130,13 +144,20 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
     if draft.text.is_empty() {
         // The apps' wording.
         let placeholder = if let Some(pick) = &app.pick {
-            let artifact = app.lane(&b.id).iter().any(|e| &e.id == pick && e.artifact().is_some());
-            if artifact {
-                "j k pick · o open in the browser · f save as HTML · ↵ reply · 1–6 react · c copy · esc"
+            let entry = app.lane(&b.id).into_iter().find(|e| &e.id == pick);
+            let artifact = entry.is_some_and(|e| e.artifact().is_some());
+            let mut hint = if artifact {
+                "j k pick · o open in the browser · f save as HTML · ↵ reply · 1–6 react · c copy · esc".to_owned()
             } else {
-                "j k pick · ↵ reply · 1–6 react · f save files · c copy · esc"
+                "j k pick · ↵ reply · 1–6 react · f save files · c copy · esc".to_owned()
+            };
+            if entry.is_some_and(Entry::editable) {
+                hint.push_str(" · e edit");
             }
-            .to_owned()
+            if app.version_count(&b.id, pick) > 1 {
+                hint.push_str(" · [ ] version");
+            }
+            hint
         } else if app.reply.is_some() {
             tr("Reply…").into_owned()
         } else if b.group {
@@ -155,12 +176,18 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
     // Only a turn in this chat holds a message back; in a group a new one ends the round instead.
     let here = b.works_here();
     let chip = if typing {
-        match b.status {
-            Status::Working if here && b.group => "goes in after this reply",
-            Status::Working if here => "sends after this turn",
-            Status::NeedsInput if here => "sends after the approval",
-            _ => "",
+        if editing {
+            "↵ saves the edit"
+        } else {
+            match b.status {
+                Status::Working if here && b.group => "goes in after this reply",
+                Status::Working if here => "sends after this turn",
+                Status::NeedsInput if here => "sends after the approval",
+                _ => "",
+            }
         }
+    } else if editing {
+        "i edits · esc cancels"
     } else if app.pick.is_some() {
         if draft.text.is_empty() { "" } else { "↵ replies to it · esc cancels" }
     } else if matches!(b.status, Status::Working | Status::NeedsInput) {

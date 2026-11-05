@@ -113,6 +113,11 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             hub.delete_bot(str_arg(&b, "botId")?)?;
             json!({})
         }
+        // Empties the chat (its transcript) and starts the bot on a fresh conversation; the bot and its saved memory stay.
+        "clearChat" => {
+            hub.clear_chat(str_arg(&b, "botId")?)?;
+            json!({})
+        }
         // The user makes this bot the lead, in place of the one before.
         "setLead" => {
             crate::chat::lead::set(hub, str_arg(&b, "botId")?)?;

@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -225,7 +226,9 @@ import com.kyant.shapes.Capsule
     val entries = state.entries.filter { it.botId == bot.id && it.isChat }.hidingCalls()
     // A call's message that failed to send stays here, to be sent again.
     val pending = state.pending.filter { it.botId == bot.id && (it.call == null || it.status == SendStatus.Failed) }
-    val items = chatItems(entries, pending)
+    // An edited message shows its newest version unless the reader walked back through the arrows.
+    val picks = remember(bot.id) { mutableStateMapOf<String, VersionPick>() }
+    val items = chatItems(entries, pending, picks)
     val working = bot.isWorking(bot.id) && state.connection is LinkState.Ready
     val more = bot.id !in state.historyComplete
     val details by ThinkingDetails.enabled.collectAsStateWithLifecycle()
@@ -254,7 +257,9 @@ import com.kyant.shapes.Capsule
                         reply = if (item.entry.isReplyable && state.mismatch == null) { { reply(item.entry) } } else null,
                         // A sent message of a one-to-one chat can be edited and answered again.
                         edit = if (item.entry.isEditable && bot.kind != "group" && state.mismatch == null) { { edit(item.entry) } } else null,
-                        connect = connect, addFallback = addFallback, openArtifact = openArtifact)
+                        connect = connect, addFallback = addFallback, openArtifact = openArtifact,
+                        versions = item.versions, versionIndex = item.versionIndex,
+                        pickVersion = item.versions?.let { versions -> { version: Entry -> picks[versions.first().id] = VersionPick(version.id, versions.size) } })
                 }
                 is ChatItem.Pending -> PendingBubble(item.send, item.groupStart, state, store)
                 is ChatItem.Exchanges -> BotMessageRow(item.group, state) { openPeer(item.group.peerId) }

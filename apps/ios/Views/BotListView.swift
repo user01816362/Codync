@@ -14,6 +14,8 @@ struct BotListView: View {
     @State private var editing: EditTarget?
     @State private var editingGroup: GroupTarget?
     @State private var confirmDelete: RosterItem?
+    /// The chat to empty, once the user confirms.
+    @State private var confirmClear: RosterItem?
     /// What the section name dialog names while it's open.
     @State private var naming: SectionNaming?
     /// The row that's lifted (a `RosterLine` id): a bot to drag or for its menu, or a computer's heading.
@@ -173,7 +175,7 @@ struct BotListView: View {
             .listRowBackground(Color.clear)
         }
         .reviewInvitation(blocked: creating != nil || editing != nil || editingGroup != nil
-                          || confirmDelete != nil || lifted != nil)
+                          || confirmDelete != nil || confirmClear != nil || lifted != nil)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
@@ -241,6 +243,14 @@ struct BotListView: View {
             if let store = accounts.store(for: target.computerId) {
                 GroupEditorView(group: target.group).environment(store)
             }
+        }
+        .codyncDialog("Clear this chat?",
+                      isPresented: Binding(get: { confirmClear != nil }, set: { if !$0 { confirmClear = nil } }),
+                      message: "Its messages go and the bot starts a new conversation. Its memory and files stay.") {
+            let item = confirmClear
+            return [DialogAction("Clear chat", destructive: true) {
+                if let item { accounts.store(for: item.ref.computerId)?.clearChat(item.bot) }
+            }]
         }
         .codyncDialog("Delete \(confirmDelete?.bot.name ?? "bot")?",
                       isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
@@ -372,6 +382,7 @@ struct BotListView: View {
             if !bot.lead {
                 items.append(MenuItem("Hide from list", icon: "eye.slash") { store.setHidden(bot, true) })
             }
+            items.append(MenuItem("Clear chat", icon: "eraser", destructive: true) { confirmClear = item })
             // An older computer keeps its lead.
             if !bot.lead || store.supportsLeadChoice {
                 items.append(MenuItem("Delete", icon: "trash", destructive: true) { confirmDelete = item })

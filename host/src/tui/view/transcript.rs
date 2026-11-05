@@ -156,6 +156,9 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                 Some("cancelled") => head.push(Span::styled(" · not sent", t.red)),
                 _ => {}
             }
+            if e.edited() {
+                head.push(Span::styled(" · edited", t.dim));
+            }
             out.lines.push(Line::from(head));
             out.lines.extend(quote_line(e, width));
             let mut body = if e.text().is_empty() {

@@ -6,6 +6,8 @@ public enum HostEvent: Sendable {
     case hello(hostId: String, rev: Int64, usage: Usage, screen: ScreenState?, network: NetworkView?)
     case bot(Bot)
     case botDeleted(id: String, rev: Int64)
+    /// A chat's transcript was emptied; its messages are gone from the computer.
+    case chatCleared(botId: String, rev: Int64)
     case entry(Entry)
     case usage(Usage)
     case screen(ScreenState)
@@ -123,6 +125,9 @@ public struct HostClient: Sendable {
             return (try? d.decode(BotWrap.self, from: data)).map { .bot($0.bot) } ?? .undecodable(type: "bot")
         case "entry":
             return (try? d.decode(EntryWrap.self, from: data)).map { .entry($0.entry) } ?? .undecodable(type: "entry")
+        case "chatCleared":
+            struct Cleared: Decodable { var botId: String; var rev: Int64? }
+            return (try? d.decode(Cleared.self, from: data)).map { .chatCleared(botId: $0.botId, rev: $0.rev ?? 0) }
         case "usage":
             return (try? d.decode(UsageWrap.self, from: data)).map { .usage($0.usage) }
         case "screen":
@@ -216,6 +221,11 @@ public extension HostClient {
 
     func deleteBot(_ id: String) async throws {
         let _: Empty = try await call("deleteBot", ["botId": id])
+    }
+
+    /// Empties a chat's messages; the bot starts a new conversation. Its memory and files stay.
+    func clearChat(_ id: String) async throws {
+        let _: Empty = try await call("clearChat", ["botId": id])
     }
 
     /// The roster as the user dragged it, top first.

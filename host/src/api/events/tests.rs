@@ -82,6 +82,23 @@ async fn incremental_sync_replays_deletions_only_after_the_saved_cursor() {
 }
 
 #[tokio::test]
+async fn catch_up_says_a_chat_was_cleared_while_the_client_was_offline() {
+    let f = Fixture::new();
+    f.add_bot("b");
+    let main = crate::store::Lane::main("b");
+    f.hub
+        .store
+        .insert_entry(&main, crate::store::EntryKind::User, 1, &json!({"text": "hi", "status": "sent"}))
+        .unwrap();
+    let before = f.hub.store.current_rev();
+    let cleared = f.hub.store.clear_entries("b").unwrap();
+
+    let events = f.catch_up(before).await;
+    assert_eq!(events[2], json!({"type": "chatCleared", "rev": cleared, "botId": "b"}));
+    assert_eq!(f.catch_up(cleared).await.len(), 2, "hello and icons only");
+}
+
+#[tokio::test]
 async fn catch_up_brings_an_artifact_renamed_while_the_client_was_offline() {
     let f = Fixture::new();
     f.add_bot("b");

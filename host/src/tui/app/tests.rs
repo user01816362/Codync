@@ -24,6 +24,68 @@ async fn routines_keep_the_chat_draft_until_the_user_returns_to_chat() {
     assert_eq!(app.drafts["b"].text, "My unfinished message");
 }
 
+#[tokio::test]
+async fn an_edited_message_shows_the_newest_version_with_its_answer() {
+    let mut app = test_app();
+    app.bots.insert("b".into(), Bot::parse(&json!({"id": "b", "name": "Bot"})).expect("a bot with an id parses"));
+    app.selected = Some("b".into());
+    let entries = [
+        (1, 1, "user", json!({"text": "first", "status": "sent", "superseded": true})),
+        (2, 1, "agent", json!({"text": "old answer", "final": true, "superseded": true})),
+        (3, 2, "user", json!({"text": "edited", "status": "queued", "editOf": "e1", "version": 2})),
+        (4, 2, "agent", json!({"text": "new answer", "final": true})),
+    ];
+    for (seq, turn, kind, data) in entries {
+        let v = json!({"botId": "b", "id": format!("e{seq}"), "seq": seq, "turn": turn, "kind": kind, "data": data});
+        let (bot, e) = Entry::parse(&v).expect("a full entry parses");
+        app.entries.entry(bot).or_default().insert(e.seq, e);
+    }
+    let shown = |app: &App| app.lane("b").into_iter().map(|e| e.id.clone()).collect::<Vec<_>>();
+    assert_eq!(shown(&app), ["e3", "e4"], "the newest version and its answer");
+    app.step_version("b", "e3", -1);
+    assert_eq!(shown(&app), ["e1", "e2"], "the version before it, with the answer it got");
+    app.step_version("b", "e1", 1);
+    assert_eq!(shown(&app), ["e3", "e4"]);
+}
+
+#[tokio::test]
+async fn e_on_your_message_opens_the_composer_on_it() {
+    let mut app = test_app();
+    app.bots.insert("b".into(), Bot::parse(&json!({"id": "b", "name": "Bot"})).expect("a bot with an id parses"));
+    app.selected = Some("b".into());
+    for (seq, kind, data) in
+        [(1, "user", json!({"text": "hi", "status": "sent"})), (2, "agent", json!({"text": "answer", "final": true}))]
+    {
+        let v = json!({"botId": "b", "id": format!("e{seq}"), "seq": seq, "turn": 1, "kind": kind, "data": data});
+        let (bot, e) = Entry::parse(&v).expect("a full entry parses");
+        app.entries.entry(bot).or_default().insert(e.seq, e);
+    }
+    app.step_pick(0);
+    app.step_pick(-1);
+    assert!(app.pick_key(crossterm::event::KeyEvent::from(crossterm::event::KeyCode::Char('e'))));
+    assert_eq!(app.editing.as_deref(), Some("e1"));
+    assert_eq!(app.draft().text, "hi");
+    assert!(app.typing);
+    app.drafts.insert("b".into(), Editor::with("mine"));
+    app.on_key(crossterm::event::KeyEvent::from(crossterm::event::KeyCode::Esc));
+    assert!(app.editing.is_none());
+    assert_eq!(app.draft().text, "mine", "the chat's own draft comes back");
+}
+
+#[tokio::test]
+async fn emptying_a_chat_asks_first() {
+    use crossterm::event::{KeyCode, KeyEvent};
+
+    let mut app = test_app();
+    app.bots.insert("b".into(), Bot::parse(&json!({"id": "b", "name": "Bot"})).expect("a bot with an id parses"));
+    app.selected = Some("b".into());
+    app.on_key(KeyEvent::from(KeyCode::Char('E')));
+    assert!(matches!(
+        app.overlays.last(),
+        Some(Overlay::Confirm(c)) if matches!(&c.act, ConfirmAct::ClearChat(id) if id == "b")
+    ));
+}
+
 #[test]
 fn fuzzy_is_a_subsequence_match() {
     assert!(fuzzy("rx", &["Rex"]));

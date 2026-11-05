@@ -136,6 +136,57 @@ impl Store {
         Ok(rows)
     }
 
+    /// Every version of an edited message (`root` and its edits), oldest first.
+    pub fn message_versions(&self, bot_id: &str, root: &str) -> Result<Vec<Entry>> {
+        let c = self.db.locked();
+        let mut st = c.prepare(&format!(
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = 'user'
+               AND (id = ?2 OR json_extract(data, '$.editOf') = ?2)
+             ORDER BY COALESCE(json_extract(data, '$.version'), 1), seq"
+        ))?;
+        Ok(st.query_map(params![bot_id, root], row_entry)?.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Marks the given message versions and everything of their turns as superseded: kept for the version
+    /// arrows, but out of search, memory and the Library. Returns the entries that changed.
+    pub fn supersede_versions(&self, bot_id: &str, ids: &[String], turns: &[i64]) -> Result<Vec<Entry>> {
+        let c = self.db.locked();
+        let rev = next_rev(&c)?;
+        let now = now_ms();
+        let ids = serde_json::to_string(ids)?;
+        let turns = serde_json::to_string(turns)?;
+        c.execute(
+            "UPDATE entries SET rev = ?2, data = json_set(data, '$.superseded', json('true')), updated_at = ?3
+             WHERE bot_id = ?1 AND rev != ?2
+               AND (id IN (SELECT value FROM json_each(?4)) OR turn IN (SELECT value FROM json_each(?5)))",
+            params![bot_id, rev, now, ids, turns],
+        )?;
+        let mut st = c.prepare(&format!("SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND rev = ?2"))?;
+        Ok(st.query_map(params![bot_id, rev], row_entry)?.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Empties a chat's transcript, keeping the bot and its saved memory. Returns the new revision.
+    pub fn clear_entries(&self, bot_id: &str) -> Result<i64> {
+        let mut c = self.db.locked();
+        let tx = c.transaction()?;
+        let rev = next_rev(&tx)?;
+        tx.execute("DELETE FROM entries WHERE bot_id = ?1", [bot_id])?;
+        // Kept so a client that was away learns its messages are gone; entries alone never say that.
+        tx.execute(
+            "INSERT INTO chat_clears(bot_id, rev) VALUES(?1, ?2) ON CONFLICT(bot_id) DO UPDATE SET rev = ?2",
+            params![bot_id, rev],
+        )?;
+        tx.commit()?;
+        Ok(rev)
+    }
+
+    /// The chats emptied after `since`: a client away at the time drops the messages it still holds.
+    pub fn clears_since(&self, since: i64) -> Result<Vec<(String, i64)>> {
+        let c = self.db.locked();
+        let mut st = c.prepare("SELECT bot_id, rev FROM chat_clears WHERE rev > ?1 ORDER BY rev")?;
+        Ok(st.query_map([since], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn max_turn(&self, bot_id: &str) -> i64 {
         let c = self.db.locked();
         let n = c.query_row("SELECT COALESCE(MAX(turn), 0) FROM entries WHERE bot_id = ?1", [bot_id], |r| r.get(0));
@@ -189,6 +240,7 @@ impl Store {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
             "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1
+               AND json_extract(data, '$.superseded') IS NULL
                AND (json_array_length(data, '$.files') > 0 OR json_array_length(data, '$.attachments') > 0)
              ORDER BY seq DESC LIMIT ?2"
         ))?;
@@ -216,6 +268,7 @@ impl Store {
     pub fn search_messages(&self, bot_id: &str, terms: &[String], from: Option<i64>, limit: i64) -> Result<Vec<Entry>> {
         let mut sql = format!(
             "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq <= ?3 AND
+               json_extract(data, '$.superseded') IS NULL AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1))"
         );
         for i in 0..terms.len() {
@@ -251,6 +304,7 @@ impl Store {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
             "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND
+               json_extract(data, '$.superseded') IS NULL AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1)
                 OR (kind = 'notice' AND json_extract(data, '$.transcript') IS NOT NULL))
              ORDER BY seq LIMIT ?3"
@@ -273,6 +327,7 @@ impl Store {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
             "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND
+               json_extract(data, '$.superseded') IS NULL AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1))
              ORDER BY seq DESC LIMIT ?3"
         ))?;
@@ -438,5 +493,48 @@ mod tests {
         assert_eq!(texts, ["first", "second"]);
         assert_eq!(s.entry(&old.id).unwrap().data, old_data, "existing notice is untouched");
         assert_eq!(s.bot_conversation("a", "b", 1).unwrap().len(), 1, "limit keeps the newest");
+    }
+
+    #[test]
+    fn an_edit_keeps_every_version_but_leaves_the_replaced_one_out_of_search() {
+        let s = temp_store();
+        let main = Lane::main("b1");
+        let first = s.insert_entry(&main, EntryKind::User, 1, &json!({"text": "first", "status": "sent"})).unwrap();
+        let answer = s.insert_entry(&main, EntryKind::Agent, 1, &json!({"text": "answer", "final": true})).unwrap();
+        let edit = s
+            .insert_entry(
+                &main,
+                EntryKind::User,
+                2,
+                &json!({"text": "edited", "status": "queued", "editOf": first.id, "version": 2}),
+            )
+            .unwrap();
+        let changed = s.supersede_versions("b1", std::slice::from_ref(&first.id), &[1]).unwrap();
+        assert_eq!(changed.iter().map(|e| e.id.as_str()).collect::<Vec<_>>(), [first.id.as_str(), answer.id.as_str()]);
+
+        let versions: Vec<_> = s.message_versions("b1", &first.id).unwrap().into_iter().map(|e| e.id).collect();
+        assert_eq!(versions, [first.id.clone(), edit.id.clone()], "oldest first");
+        let search = |term: &str| -> Vec<String> {
+            s.search_messages("b1", &[term.to_owned()], None, 10)
+                .unwrap()
+                .into_iter()
+                .map(|e| e.data["text"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        assert!(search("first").is_empty(), "the replaced version and its answer are out of search");
+        assert_eq!(search("answer"), Vec::<String>::new());
+        assert_eq!(search("edited"), ["edited"]);
+        assert_eq!(s.entry(&first.id).unwrap().data["superseded"], true, "kept for the version arrows");
+    }
+
+    #[test]
+    fn clearing_a_chat_leaves_a_mark_for_clients_that_were_away() {
+        let s = temp_store();
+        s.insert_entry(&Lane::main("b1"), EntryKind::User, 1, &json!({"text": "hi"})).unwrap();
+        let before = s.current_rev();
+        let rev = s.clear_entries("b1").unwrap();
+        assert!(s.history("b1", i64::MAX, 10).unwrap().is_empty());
+        assert_eq!(s.clears_since(before).unwrap(), [("b1".to_owned(), rev)]);
+        assert!(s.clears_since(rev).unwrap().is_empty(), "only once");
     }
 }

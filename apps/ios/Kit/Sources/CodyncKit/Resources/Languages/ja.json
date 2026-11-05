@@ -1523,5 +1523,11 @@
   "Code {code} copied. Paste it on the sign-in page, then Enter checks. Ctrl+X cancels.": "コード {code} をコピーしました。サインイン ページに貼り付けてから Enter で確認。Ctrl+X でキャンセル。",
   "Sign in instead of using a saved token": "保存したトークンの代わりにサインイン",
   "↵ sign in instead of the token": "↵ トークンの代わりにサインイン",
-  "Code {code} copied: paste it at {url}, then Enter checks. Ctrl+X cancels.": "コード {code} をコピーしました: {url} に貼り付けてから Enter で確認。Ctrl+X でキャンセル。"
+  "Code {code} copied: paste it at {url}, then Enter checks. Ctrl+X cancels.": "コード {code} をコピーしました: {url} に貼り付けてから Enter で確認。Ctrl+X でキャンセル。",
+  "Clear chat": "チャットを消去",
+  "Clear this chat?": "このチャットを消去しますか？",
+  "Its messages go and the bot starts a new conversation. Its memory and files stay.": "メッセージは削除され、ボットは新しい会話を始めます。メモリとファイルは残ります。",
+  "Previous version": "前のバージョン",
+  "Next version": "次のバージョン",
+  "Version {n} of {count}": "バージョン {n}/{count}"
 }

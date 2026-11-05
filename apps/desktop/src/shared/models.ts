@@ -309,8 +309,13 @@ export interface EntryData {
   /** user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired */
   status?: string
   clientNonce?: string
-  /** user: when the message was edited (ms); the chat marks it "Edited" and its new answer comes after it. */
+  /** user: when the message was edited (ms); the chat marks it "Edited". */
   editedAt?: number
+  /** user: this message's place among its edits (1 for the first) and the id of that first version. */
+  version?: number
+  editOf?: string
+  /** An older version of an edited message, or an answer it got: kept behind the version arrows and out of search/memory. */
+  superseded?: boolean
   title?: string
   toolKind?: string
   /** tool: whether it's the bot's own bookkeeping (composing its message, keeping its memory), left out of the
@@ -382,9 +387,11 @@ export function isReplyable(e: Entry): boolean {
   return !e.id.startsWith('local-') && (e.kind === 'user' || (e.kind === 'agent' && e.data.final === true))
 }
 
-/** A user message whose turn ran: it can be edited in place, and the bot answers the edited version again. */
+/** A user message whose turn ran: it can be edited in place, and the bot answers the edited version again.
+ * What a voice call carried stays in the call's conversation. */
 export function isEditable(e: Entry): boolean {
-  return e.kind === 'user' && !e.id.startsWith('local-') && (e.data.status === undefined || e.data.status === 'sent')
+  return e.kind === 'user' && !e.data.call && !e.id.startsWith('local-')
+    && (e.data.status === undefined || e.data.status === 'sent')
 }
 
 /** The quote a sending reply shows until the computer's own replaces it. */

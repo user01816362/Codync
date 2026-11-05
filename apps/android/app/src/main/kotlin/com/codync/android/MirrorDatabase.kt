@@ -132,6 +132,10 @@ class MirrorDatabase(context: Context, directory: File, computerId: String) :
                 // Hello's head revision precedes catch-up; it is never a checkpoint.
             }
             is MirrorEvent.BotChanged -> { writeBot(db, event.bot); bump(db, event.bot.rev) }
+            is MirrorEvent.ChatCleared -> {
+                db.delete("entries", "bot_id=?", arrayOf(event.botId))
+                bump(db, event.rev)
+            }
             is MirrorEvent.EntryChanged -> { writeEntry(db, event.entry); bump(db, event.entry.rev) }
             is MirrorEvent.Usage -> setMeta(db, "usage", event.value.toString())
             is MirrorEvent.Screen -> setMeta(db, "screen", event.value.toString())
@@ -159,6 +163,9 @@ class MirrorDatabase(context: Context, directory: File, computerId: String) :
         }, SQLiteDatabase.CONFLICT_REPLACE) != -1L) { "Couldn't save the pending message." }
     }
     @Synchronized fun discard(nonce: String) = transaction { it.delete("pending", "nonce=?", arrayOf(nonce)) }
+
+    /** A cleared chat's messages leave this phone's copy at once, without waiting for the event that says so. */
+    @Synchronized fun clearChat(botId: String) = transaction { it.delete("entries", "bot_id=?", arrayOf(botId)) }
     @Synchronized fun recoverInterrupted() = transaction { db ->
         pending(db).filter { it.status == SendStatus.Sending }.forEach { writePending(db, it.copy(status = SendStatus.Failed,
             error = "Sending was interrupted. Retry uses the same message ID.")) }

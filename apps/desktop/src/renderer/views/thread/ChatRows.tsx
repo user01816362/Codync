@@ -25,7 +25,7 @@ export function reactionPick(store: BotStore, entry: Entry): ReactionPick {
 }
 
 /** One chat-visible entry, with what can be done to it. */
-export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrace, onReply, onEdit, openAgent, openArtifact }: {
+export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrace, onReply, onEdit, versions, versionIndex, onPickVersion, openAgent, openArtifact }: {
   entry: Entry
   groupStart: boolean
   chat: Bot | null
@@ -34,6 +34,10 @@ export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrac
   onReply?: (e: Entry) => void
   /** Opens this sent message in the composer; its edit is answered again. */
   onEdit?: (e: Entry) => void
+  /** An edited message's versions and the one shown, with the reader's switch between them. */
+  versions?: Entry[]
+  versionIndex?: number
+  onPickVersion?: (e: Entry) => void
   /** Opens a bot's Agent settings (a failure notice's "Add a fallback"). */
   openAgent?: (botId: string) => void
   /** Opens an artifact card's artifact over the chat. */
@@ -46,6 +50,9 @@ export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrac
       return (
         <VStack align="flex-end" gap={4} className={groupStart ? 'chat-row group-start' : 'chat-row'}>
           <UserBubble entry={entry} botWorking={!!chat && isWorking(chat)} reply={reply} edit={edit} />
+          {versions && versions.length > 1 && versionIndex !== undefined && onPickVersion ? (
+            <VersionSwitch versions={versions} index={versionIndex} pick={onPickVersion} />
+          ) : null}
           <ReactionsRow entry={entry} />
         </VStack>
       )
@@ -122,6 +129,22 @@ export function TimeSeparator({ date }: { date: number }) {
 }
 
 const fullDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+/** The arrows through a message's edits: one version and the answer it got at a time. */
+function VersionSwitch({ versions, index, pick }: { versions: Entry[]; index: number; pick: (e: Entry) => void }) {
+  const tr = useTr()
+  return (
+    <HStack gap={2} align="center" className="message-versions">
+      <IconButton title={tr('Previous version')} icon="chevron.left" size={22} disabled={index <= 0}
+        onClick={() => pick(versions[index - 1]!)} />
+      <Text size="caption2" tone="tertiary" tabular aria-label={tr('Version {n} of {count}').replace('{n}', String(index + 1)).replace('{count}', String(versions.length))}>
+        {`${index + 1}/${versions.length}`}
+      </Text>
+      <IconButton title={tr('Next version')} icon="chevron.right" size={22} disabled={index >= versions.length - 1}
+        onClick={() => pick(versions[index + 1]!)} />
+    </HStack>
+  )
+}
 
 export function UserBubble({ entry, botWorking, reply, edit }: { entry: Entry; botWorking: boolean; reply?: () => void; edit?: () => void }) {
   const store = useStore()

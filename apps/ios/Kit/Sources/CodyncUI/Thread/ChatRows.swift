@@ -18,8 +18,12 @@ struct ChatRow: View {
     var addFallback: (() -> Void)?
     /// An artifact card's artifact, full size.
     var openArtifact: ((ArtifactRef) -> Void)?
-    /// A voice call's line: the call's conversation.
+    /// Open a voice call's line: the call's conversation.
     var openCall: (() -> Void)?
+    /// An edited message's versions, the one shown, and the reader's switch between them.
+    var versions: [Entry]?
+    var versionIndex: Int?
+    var pickVersion: ((Entry) -> Void)?
     @Environment(BotStore.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -28,6 +32,9 @@ struct ChatRow: View {
         case "user":
             VStack(alignment: .trailing, spacing: 4) {
                 UserBubble(entry: entry, botWorking: chat?.isWorking == true, reply: reply, edit: edit)
+                if let versions, versions.count > 1, let versionIndex, let pickVersion {
+                    VersionSwitch(versions: versions, index: versionIndex, pick: pickVersion)
+                }
                 ReactionsRow(entry: entry)
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.reactions)
@@ -113,6 +120,41 @@ struct QuoteLine: View {
         .foregroundStyle(Palette.secondary)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Replying to \(text)")
+    }
+}
+
+/// The arrows through a message's edits: one version and the answer it got at a time.
+struct VersionSwitch: View {
+    let versions: [Entry]
+    let index: Int
+    let pick: (Entry) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button { pick(versions[index - 1]) } label: { Image(systemName: "chevron.left") }
+                .disabled(index == 0)
+            Text("\(index + 1)/\(versions.count)")
+                .font(.caption2)
+                .monospacedDigit()
+                .foregroundStyle(Palette.tertiary)
+            Button { pick(versions[index + 1]) } label: { Image(systemName: "chevron.right") }
+                .disabled(index == versions.count - 1)
+        }
+        .buttonStyle(.plain)
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(Palette.secondary)
+        .padding(.trailing, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.tr("Version {n} of {count}")
+            .replacingOccurrences(of: "{n}", with: String(index + 1))
+            .replacingOccurrences(of: "{count}", with: String(versions.count)))
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment where index < versions.count - 1: pick(versions[index + 1])
+            case .decrement where index > 0: pick(versions[index - 1])
+            default: break
+            }
+        }
     }
 }
 
@@ -419,5 +461,6 @@ extension ChatRow: @MainActor Equatable {
         a.entry == b.entry && a.groupStart == b.groupStart && a.chat?.isGroup == b.chat?.isGroup
             && a.chat?.isWorking == b.chat?.isWorking && (a.reply == nil) == (b.reply == nil)
             && (a.edit == nil) == (b.edit == nil)
+            && a.versions?.map(\.id) == b.versions?.map(\.id) && a.versionIndex == b.versionIndex
     }
 }

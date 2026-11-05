@@ -3,7 +3,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::{Value, json};
 
-use super::{After, App, Focus, Item, Msg, TraceMode, Width, copy, group};
+use super::{After, App, Confirm, ConfirmAct, Editor, Focus, Item, Msg, Overlay, TraceMode, Width, copy, group};
+use crate::tui::l10n::tr;
 
 impl App {
     /// `codync-host install` with this same binary, for when nothing is listening yet.
@@ -31,6 +32,57 @@ impl App {
                 self.trace = TraceMode::Off;
             }
         }
+    }
+
+    /// `e` on one of the user's sent messages: the composer edits it, and the bot answers the edit again.
+    pub(super) fn start_editing(&mut self, e: &super::Entry) {
+        self.editing = Some(e.id.clone());
+        self.drafts.insert(Self::edit_key(&e.id), Editor::with(e.text()));
+        self.reply = None;
+        self.pick = None;
+        self.start_typing();
+    }
+
+    /// Leaves the message being edited; its draft goes.
+    pub(super) fn cancel_edit(&mut self) {
+        if let Some(id) = self.editing.take() {
+            self.drafts.remove(&Self::edit_key(&id));
+        }
+    }
+
+    /// `[` and `]` on an edited message: the version before or after the one shown, with its own answer.
+    pub(super) fn step_version(&mut self, bot: &str, id: &str, d: isize) {
+        let Some(map) = self.entries.get(bot) else { return };
+        let Some(e) = map.values().find(|e| e.id == id) else { return };
+        let root = e.edit_of().map_or_else(|| e.id.clone(), str::to_owned);
+        let mut versions: Vec<(i64, i64, String)> = map
+            .values()
+            .filter(|x| x.kind == super::Kind::User && (x.id == root || x.edit_of() == Some(root.as_str())))
+            .map(|x| (x.version(), x.seq, x.id.clone()))
+            .collect();
+        if versions.len() < 2 {
+            return;
+        }
+        versions.sort();
+        let at = versions.iter().position(|(_, _, v)| v == id).unwrap_or(versions.len() - 1);
+        let next = at.saturating_add_signed(d).min(versions.len() - 1);
+        let (_, _, next_id) = versions[next].clone();
+        self.versions.insert(root, super::VersionPick { version: next_id.clone(), of: versions.len() });
+        self.pick = Some(next_id);
+    }
+
+    /// `E`: empties the chat, after a confirmation.
+    pub(super) fn ask_clear_chat(&mut self) {
+        let Some(b) = self.bot() else { return };
+        let c = Confirm {
+            title: format!("{} · {}", tr("Clear chat"), b.name),
+            detail: tr("Its messages go and the bot starts a new conversation. Its memory and files stay.")
+                .into_owned(),
+            note: String::new(),
+            button: "Clear chat",
+            act: ConfirmAct::ClearChat(b.id.clone()),
+        };
+        self.overlays.push(Overlay::Confirm(c));
     }
 
     pub(super) fn line(&mut self, d: isize) {
@@ -210,9 +262,20 @@ impl App {
                     self.unfolded.insert(e.id);
                 }
             }
+            KeyCode::Char('e') if picked.as_ref().is_some_and(super::Entry::editable) => {
+                if let Some(e) = picked {
+                    self.start_editing(&e);
+                }
+            }
+            KeyCode::Char('[' | ']') if picked.as_ref().is_some_and(|e| self.version_count(&id, &e.id) > 1) => {
+                let d = if k.code == KeyCode::Char('[') { -1 } else { 1 };
+                if let Some(e) = picked {
+                    self.step_version(&id, &e.id, d);
+                }
+            }
             KeyCode::Char('e') if picked.as_ref().is_some_and(|e| e.data["handoff"]["status"] == "draft") => {
                 if let Some(e) = picked {
-                    self.overlays.push(super::Overlay::Fields(Box::new(crate::tui::manage::handoff_fields(&e))));
+                    self.overlays.push(Overlay::Fields(Box::new(crate::tui::manage::handoff_fields(&e))));
                 }
             }
             KeyCode::Char('K') if picked.as_ref().is_some_and(|e| e.data["handoff"]["status"] == "draft") => {

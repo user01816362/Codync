@@ -103,6 +103,8 @@ pub struct Goto {
 
 pub enum ConfirmAct {
     Delete(String),
+    /// Empties a chat's messages; the bot starts a new conversation.
+    ClearChat(String),
     /// Keeps a bot's harness's own memory on beside Codync's.
     KeepHarnessMemory(String),
     DeleteRoutine(String, String),

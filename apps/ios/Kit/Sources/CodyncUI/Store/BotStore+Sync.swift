@@ -115,6 +115,10 @@ extension BotStore {
             bump(r)
             if selection == id { selection = nil }
             onRosterChanged?()
+        case let .chatCleared(botId, r):
+            entries[botId] = nil
+            windowFloors[botId] = nil
+            bump(r)
         case let .entry(e):
             if Self.isOutsideLoadedWindow(e, floor: windowFloors[e.botId], held: entries[e.botId]?.contains { $0.id == e.id } == true) {
                 bump(e.rev)

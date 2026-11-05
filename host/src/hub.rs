@@ -454,31 +454,12 @@ impl Hub {
     /// meanwhile elsewhere (a reaction from another device) isn't written over. `edit` returns `false` to leave the
     /// entry as it is.
     pub fn edit_entry(&self, id: &str, edit: impl FnOnce(&mut Entry) -> Result<bool>) -> Result<Entry> {
-        self.edit_entry_at(id, None, edit)
-    }
-
-    /// Like [`Self::edit_entry`], and moves the entry to `turn`: an edited message is answered again in a new turn.
-    pub fn edit_entry_in_turn(
-        &self,
-        id: &str,
-        turn: i64,
-        edit: impl FnOnce(&mut Entry) -> Result<bool>,
-    ) -> Result<Entry> {
-        self.edit_entry_at(id, Some(turn), edit)
-    }
-
-    fn edit_entry_at(
-        &self,
-        id: &str,
-        turn: Option<i64>,
-        edit: impl FnOnce(&mut Entry) -> Result<bool>,
-    ) -> Result<Entry> {
         let _g = self.emit_lock.locked();
         let mut e = self.store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
         if !edit(&mut e)? {
             return Ok(e);
         }
-        let e = self.store.update_entry_in_turn(id, &e.data, turn)?.ok_or_else(|| anyhow!("unknown message"))?;
+        let e = self.store.update_entry(id, &e.data)?.ok_or_else(|| anyhow!("unknown message"))?;
         let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
         Ok(e)
     }
@@ -486,6 +467,34 @@ impl Hub {
     pub fn set_usage(&self, usage: Usage) {
         let _ = self.events.send(json!({"type": "usage", "usage": usage}));
         *self.usage.locked() = usage;
+    }
+
+    /// Marks older versions of an edited message (and what their turns said) superseded, and tells open apps.
+    pub fn supersede_versions(&self, bot_id: &str, ids: &[String], turns: &[i64]) -> Result<usize> {
+        let _g = self.emit_lock.locked();
+        let entries = self.store.supersede_versions(bot_id, ids, turns)?;
+        for e in &entries {
+            let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
+        }
+        Ok(entries.len())
+    }
+
+    /// Empties a chat's transcript. The bot's agent starts a new conversation, so it doesn't carry on from what
+    /// the user cleared; its saved memory stays. Open apps drop the entries they hold.
+    pub fn clear_chat(&self, id: &str) -> Result<()> {
+        let group = self.store.bot(id)?.is_some_and(|r| r.config.is_group());
+        if !group {
+            self.send_cmd(id, Cmd::NewSession)?;
+        }
+        {
+            let _g = self.emit_lock.locked();
+            let rev = self.store.clear_entries(id)?;
+            let _ = self.events.send(json!({"type": "chatCleared", "botId": id, "rev": rev}));
+        }
+        // The roster's preview and order come from the newest entry, and there is none now.
+        self.emit_bot(id);
+        crate::network::publish(self);
+        Ok(())
     }
 
     // MARK: devices

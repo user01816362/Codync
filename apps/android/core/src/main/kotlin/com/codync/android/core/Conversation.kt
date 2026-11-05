@@ -10,6 +10,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -52,10 +53,16 @@ data class Entry(
     }
     /** A message the user can quote in a reply: theirs, or a final reply (a group member's too). */
     val isReplyable: Boolean get() = kind == "user" || kind == "agent" && data["final"]?.jsonPrimitive?.booleanOrNull == true
-    /** Theirs once the computer ran it: it can be edited in place, and the bot answers the edited version again. */
-    val isEditable: Boolean get() = kind == "user" && (status == null || status == "sent")
+    /** Theirs once the computer ran it: it can be edited in place, and the bot answers the edited version again.
+     *  What a voice call carried stays in the call's conversation. */
+    val isEditable: Boolean get() = kind == "user" && data.text("call") == null && (status == null || status == "sent")
     /** When the user edited this message (ms), as the chat marks it "Edited". */
     val editedAt: Long? get() = data["editedAt"]?.jsonPrimitive?.longOrNull
+    /** This message's place among its edits (1 for the first) and the id of that first version. */
+    val version: Int? get() = data["version"]?.jsonPrimitive?.intOrNull
+    val editOf: String? get() = data.text("editOf")
+    /** An older version of an edited message, or an answer it got: kept behind the version arrows, out of search. */
+    val superseded: Boolean get() = data["superseded"]?.jsonPrimitive?.booleanOrNull == true
     /** The message this one replies to, as the computer quoted it. */
     val replyTo: ReplyQuote? get() = (data["replyTo"] as? JsonObject)?.let { runCatching { WireJson.decodeFromJsonElement<ReplyQuote>(it) }.getOrNull() }
     /** What the composer shows of the message it replies to: its text, or the names of its files. */
@@ -158,6 +165,8 @@ sealed interface MirrorEvent {
     /** The stream's first event; `network` is null from hosts before the network view (or one this app can't read). */
     data class Hello(val hostId: String, val rev: Long, val usage: JsonObject, val screen: JsonObject?, val network: NetworkView? = null) : MirrorEvent
     data class BotChanged(val bot: Bot) : MirrorEvent
+    /** A chat's transcript was emptied; its messages are gone from the computer. */
+    data class ChatCleared(val botId: String, val rev: Long) : MirrorEvent
     data class EntryChanged(val entry: Entry) : MirrorEvent
     data class Usage(val value: JsonObject) : MirrorEvent
     data class Screen(val value: JsonObject) : MirrorEvent
@@ -178,6 +187,7 @@ sealed interface MirrorEvent {
                 value["usage"]?.jsonObject ?: JsonObject(emptyMap()), value["screen"]?.takeUnless { it == JsonNull }?.jsonObject,
                 value["network"]?.takeUnless { it == JsonNull }?.let { runCatching { NetworkView.decode(it) }.getOrNull() })
             "bot" -> BotChanged(HostClient.decode(value.getValue("bot").jsonObject))
+            "chatCleared" -> ChatCleared(value.getValue("botId").jsonPrimitive.content, value["rev"]?.jsonPrimitive?.longOrNull ?: 0)
             "entry" -> EntryChanged(Entry.decode(value.getValue("entry").jsonObject))
             "usage" -> Usage(value.getValue("usage").jsonObject)
             "screen" -> Screen(value.getValue("screen").jsonObject)

@@ -53,8 +53,9 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
     }
 
     /// A user message whose turn ran: it can be edited in place, and the bot answers the edited version again.
+    /// What a voice call carried stays in the call's conversation.
     public var isEditable: Bool {
-        kind == "user" && !id.hasPrefix("local-") && (data.status == nil || data.status == "sent")
+        kind == "user" && data.call == nil && !id.hasPrefix("local-") && (data.status == nil || data.status == "sent")
     }
 
     /// How a reply quotes this message until the computer's own quote arrives: who wrote it and its

@@ -13,6 +13,7 @@ import { useScreenViewed } from '../../store/analytics'
 import { useStore } from '../../store/context'
 import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
+import type { VersionPick } from './message-versions'
 import { BotConversationView, BotMessageRow } from './BotConversation'
 import { CallConversationView, CallLineRow } from '../call/CallRows'
 import { hidingCalls } from '@shared/calls'
@@ -304,8 +305,13 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
   const live = !!bot && isWorkingIn(bot, botId) && !store.isOffline
   // Rebuilt only when this chat changes: the store replaces a chat's list on every change.
   const entries = store.allEntries(botId)
+  // An edited message shows its newest version unless the reader walked back through the arrows.
+  const [versionPicks, setVersionPicks] = useState<ReadonlyMap<string, VersionPick>>(new Map())
+  const pickVersion = useCallback((versions: Entry[], version: Entry) => {
+    setVersionPicks((current) => new Map(current).set(versions[0]!.id, { version: version.id, of: versions.length }))
+  }, [])
   // What voice calls carried shows in each call's conversation, not in the chat.
-  const all = useMemo(() => buildChat(hidingCalls(entries)), [entries])
+  const all = useMemo(() => buildChat(hidingCalls(entries), versionPicks), [entries, versionPicks])
   const steps = useMemo(() => workingSteps(entries), [entries])
   // The newest 40 items first; older pages come in near the top.
   const [firstShown, setFirstShown] = useState<string | null>(null)
@@ -345,7 +351,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
     if (at === 0) {
       const anchor = list[0]?.id
       await store.loadOlder(botId)
-      list = buildChat(hidingCalls(store.allEntries(botId)))
+      list = buildChat(hidingCalls(store.allEntries(botId)), versionPicks)
       at = anchor ? Math.max(0, list.findIndex((i) => i.id === anchor)) : 0
     }
     if (at > 0) setFirstShown(list[Math.max(0, at - PAGE)]!.id)
@@ -405,7 +411,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
           {items.length === 0 && bot ? <div className="transcript-intro">{isGroup(bot) ? <GroupIntroCard group={bot} /> : <IntroCard bot={bot} />}</div> : null}
           {items.map((item) => (
             <div key={item.id} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
-              <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} onEdit={onEdit} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} openArtifact={openArtifact} openCall={openCall} />
+              <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} onEdit={onEdit} onPickVersion={pickVersion} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} openArtifact={openArtifact} openCall={openCall} />
             </div>
           ))}
           {bot ? <WorkingTransition bot={bot} visible={live} steps={steps} /> : null}
@@ -429,7 +435,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
   )
 })
 
-function Row({ item, chat, openTrace, onReply, onEdit, openRoutine, openAgent, openBotChat, openArtifact, openCall }: { item: ChatItem; chat: Bot | null; openTrace: () => void; onReply?: (e: Entry) => void; onEdit?: (e: Entry) => void; openRoutine: (id: string | null) => void; openAgent: (botId: string) => void; openBotChat: (peerId: string) => void; openArtifact: (artifactId: string) => void; openCall: (lineId: string) => void }) {
+function Row({ item, chat, openTrace, onReply, onEdit, onPickVersion, openRoutine, openAgent, openBotChat, openArtifact, openCall }: { item: ChatItem; chat: Bot | null; openTrace: () => void; onReply?: (e: Entry) => void; onEdit?: (e: Entry) => void; onPickVersion?: (versions: Entry[], version: Entry) => void; openRoutine: (id: string | null) => void; openAgent: (botId: string) => void; openBotChat: (peerId: string) => void; openArtifact: (artifactId: string) => void; openCall: (lineId: string) => void }) {
   if (item.kind === 'separator') {
     return <TimeSeparator date={item.date} />
   }
@@ -438,7 +444,10 @@ function Row({ item, chat, openTrace, onReply, onEdit, openRoutine, openAgent, o
   if (e.kind === 'notice' && e.data.routineId) return <RoutineNotice entry={e} open={() => openRoutine(e.data.routineId!)} />
   if (e.kind === 'notice' && e.data.call) return <div className="chat-row notice"><CallLineRow entry={e} open={() => openCall(e.id)} /></div>
 
-  return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} onReply={onReply} onEdit={onEdit} openAgent={openAgent} openArtifact={openArtifact} />
+  return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} onReply={onReply} onEdit={onEdit}
+    versions={item.versions} versionIndex={item.versionIndex}
+    onPickVersion={onPickVersion && item.versions ? (version) => onPickVersion(item.versions!, version) : undefined}
+    openAgent={openAgent} openArtifact={openArtifact} />
 }
 
 /** The start of an empty group chat: who's in it and how the room works. */

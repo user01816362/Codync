@@ -1523,5 +1523,11 @@
   "Code {code} copied. Paste it on the sign-in page, then Enter checks. Ctrl+X cancels.": "代码 {code} 已复制。粘贴到登录页后，按 Enter 检查。Ctrl+X 取消。",
   "Sign in instead of using a saved token": "改用登录，不再用已存的 token",
   "↵ sign in instead of the token": "↵ 改用登录，不再用 token",
-  "Code {code} copied: paste it at {url}, then Enter checks. Ctrl+X cancels.": "代码 {code} 已复制：到 {url} 粘贴后，按 Enter 检查。Ctrl+X 取消。"
+  "Code {code} copied: paste it at {url}, then Enter checks. Ctrl+X cancels.": "代码 {code} 已复制：到 {url} 粘贴后，按 Enter 检查。Ctrl+X 取消。",
+  "Clear chat": "清空聊天",
+  "Clear this chat?": "清空这个聊天？",
+  "Its messages go and the bot starts a new conversation. Its memory and files stay.": "它的消息会被删除，Bot 会开始新的对话。它的记忆和文件会保留。",
+  "Previous version": "上一个版本",
+  "Next version": "下一个版本",
+  "Version {n} of {count}": "第 {n} 版，共 {count} 版"
 }

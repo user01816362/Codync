@@ -54,6 +54,37 @@ import Testing
     #expect(Set(items.map(\.id)).count == items.count)
 }
 
+/// An edited message shows its newest version, with that version's answer, where the message was first sent.
+@Test func anEditedMessageShowsItsNewestVersionAndAnswerWhereItWasFirstSent() {
+    func message(_ id: String, _ kind: String, turn: Int64, at: Int64, text: String,
+                 editOf: String? = nil, version: Int? = nil, superseded: Bool = false) -> Entry {
+        var data = EntryData(text: text)
+        data.editOf = editOf
+        data.version = version
+        data.superseded = superseded
+        return Entry(id: id, seq: at, botId: "b", rev: 1, kind: kind, turn: turn, data: data, createdAt: at, updatedAt: at)
+    }
+    let entries = [
+        message("u1", "user", turn: 1, at: 1_000, text: "first", superseded: true),
+        message("a1", "agent", turn: 1, at: 1_100, text: "answer to first", superseded: true),
+        message("u2", "user", turn: 2, at: 1_500, text: "second"),
+        message("e1", "user", turn: 3, at: 3_000, text: "edited first", editOf: "u1", version: 2),
+        message("a2", "agent", turn: 3, at: 3_100, text: "answer to the edit"),
+    ]
+    let shown = ChatItem.build(entries).compactMap { item -> (String, [String]?, Int?)? in
+        if case let .entry(e, _) = item.kind { return (e.id, item.versions?.map(\.id), item.versionIndex) }
+        return nil
+    }
+    #expect(shown.map(\.0) == ["e1", "a2", "u2"])
+    #expect(shown.first?.1 == ["u1", "e1"])
+    #expect(shown.first?.2 == 1)
+
+    let older = ChatItem.build(entries, picked: ["u1": VersionPick(version: "u1", of: 2)]).compactMap { item -> String? in
+        if case let .entry(e, _) = item.kind { return e.id } else { return nil }
+    }
+    #expect(older == ["u1", "a1", "u2"])
+}
+
 @Test func optimisticMessageKeepsItsRowIdentityAfterAcknowledgement() {
     let data = EntryData(text: "Sent message", clientNonce: "client-nonce")
     let optimistic = Entry(id: "local-client-nonce", seq: 0, botId: "b", rev: 0, kind: "user", turn: 1,

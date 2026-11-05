@@ -31,6 +31,8 @@ pub enum After {
     /// A permission card's answer arrived (or couldn't).
     Answered(String),
     Sent(String),
+    /// One of the user's messages was edited; its draft goes once the host took it.
+    Edited(String),
     Connection(String, super::super::connections::Step),
     Hello,
     /// `track`: fire and forget; analytics never surfaces an error.
@@ -55,6 +57,13 @@ pub enum After {
     Sheet(Reply),
     /// The network sheet's calls.
     Network(super::super::manage::NetReply),
+}
+
+/// What the reader chose to see: a version, and how many versions the message had when they chose it.
+#[derive(Clone, Debug)]
+pub struct VersionPick {
+    pub version: String,
+    pub of: usize,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -175,6 +184,28 @@ impl Entry {
     /// A message the user can answer with a reply: theirs, or a final reply (the host checks too).
     pub fn takes_reply(&self) -> bool {
         self.kind == Kind::User || self.is_final()
+    }
+
+    /// Whether the user edited this message after sending it.
+    pub fn edited(&self) -> bool {
+        self.data["editedAt"].is_i64()
+    }
+
+    /// One of the user's sent messages the composer can edit; the host refuses calls and groups too.
+    pub fn editable(&self) -> bool {
+        self.kind == Kind::User
+            && self.data["call"].is_null()
+            && matches!(self.data["status"].as_str(), None | Some("sent"))
+    }
+
+    /// The first version of a message the user edited.
+    pub fn edit_of(&self) -> Option<&str> {
+        self.data["editOf"].as_str()
+    }
+
+    /// This message's place among its edits, oldest first (1 when it was never edited).
+    pub fn version(&self) -> i64 {
+        self.data["version"].as_i64().unwrap_or(1)
     }
 
     /// The text a reply quotes: the message's, or its files' names.

@@ -20,6 +20,8 @@ public struct ThreadView: View {
     @State var openCall: Entry?
     @State var editingGroup = false
     @State var details: DetailsRequest?
+    /// The version of an edited message the reader walked back to, by the message's first entry.
+    @State var versionPicks: [String: VersionPick] = [:]
     @State var calling = false
     @State var callSpeaking = false
     @State var interruptCall: (() -> Void)?
@@ -123,7 +125,11 @@ public struct ThreadView: View {
                         // In a group, the bot whose agent failed.
                         addFallback: { details = DetailsRequest(botId: e.data.author ?? e.botId) },
                         openArtifact: { openArtifact = ArtifactTarget(botId: e.botId, id: $0.id, title: $0.title) },
-                        openCall: { openCall = e })
+                        openCall: { openCall = e },
+                        versions: item.versions, versionIndex: item.versionIndex,
+                        pickVersion: item.versions.map { versions in
+                            { version in pickVersion(versions, version) }
+                        })
                     .equatable()
             }
         }
@@ -131,6 +137,12 @@ public struct ThreadView: View {
 
     private func reply(to entry: Entry) {
         withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { replyingTo = entry }
+    }
+
+    /// Walks to another version of an edited message: its own answer comes with it.
+    private func pickVersion(_ versions: [Entry], _ version: Entry) {
+        guard let first = versions.first else { return }
+        versionPicks[first.id] = VersionPick(version: version.id, of: versions.count)
     }
 
     /// Opens a sent message in the composer; sending edits it and asks the bot again.
@@ -223,33 +235,75 @@ struct ChatItem: Identifiable {
 
     let id: String
     let kind: Kind
+    /// An edited message's versions and the one shown.
+    var versions: [Entry]? = nil
+    var versionIndex: Int? = nil
 
     /// Chat-visible entries plus time separators (gaps > 1 h) and author grouping. A bot's
     /// messages arrive whole (Grok Bot's `send_message`); what it writes along the way is trace. Runs of
     /// bot exchanges with one peer fold into one item.
-    static func build(_ entries: [Entry]) -> [ChatItem] {
+    ///
+    /// An edited message is one slot: it shows the version the reader picked (`picked`, by its first entry's
+    /// id; the newest by default) and that version's answers, where the message first was.
+    static func build(_ entries: [Entry], picked: [String: VersionPick] = [:]) -> [ChatItem] {
         var out: [ChatItem] = []
         var lastDate: Date?
         var lastAuthor: String?
-        for slot in BotExchangeGroup.collapse(entries) {
-            let date = slot.date
-            // Bot-originated messages carry an empty nonce. Their entry IDs
-            // distinguish them; only real nonces identify optimistic echoes.
-            let id = if case .entry(let e) = slot, e.kind == "user", let nonce = e.data.clientNonce, !nonce.isEmpty { "user-\(nonce)" } else { slot.id }
+        let groups = MessageVersions.groups(entries)
+        let editedTurns = Set(groups.values.flatMap { $0.versions.map(\.turn) })
+        // Each edited version's answer shares its turn, and is shown with the version instead of at the end.
+        var answers: [Int64: [Entry]] = [:]
+        for entry in entries where entry.kind != "user" && editedTurns.contains(entry.turn) {
+            answers[entry.turn, default: []].append(entry)
+        }
+        let visible = entries.filter { entry in
+            // Where the message is shown, even when its first version is older than what the chat loaded.
+            if groups[entry.id] != nil { return true }
+            if entry.kind == "user", entry.data.editOf != nil { return false }
+            // Left behind by an edit: its version and answer stand behind the arrows.
+            if entry.data.superseded == true { return false }
+            return !editedTurns.contains(entry.turn)
+        }
+
+        func emit(_ item: BotExchangeGroup.Item, at date: Date, versions: [Entry]? = nil, index: Int? = nil) {
+            let entryId: String
+            switch item {
+            case .entry(let e):
+                // Bot-originated messages carry an empty nonce. Their entry IDs distinguish them; only
+                // real nonces identify optimistic echoes.
+                if e.kind == "user", let nonce = e.data.clientNonce, !nonce.isEmpty { entryId = "user-\(nonce)" } else { entryId = e.id }
+            case .exchanges(let g):
+                entryId = g.id
+            }
             if lastDate.map({ date.timeIntervalSince($0) > 3600 }) ?? true {
-                out.append(ChatItem(id: "sep-\(id)", kind: .separator(date)))
+                out.append(ChatItem(id: "sep-\(entryId)", kind: .separator(date)))
                 lastAuthor = nil
             }
             lastDate = date
-            switch slot {
+            switch item {
             case .exchanges(let group):
-                out.append(ChatItem(id: id, kind: .exchanges(group)))
+                out.append(ChatItem(id: entryId, kind: .exchanges(group)))
                 lastAuthor = nil
-            case .entry(let e):
+            case .entry(let entry):
                 // In a group each bot is its own author.
-                let author = e.kind == "user" ? "user" : e.kind == "agent" ? "agent:\(e.data.author ?? "")" : e.kind
-                out.append(ChatItem(id: id, kind: .entry(e, groupStart: author != lastAuthor)))
-                lastAuthor = (author == "user" || e.kind == "agent") ? author : nil
+                let author = entry.kind == "user" ? "user" : entry.kind == "agent" ? "agent:\(entry.data.author ?? "")" : entry.kind
+                out.append(ChatItem(id: entryId, kind: .entry(entry, groupStart: author != lastAuthor),
+                                    versions: versions, versionIndex: index))
+                lastAuthor = (author == "user" || entry.kind == "agent") ? author : nil
+            }
+        }
+
+        for slot in BotExchangeGroup.collapse(visible) {
+            guard case .entry(let entry) = slot, let group = groups[entry.id] else {
+                emit(slot, at: slot.date)
+                continue
+            }
+            // The edited message and the answer of the version shown, in the place the message was first sent.
+            let chosen = MessageVersions.selected(group, pick: picked[group.anchor.id])
+            let index = group.versions.firstIndex(of: chosen)!
+            for (i, part) in BotExchangeGroup.collapse([chosen] + (answers[chosen.turn] ?? [])).enumerated() {
+                emit(part, at: i == 0 ? group.anchor.date : part.date,
+                     versions: i == 0 ? group.versions : nil, index: i == 0 ? index : nil)
             }
         }
         return out
@@ -340,7 +394,7 @@ extension ThreadView {
     /// revealed steadily as it's written.
     var transcript: some View {
         // What voice calls carried shows in each call's conversation, not in the chat.
-        let items = ChatItem.build(model.chat(botId).hidingCalls())
+        let items = ChatItem.build(model.chat(botId).hidingCalls(), picked: versionPicks)
         var rows: [ConversationRow] = []
         if moreOnComputer {
             rows.append(ConversationRow("earlier") {

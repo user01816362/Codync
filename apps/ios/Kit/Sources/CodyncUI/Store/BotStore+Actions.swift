@@ -116,6 +116,13 @@ extension BotStore {
         }
     }
 
+    /// Empties the chat: its messages go and the bot starts a new conversation. Its memory and files stay.
+    public func clearChat(_ bot: Bot) {
+        entries[bot.id] = nil
+        saveCache()
+        perform(replay: true) { try await $0.clearChat(bot.id) }
+    }
+
     /// A card's button: `entry` shows `choice` as answering (its spinner) while `op` runs.
     private func answer(_ entry: Entry, _ choice: String, _ op: @escaping @MainActor (HostClient) async throws -> Void) {
         guard answering[entry.id] == nil else { return }

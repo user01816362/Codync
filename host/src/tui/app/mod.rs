@@ -25,7 +25,7 @@ pub use approvals::parse_modes;
 pub use bot::{AgentModel, Bot, ModelOption, OwnMemory};
 pub use editor::Editor;
 pub use exchange::{ConversationRow, Exchange, Item, Outcome, conversation, group, rows};
-pub use model::{After, Entry, Kind, Mark, Msg, Status};
+pub use model::{After, Entry, Kind, Mark, Msg, Status, VersionPick};
 pub use roster::{RosterLine, cursor_line, rename_fold, roster_lines, stops};
 pub use slash::SlashAction;
 pub(super) use steps::{running_turn, working_steps};
@@ -116,6 +116,10 @@ pub struct App {
     pub chat_top: bool,
     /// The message the next one sent replies to (`r` on a picked message; esc cancels).
     pub reply: Option<String>,
+    /// The sent message the composer edits (`e` on a picked message; esc cancels).
+    pub editing: Option<String>,
+    /// The version of an edited message the reader chose, by the message's first entry.
+    pub versions: HashMap<String, VersionPick>,
     /// A message picked to act on: reply, react, copy, save its files (`r`, then j/k and ↵).
     pub pick: Option<String>,
     /// Chat lines showing their full text: a handoff (`o` on the picked line).
@@ -203,6 +207,8 @@ impl App {
             chat_height: 20,
             chat_top: false,
             reply: None,
+            editing: None,
+            versions: HashMap::new(),
             pick: None,
             unfolded: HashSet::new(),
             folded: HashSet::new(),
@@ -257,9 +263,49 @@ impl App {
         // line when the call ends, or when its app went away. A file or an artifact the bot sent stays, to be opened.
         let opens = |e: &Entry| e.artifact().is_some() || e.data["files"].as_array().is_some_and(|f| !f.is_empty());
         v.retain(|e| e.kind == Kind::Notice || e.call().is_none() || opens(e));
+        // An edited message is one slot: the version the reader chose (`[` and `]`; the newest by default) and the
+        // answer it got. The versions it replaced wait behind them.
+        let groups = version_groups(&v);
+        let chosen: Vec<&Entry> = groups.values().map(|group| self.chosen_version(group)).collect();
+        let turns: HashSet<i64> = chosen.iter().map(|e| e.turn).collect();
+        let ids: HashSet<&str> = chosen.iter().map(|e| e.id.as_str()).collect();
+        let edited_turns: HashSet<i64> = groups.values().flatten().map(|e| e.turn).collect();
+        v.retain(|e| {
+            if edited_turns.contains(&e.turn) {
+                turns.contains(&e.turn) && (e.kind != Kind::User || ids.contains(e.id.as_str()))
+            } else {
+                !(e.kind == Kind::User && e.edit_of().is_some())
+            }
+        });
         // A message sent mid-turn belongs after that turn's reply.
         v.sort_by_key(|e| (e.turn, e.seq));
         v
+    }
+
+    /// The version of an edited message to show: the reader's pick while it still has that many versions,
+    /// else the newest.
+    fn chosen_version<'a>(&self, group: &[&'a Entry]) -> &'a Entry {
+        let root = group.iter().find_map(|e| e.edit_of()).or_else(|| group.first().map(|e| e.id.as_str()));
+        if let Some(pick) = root.and_then(|root| self.versions.get(root))
+            && pick.of == group.len()
+            && let Some(chosen) = group.iter().copied().find(|e| e.id == pick.version)
+        {
+            return chosen;
+        }
+        group.iter().copied().max_by_key(|e| (e.version(), e.seq)).unwrap_or(group[0])
+    }
+
+    /// How many versions an edited message holds; 1 when it was never edited.
+    pub fn version_count(&self, bot: &str, id: &str) -> usize {
+        let Some(map) = self.entries.get(bot) else { return 1 };
+        let Some(e) = map.values().find(|e| e.id == id) else { return 1 };
+        let root = e.edit_of().unwrap_or(&e.id);
+        map.values().filter(|x| x.kind == Kind::User && (x.id == root || x.edit_of() == Some(root))).count()
+    }
+
+    /// The draft key of a message being edited, beside the chat's own draft.
+    pub fn edit_key(id: &str) -> String {
+        format!("edit:{id}")
     }
 
     pub fn pending(&self) -> Option<&Entry> {
@@ -274,10 +320,16 @@ impl App {
     }
 
     pub fn draft(&self) -> Editor {
+        if let Some(id) = &self.editing {
+            return self.drafts.get(&Self::edit_key(id)).cloned().unwrap_or_default();
+        }
         self.selected.as_ref().and_then(|id| self.drafts.get(id).cloned()).unwrap_or_default()
     }
 
     pub fn draft_files(&self) -> &[std::path::PathBuf] {
+        if self.editing.is_some() {
+            return &[];
+        }
         self.selected.as_ref().and_then(|id| self.files.get(id)).map_or(&[], Vec::as_slice)
     }
 
@@ -322,6 +374,7 @@ impl App {
             self.selected = Some(id.to_owned());
             self.reply = None;
             self.pick = None;
+            self.cancel_edit();
             self.chat_scroll = 0;
             self.trace_scroll = 0;
             self.trace_turn = None;
@@ -443,6 +496,27 @@ fn page(h: usize) -> isize {
 pub(super) fn cycle(i: usize, d: isize, n: usize) -> usize {
     let n = isize::try_from(n).unwrap_or(1).max(1);
     usize::try_from((isize::try_from(i).unwrap_or(0) + d).rem_euclid(n)).unwrap_or(0)
+}
+
+/// The messages the user edited, by the id of their first version: each one is one slot, showing one version
+/// and the answer it got.
+fn version_groups<'a>(entries: &[&'a Entry]) -> HashMap<String, Vec<&'a Entry>> {
+    let held: HashMap<&str, &'a Entry> = entries.iter().map(|e| (e.id.as_str(), *e)).collect();
+    let mut groups: HashMap<String, Vec<&'a Entry>> = HashMap::new();
+    for e in entries {
+        if e.kind == Kind::User
+            && let Some(root) = e.edit_of()
+        {
+            groups.entry(root.to_owned()).or_default().push(*e);
+        }
+    }
+    for (root, group) in &mut groups {
+        if let Some(first) = held.get(root.as_str()) {
+            group.push(first);
+        }
+        group.sort_by_key(|e| (e.version(), e.seq));
+    }
+    groups
 }
 
 /// Names the bot's connectors / skills, and lists the installed ones it doesn't use, off.
