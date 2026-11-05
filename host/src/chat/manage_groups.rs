@@ -115,8 +115,8 @@ async fn create(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Valu
         "members": members, "createdBy": source.id,
     }))?;
     // A random look, as a client's new group gets, for what the manager didn't pick.
-    cfg.avatar_color = AVATAR_COLORS[getrandom::u32()? as usize % AVATAR_COLORS.len()].to_owned();
-    cfg.avatar_shape = AVATAR_SHAPES[getrandom::u32()? as usize % AVATAR_SHAPES.len()].to_owned();
+    AVATAR_COLORS[getrandom::u32()? as usize % AVATAR_COLORS.len()].clone_into(&mut cfg.avatar_color);
+    AVATAR_SHAPES[getrandom::u32()? as usize % AVATAR_SHAPES.len()].clone_into(&mut cfg.avatar_shape);
     let detail = describe(hub, &cfg, None);
     if detail.encode_utf16().count() > MAX_CARD_DETAIL {
         bail!("this change is too long for its approval card to show in full: shorten the instructions");
@@ -213,7 +213,7 @@ fn describe(hub: &Hub, group: &BotConfig, before: Option<&BotConfig>) -> String 
         let names: Vec<String> = group
             .members
             .iter()
-            .map(|id| hub.store.bot(id).ok().flatten().map(|r| r.config.name).unwrap_or_else(|| id.clone()))
+            .map(|id| hub.store.bot(id).ok().flatten().map_or_else(|| id.clone(), |r| r.config.name))
             .collect();
         lines.push(format!("Members: {}", names.join(", ")));
     }
