@@ -98,6 +98,8 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   private expectedHash: string | null = null
   private failures = 0
   private preparingForUpdate = false
+  /** Quitting: no service operation may start or restart the host once `stopForQuit` has begun. */
+  private quitting = false
   /** The update request already passed on to the app's updater. */
   private updateRequest: number | null = null
 
@@ -149,7 +151,7 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   }
 
   async refresh() {
-    if (this.preparingForUpdate) return
+    if (this.preparingForUpdate || this.quitting) return
     if (!this.binary && devPort === null) return this.setupFailed('missing_binary', { kind: 'missingBinary' })
     if (devPort === null && prefs.get('hostRestartAfterAppUpdate') === true && serviceInstalled()) return this.install()
     if (devPort === null && !serviceInstalled()) {
@@ -174,7 +176,7 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   /** A service operation must never invoke the other environment's binary. */
   async install() {
     const bin = this.binary
-    if (this.preparingForUpdate || this.installing || !bin || devPort !== null) return
+    if (this.quitting || this.preparingForUpdate || this.installing || !bin || devPort !== null) return
     this.installing = true
     this.stopLoop()
     prefs.set('hostUninstalled', false)
@@ -186,7 +188,7 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
         this.setupFailed('install', { kind: 'failed', message: result.output || 'Install failed' })
       } else {
         await sleep(1000)
-        this.connect()
+        if (!this.quitting) this.connect()
       }
     } catch (error) {
       // Only the binary's checks throw here (unreadable `compat` output too).
@@ -217,6 +219,25 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     })
     if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`)
     return (await res.json()) as T
+  }
+
+  /**
+   * Quitting the app ends this computer's host too: nothing of Codync keeps running (or stays reachable)
+   * behind the person's back. The service is removed rather than only stopped, so launchd doesn't start it
+   * again at sign-in; the next launch installs it again. A service belonging to another installation is
+   * left alone, as `uninstall` does.
+   */
+  async stopForQuit(): Promise<void> {
+    this.quitting = true
+    this.stopLoop()
+    const bin = this.binary
+    if (devPort !== null || !bin || !serviceRuns(bin)) return
+    try {
+      await run(bin, ['uninstall'])
+    } finally {
+      this.setLocal(null)
+      this.setState({ kind: 'notInstalled' })
+    }
   }
 
   async uninstall(): Promise<boolean> {

@@ -24,6 +24,7 @@ import { registerSSHConfig } from './ssh-config'
 import { QuitLifecycle } from './quit-lifecycle'
 import { Island } from './island'
 import { registerErrorReports } from './error-reports'
+import { registerRendererRecovery } from './renderer-recovery'
 import { reportHostSetupFailure } from './analytics'
 import { launchAtLogin, openedAtLogin, setLaunchAtLogin, updateLoginItem } from './login-item'
 
@@ -42,6 +43,7 @@ if (!app.isPackaged && process.env.CODYNC_REMOTE_DEBUG) app.commandLine.appendSw
 
 const host = new HostController()
 registerErrorReports(host)
+registerRendererRecovery(host)
 host.on('setupFailed', reportHostSetupFailure)
 const account = new AccountService()
 const updates = new Updates(host)
@@ -271,6 +273,21 @@ if (yieldsToInstall()) {
     nativeTheme.on('updated', () => {
       // Only the opaque windows: a color on the transparent notch island paints its whole panel.
       for (const w of [chat, pairing]) w?.setBackgroundColor(background())
+    })
+    // Quitting ends the host too: no background service outlives the app, or starts again at sign-in without
+    // it. The next launch installs it again. Quitting waits for the service to go, so nothing is left behind.
+    // Registered here, not at startup: a second instance that loses the single-instance lock must not stop the
+    // host the running one is using.
+    let quitState: 'idle' | 'stopping' | 'stopped' = 'idle'
+    app.on('before-quit', (event) => {
+      if (quitState === 'stopped') return
+      event.preventDefault()
+      if (quitState === 'stopping') return
+      quitState = 'stopping'
+      void host.stopForQuit().finally(() => {
+        quitState = 'stopped'
+        app.quit()
+      })
     })
     host.start()
     openChat()
