@@ -12,7 +12,7 @@ account and without the hosted Codync cloud.
 | Host cloud | No built-in cloud address. The computer is local-only unless `CODYNC_CLOUD_URL` (or an address saved in Settings) names one. |
 | App configs | `apps/shared/Config/{main,dev}.plist` ship an empty Clerk key and cloud URL, so every client takes its existing signed-out path. |
 | iPhone / Android | Pairing omits the certificate when the build has no cloud, instead of failing with "Connect to the internet to pair". |
-| CI | `.github/workflows/fork-build.yml` builds an unsigned Apple Silicon macOS app and an unsigned iPhone IPA on every push to `main`. |
+| CI | `.github/workflows/fork-build.yml` builds an unsigned Apple Silicon macOS app on every push to `main`; the standalone `.github/workflows/ios-ipa.yml` builds an unsigned iPhone IPA. |
 
 ## Download and run the macOS app
 
@@ -33,9 +33,10 @@ Requires an Apple Silicon Mac (arm64 only).
 
 ## Download the unsigned iPhone IPA
 
-Every push to `main` also publishes `codync-ios-unsigned.ipa` and its `.sha256` on the newest
-`vX.Y.Z` release. It is built with `CODE_SIGNING_ALLOWED=NO`: no Apple account, provisioning
-profile, Xcode Cloud or App Store Connect is used.
+The standalone **iOS IPA (unsigned)** workflow runs after the macOS fork build succeeds and
+publishes `codync-ios-unsigned.ipa` and its `.sha256` on the newest `vX.Y.Z` release. It can also
+be dispatched by hand from the Actions tab. It is built with `CODE_SIGNING_ALLOWED=NO`: no Apple
+account, provisioning profile, Xcode Cloud or App Store Connect is used.
 
 iOS will not install it as-is. Re-sign it with your own Apple ID or team (Sideloadly, AltStore,
 Xcode), then install it. A free Apple ID may not cover the app group, push and Live Activity

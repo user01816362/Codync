@@ -1,0 +1,78 @@
+name: iOS IPA (unsigned)
+
+# Builds the iPhone app without an Apple account, provisioning profile, Xcode Cloud or App
+# Store Connect, and packs it as Payload/Codync.app in an IPA. Runs after the macOS fork build
+# so the IPA lands on the release that build publishes; dispatch it by hand for a build alone.
+on:
+  workflow_run:
+    workflows: ["Fork build (macOS, unsigned)"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Generate the Xcode project
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          xcodegen generate --spec apps/project.yml
+
+      - name: Build the iOS app (unsigned)
+        working-directory: apps
+        run: |
+          xcodebuild -project Codync.xcodeproj -scheme iOS -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Package the unsigned IPA
+        working-directory: apps
+        run: |
+          APP="build/dd/Build/Products/Release-iphoneos/Codync.app"
+          test -d "$APP"
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R "$APP" build/ipa/Payload/
+          (cd build/ipa && zip -qry ../codync-ios-unsigned.ipa Payload)
+          (cd build && shasum -a 256 codync-ios-unsigned.ipa > codync-ios-unsigned.ipa.sha256)
+          unzip -l build/codync-ios-unsigned.ipa | head
+          cat build/codync-ios-unsigned.ipa.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codync-ios-arm64-unsigned
+          path: |
+            apps/build/codync-ios-unsigned.ipa
+            apps/build/codync-ios-unsigned.ipa.sha256
+          retention-days: 14
+
+      - name: Attach the unsigned IPA to the release
+        if: github.event_name == 'workflow_run' || github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          VERSION="$(node -p "require('./apps/desktop/package.json').version")"
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              apps/build/codync-ios-unsigned.ipa apps/build/codync-ios-unsigned.ipa.sha256 --clobber
+          else
+            echo "No $TAG release yet; the IPA stays in the workflow artifact."
+          fi
