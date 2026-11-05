@@ -33,6 +33,7 @@ pub enum Server {
     Computer,
     Team,
     Manage,
+    Groups,
     Memory,
     Composio,
     /// For agents on this computer that aren't Codync bots; `bot` is the agent's name.
@@ -83,6 +84,7 @@ pub async fn serve(bot: String, port: u16, server: Server) -> Result<()> {
         }
         Server::Team => ("codync-team", crate::chat::team::INSTRUCTIONS, crate::chat::team::tools()),
         Server::Manage => ("codync-manage", crate::chat::manage::INSTRUCTIONS, crate::chat::manage::tools()),
+        Server::Groups => ("codync-groups", crate::chat::manage_groups::INSTRUCTIONS, crate::chat::manage_groups::tools()),
         Server::Memory => ("codync-memory", crate::chat::memory::INSTRUCTIONS, crate::chat::memory::tools()),
         Server::Composio => {
             ("codync-composio", crate::market::composio::INSTRUCTIONS, crate::market::composio::tools())
@@ -165,6 +167,7 @@ async fn call(port: u16, token: &str, bot: &str, params: &Value, server: Server)
         Server::Chat => ("chatCall", Duration::from_secs(if params["name"] == "send_file" { 70 } else { 30 })),
         Server::Team => ("teamCall", Duration::from_secs(30)),
         Server::Manage => ("manageCall", crate::chat::manage::APPROVAL_TIMEOUT + Duration::from_secs(30)),
+        Server::Groups => ("manageGroupsCall", crate::chat::manage::APPROVAL_TIMEOUT + Duration::from_secs(30)),
         Server::Memory => ("memoryCall", Duration::from_mins(2)),
         Server::Composio => ("composioCall", Duration::from_mins(2)),
         // The first listing may wait for the other computers.
@@ -188,6 +191,7 @@ async fn call(port: u16, token: &str, bot: &str, params: &Value, server: Server)
                         Server::Chat
                         | Server::Team
                         | Server::Manage
+                        | Server::Groups
                         | Server::Memory
                         | Server::Routines
                         | Server::Network

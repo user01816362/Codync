@@ -1821,5 +1821,7 @@
   "Previous version": "Versione precedente",
   "Version {n} of {count}": "Versione {n} di {count}",
   "Keep the host running after quitting": "Mantieni l’host in esecuzione dopo l’uscita",
-  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "Disattivato, uscendo da Codync si ferma anche l’host di questo computer. Attivato, i bot continuano a lavorare dopo la chiusura della finestra."
+  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "Disattivato, uscendo da Codync si ferma anche l’host di questo computer. Attivato, i bot continuano a lavorare dopo la chiusura della finestra.",
+  "Manage groups": "Gestisci i gruppi",
+  "Let this bot create group chats and add or remove their members. Deleting a group stays yours.": "Consenti a questo bot di creare gruppi e aggiungere o rimuovere i membri. Eliminare un gruppo resta compito tuo."
 }

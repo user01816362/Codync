@@ -62,7 +62,7 @@ internal enum class FormPart { All, Often, Rarely }
                     agentRows(state, store, draft, change, bot, modelReload, reloadModels = { modelReload++ }) { addingFallback = true }; placeRows(state, store, draft, change, modelReload) { folders = true }
                 }
                 CardSection("Activity") {
-                    notifyRow(draft, change); computerUseRow(state, draft, change); manageTeamRow(state, draft, change); reachRows(state, draft, change)
+                    notifyRow(draft, change); computerUseRow(state, draft, change); manageTeamRow(state, draft, change); manageGroupsRow(state, draft, change); reachRows(state, draft, change)
                 }
                 Plugins(state, draft, change) { viewingSkill = it }
             }
@@ -81,7 +81,7 @@ internal enum class FormPart { All, Often, Rarely }
                 }
                 // The agent and its model are on the Details page; what's left is where it works.
                 CardSection("Workspace") { computerRow(state, online); placeRows(state, store, draft, change, modelReload) { folders = true } }
-                CardSection("Activity") { notifyRow(draft, change); manageTeamRow(state, draft, change); reachRows(state, draft, change) }
+                CardSection("Activity") { notifyRow(draft, change); manageTeamRow(state, draft, change); manageGroupsRow(state, draft, change); reachRows(state, draft, change) }
                 Plugins(state, draft, change) { viewingSkill = it }
             }
         }
@@ -218,6 +218,15 @@ private fun CardRows.manageTeamRow(state: AppState, draft: BotDraft, change: (Bo
     row {
         SwitchRow("Manage the team", "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
             draft.manageTeam, { change(draft.copy(manageTeam = it)) })
+    }
+}
+
+// Only from a host that has it (its bots say).
+private fun CardRows.manageGroupsRow(state: AppState, draft: BotDraft, change: (BotDraft) -> Unit) {
+    if (state.bots.none { it.manageGroups != null }) return
+    row {
+        SwitchRow("Manage groups", "Let this bot create group chats and add or remove their members. Deleting a group stays yours.",
+            draft.manageGroups, { change(draft.copy(manageGroups = it)) })
     }
 }
 

@@ -89,6 +89,7 @@ impl Actor {
                 self.tools_changed |= cfg.connectors != self.cfg.connectors
                     || cfg.computer != self.cfg.computer
                     || cfg.manage_team != self.cfg.manage_team
+                    || cfg.manage_groups != self.cfg.manage_groups
                     || memory_changed;
                 // Live sessions switch before their next turn (see `fast_mode`).
                 let fast_changed = cfg.fast_mode != self.cfg.fast_mode;

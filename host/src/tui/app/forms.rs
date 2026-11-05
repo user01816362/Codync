@@ -49,6 +49,7 @@ impl App {
             notify: b.notify,
             computer: b.computer,
             manage_team: b.manage_team,
+            manage_groups: b.manage_groups,
             offered_to_network: b.offered_to_network,
             reachable_by_assistants: b.reachable_by_assistants,
             color: COLORS.iter().position(|c| *c == b.color).unwrap_or(7),
@@ -149,6 +150,7 @@ impl App {
                         | Field::Notify
                         | Field::Computer
                         | Field::Team
+                        | Field::Groups
                         | Field::Network
                         | Field::Assistants
                         | Field::Color
@@ -182,6 +184,7 @@ impl App {
                     Field::Notify => f.notify = !f.notify,
                     Field::Computer => f.computer = !f.computer,
                     Field::Team => f.manage_team = f.manage_team.map(|on| !on),
+                    Field::Groups => f.manage_groups = f.manage_groups.map(|on| !on),
                     Field::Network => f.offered_to_network = f.offered_to_network.map(|on| !on),
                     Field::Assistants => f.reachable_by_assistants = f.reachable_by_assistants.map(|on| !on),
                     Field::Color if !space => f.color = cycle(f.color, d, COLORS.len()),
@@ -281,6 +284,7 @@ impl Form {
             "notify": self.notify,
             "computer": self.computer,
             "manageTeam": self.manage_team.unwrap_or_default(),
+            "manageGroups": self.manage_groups.unwrap_or_default(),
             "offeredToNetwork": self.offered_to_network.unwrap_or(true),
             "reachableByAssistants": self.reachable_by_assistants.unwrap_or(true),
             "avatarColor": COLORS[self.color],

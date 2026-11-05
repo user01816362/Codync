@@ -111,6 +111,7 @@ impl Actor {
             Some("chat"),
             Some("team"),
             self.cfg.manage_team.then_some("manage"),
+            self.cfg.manage_groups.then_some("groups"),
             Some("memory"),
             Some("routines"),
             self.cfg.computer.then_some("computer"),

@@ -1821,5 +1821,7 @@
   "Your phone reaches {name} from anywhere through your account. Adding it also turns this on.": "휴대폰은 계정을 통해 어디서나 {name}에 접근합니다. 추가하면 이 기능도 켜집니다.",
   "Use your own relay": "내 릴레이 사용",
   "Keep the host running after quitting": "종료 후에도 호스트 계속 실행",
-  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "끄면 종료할 때 이 컴퓨터의 호스트도 중지됩니다. 켜면 창을 닫아도 봇이 계속 작업합니다."
+  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "끄면 종료할 때 이 컴퓨터의 호스트도 중지됩니다. 켜면 창을 닫아도 봇이 계속 작업합니다.",
+  "Manage groups": "그룹 관리",
+  "Let this bot create group chats and add or remove their members. Deleting a group stays yours.": "이 봇이 그룹 채팅을 만들고 멤버를 추가하거나 제거할 수 있습니다. 그룹 삭제는 항상 사용자가 합니다."
 }

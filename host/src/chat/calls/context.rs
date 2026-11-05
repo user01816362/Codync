@@ -382,6 +382,7 @@ pub(super) mod tests {
             skills: vec![],
             computer: false,
             manage_team: false,
+            manage_groups: false,
             offered_to_network: true,
             reachable_by_assistants: true,
             created_by: None,

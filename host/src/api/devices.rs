@@ -51,6 +51,7 @@ const LOCAL_ONLY: &[&str] = &[
     "teamCall",
     "agentCall",
     "manageCall",
+    "manageGroupsCall",
     "memoryCall",
     "routineCall",
     "composioCall",

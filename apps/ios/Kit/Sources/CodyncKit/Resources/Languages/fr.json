@@ -1821,5 +1821,7 @@
   "Your phone reaches {name} from anywhere through your account. Adding it also turns this on.": "Votre téléphone accède à {name} de partout via votre compte. L'ajouter active aussi cette option.",
   "Use your own relay": "Utiliser votre propre relais",
   "Keep the host running after quitting": "Garder l’hôte actif après avoir quitté",
-  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "Désactivé, quitter Codync arrête aussi l’hôte de cet ordinateur. Activé, vos bots continuent de travailler après la fermeture de la fenêtre."
+  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "Désactivé, quitter Codync arrête aussi l’hôte de cet ordinateur. Activé, vos bots continuent de travailler après la fermeture de la fenêtre.",
+  "Manage groups": "Gérer les groupes",
+  "Let this bot create group chats and add or remove their members. Deleting a group stays yours.": "Autoriser ce bot à créer des groupes et à en ajouter ou retirer les membres. La suppression d’un groupe reste la vôtre."
 }

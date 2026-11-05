@@ -61,6 +61,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::Notify => "Notify",
             Field::Computer => "Use computer",
             Field::Team => "Manage team",
+            Field::Groups => "Manage groups",
             Field::Network => "Network",
             Field::Assistants => "Assistants",
             Field::Color => "Color",
@@ -226,6 +227,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                 };
                 put(buf, vx, y, vw, s, t.text.patch(base));
             }
+            Field::Groups => {
+                let s = match f.manage_groups {
+                    Some(true) => "◉ On   ○ Off",
+                    Some(false) => "○ On   ◉ Off",
+                    None => "Needs a newer Codync host",
+                };
+                put(buf, vx, y, vw, s, t.text.patch(base));
+            }
             Field::Network | Field::Assistants => {
                 let (on, applies, off_here) = if *field == Field::Network {
                     (f.offered_to_network, app.network["joined"] == true, "this computer isn't in a network")
@@ -314,6 +323,10 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         let line =
             "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.";
         put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
+    } else if f.current() == Field::Groups {
+        let line =
+            "Let this bot create group chats and add or remove their members. Deleting a group stays yours.";
+        put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
     } else if f.current() == Field::Network {
         let line = tr("Offered to the network: bots on your other computers can see and message this bot.");
         put(buf, inner.x, by - 1, inner.width, &line, t.dim.patch(t.panel));
@@ -347,6 +360,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         | Field::Notify
         | Field::Computer
         | Field::Team
+        | Field::Groups
         | Field::Network
         | Field::Assistants => "←→ change · tab next field",
         Field::Instructions => "⇧↵ new line · tab next field",

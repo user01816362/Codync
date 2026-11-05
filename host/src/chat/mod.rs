@@ -11,6 +11,7 @@ pub mod handoff;
 pub mod lead;
 pub mod library;
 pub mod manage;
+pub mod manage_groups;
 pub mod memory;
 pub mod messages;
 pub mod naming;

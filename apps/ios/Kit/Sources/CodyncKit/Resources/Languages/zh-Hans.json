@@ -1821,5 +1821,7 @@
   "Your phone reaches {name} from anywhere through your account. Adding it also turns this on.": "你的手机会通过账户从任何地方连接 {name}。加入后也会开启此功能。",
   "Use your own relay": "使用自己的中继",
   "Keep the host running after quitting": "退出后继续运行 Host",
-  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "关闭时，退出也会停止这台电脑的 Host。开启时，关闭窗口后机器人会继续工作。"
+  "Off, quitting also stops this computer's host. On, bots keep working after the window closes.": "关闭时，退出也会停止这台电脑的 Host。开启时，关闭窗口后机器人会继续工作。",
+  "Manage groups": "管理群聊",
+  "Let this bot create group chats and add or remove their members. Deleting a group stays yours.": "让这个 bot 创建群聊，并添加或移除其中的成员。删除群聊仍由你决定。"
 }

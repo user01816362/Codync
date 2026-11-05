@@ -266,6 +266,14 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
               onChange={(on) => set('manageTeam', on)}
             />
           ) : null}
+          {[...store.bots.values()].some((b) => b.manageGroups !== null) ? (
+            <SwitchRow
+              title="Manage groups"
+              detail="Let this bot create group chats and add or remove their members. Deleting a group stays yours."
+              on={draft.manageGroups ?? false}
+              onChange={(on) => set('manageGroups', on)}
+            />
+          ) : null}
           <NetworkSwitches draft={draft} set={set} />
         </CardSection>
 

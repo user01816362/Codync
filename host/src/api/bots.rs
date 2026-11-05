@@ -66,6 +66,10 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         "manageCall" => {
             crate::chat::manage::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"]).await?
         }
+        "manageGroupsCall" => {
+            crate::chat::manage_groups::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"])
+                .await?
+        }
         "history" => {
             let bot = str_arg(&b, "botId")?;
             let before = b["beforeSeq"].as_i64().unwrap_or(i64::MAX);

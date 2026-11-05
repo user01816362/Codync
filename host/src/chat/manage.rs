@@ -22,7 +22,7 @@ pub const APPROVAL_TIMEOUT: Duration = Duration::from_secs(270);
 const MAX_ROUTINES: usize = 20;
 /// Most bots created by bots at once: each manages the team too, so a manager (or a routine it wrote) can't multiply
 /// them without end.
-const MAX_CREATED: usize = 20;
+pub(crate) const MAX_CREATED: usize = 20;
 /// What every client shows of an approval card's details (their `PermissionCard`s cut it there), in UTF-16 units.
 pub const MAX_CARD_DETAIL: usize = 2000;
 
@@ -210,7 +210,7 @@ async fn update(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Valu
 }
 
 /// Under Ask the change waits for the user's Allow on an approval card in the bot's chat.
-async fn approve(hub: &Hub, source: &BotConfig, title: String, detail: String) -> Result<()> {
+pub(crate) async fn approve(hub: &Hub, source: &BotConfig, title: String, detail: String) -> Result<()> {
     if source.permission == Permission::Auto {
         return Ok(());
     }
@@ -243,13 +243,13 @@ fn setup(hub: &Hub, cfg: &BotConfig) -> Value {
     json!({
         "id": cfg.id, "name": cfg.name, "instructions": cfg.description, "agent": cfg.backend, "model": cfg.model,
         "modelOptions": cfg.model_options, "fallbacks": crate::chat::fallbacks::wire(&cfg.fallbacks), "avatarColor": cfg.avatar_color, "avatarShape": cfg.avatar_shape,
-        "folder": folder, "hidden": cfg.hidden, "approvals": cfg.permission, "mode": cfg.mode, "manageTeam": cfg.manage_team, "createdBy": cfg.created_by,
+        "folder": folder, "hidden": cfg.hidden, "approvals": cfg.permission, "mode": cfg.mode, "manageTeam": cfg.manage_team, "manageGroups": cfg.manage_groups, "createdBy": cfg.created_by,
         "routines": hub.routines.list(&cfg.id)["routines"],
     })
 }
 
 /// A text argument, trimmed; none when it's left out.
-fn text(args: &Value, key: &str) -> Result<Option<String>> {
+pub(crate) fn text(args: &Value, key: &str) -> Result<Option<String>> {
     match &args[key] {
         Value::Null => Ok(None),
         Value::String(s) => Ok(Some(s.trim().to_owned())),
@@ -345,7 +345,7 @@ fn save_routines(hub: &Hub, bot: &str, routines: &[Value]) -> Vec<Value> {
 }
 
 /// A line in the managing bot's chat, where it works now.
-fn notice(hub: &Hub, bot: &str, text: &str) {
+pub(crate) fn notice(hub: &Hub, bot: &str, text: &str) {
     let lane = hub.runtime(bot).lane.unwrap_or_else(|| Lane::main(bot));
     hub.add_entry(&lane, EntryKind::Notice, hub.store.max_turn(bot), &json!({"text": text}));
 }

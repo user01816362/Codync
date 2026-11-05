@@ -31,6 +31,7 @@ data class BotDraft(
     val skills: List<String>? = null,
     val computer: Boolean = false,
     val manageTeam: Boolean = false,
+    val manageGroups: Boolean = false,
     /** Null where the host has none (an older one), so it isn't sent. */
     val fallbacks: List<Fallback>? = null,
     val selfFallbacks: Boolean? = null,
@@ -79,7 +80,7 @@ data class BotDraft(
 
         fun from(bot: Bot): BotDraft = BotDraft(bot.id, bot.name, bot.description, bot.avatarColor, bot.avatarShape,
             bot.backend, bot.command, if (bot.managedWorkspace) "" else bot.cwd, bot.permission, bot.model,
-            bot.modelOptions, bot.fastMode, bot.pinned, bot.hidden, bot.notify, bot.connectors, bot.skills, bot.computer, bot.manageTeam ?: false, bot.fallbacks, bot.selfFallbacks,
+            bot.modelOptions, bot.fastMode, bot.pinned, bot.hidden, bot.notify, bot.connectors, bot.skills, bot.computer, bot.manageTeam ?: false, bot.manageGroups ?: false, bot.fallbacks, bot.selfFallbacks,
             bot.offeredToNetwork, bot.reachableByAssistants, bot.mode)
     }
 }

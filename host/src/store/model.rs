@@ -128,6 +128,10 @@ pub struct BotConfig {
     /// (see `chat::manage`). The user turns it on; the bots such a bot creates have it too.
     #[serde(default)]
     pub manage_team: bool,
+    /// The bot gets the built-in `groups` MCP server: it creates groups and adds or removes their
+    /// members (see `chat::manage_groups`). Separate from `manage_team`; the user turns it on.
+    #[serde(default)]
+    pub manage_groups: bool,
     /// Other computers in the user's network list this bot and may message it (`network::publish`).
     #[serde(default = "yes")]
     pub offered_to_network: bool,
