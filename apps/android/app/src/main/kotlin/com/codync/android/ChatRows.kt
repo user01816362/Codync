@@ -64,7 +64,6 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 /** One row of a conversation, as iOS `ChatItem` builds them. */
 internal sealed interface ChatItem {
     val id: String
@@ -77,11 +76,13 @@ internal sealed interface ChatItem {
 }
 
 /**
- * Chat-visible entries plus time separators (gaps over an hour) and author grouping. An edited message is one
- * slot: it shows the version the reader picked (`picked`, by its first entry's id; the newest by default) and
- * that version's answers, where the message first was.
+ * Chat-visible entries plus time separators (gaps over an hour) and author grouping. While the bot is [busy], queued
+ * messages wait above the composer instead ([queuedMessages]); the send each came from doesn't show again either.
+ * An edited message is one slot: it shows the version the reader picked (`picked`, by its first entry's id; the
+ * newest by default) and that version's answers, where the message first was.
  */
-internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, picked: Map<String, VersionPick> = emptyMap()): List<ChatItem> {
+internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, busy: Boolean = false,
+    picked: Map<String, VersionPick> = emptyMap()): List<ChatItem> {
     val out = mutableListOf<ChatItem>()
     var last: Long? = null
     var author: String? = null
@@ -102,14 +103,13 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, picked:
     val units = mutableListOf<Pair<Long, Any>>()
     var run = mutableListOf<BotExchange>()
     val marks = mutableMapOf<String, Pair<List<Entry>, Int>>()
-    fun flush() { if (run.isNotEmpty()) { units += run.first().createdAt to BotExchangeGroup(run); run = mutableListOf() } }
     fun show(entry: Entry, at: Long = entry.createdAt) {
         val exchange = BotExchange.of(entry)
         if (exchange == null) { flush(); units += at to entry; return }
         if (run.isNotEmpty() && run.last().peerId != exchange.peerId) flush()
         run += exchange
     }
-    for (entry in visible) {
+    for (entry in if (busy) visible.filterNot(Entry::isQueued) else visible) {
         val group = groups[entry.id]
         if (group == null) { show(entry); continue }
         // The chosen version and its answer, kept together where the message first was.
@@ -239,7 +239,7 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
             .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { SelectionContainer { UserText(entry.text, quote) } }) {
                 messageMenu(context, entry, reply, edit, null)
             }) { UserText(entry.text, quote) }
-        SendStatusLine(entry.status, state.bots.firstOrNull { it.id == entry.botId }?.status == "working")
+        SendStatusLine(entry.status)
         if (entry.editedAt != null) Text(tr("Edited"), style = Type.caption2, color = Palette.tertiary)
     }
 }
@@ -259,15 +259,14 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     }
 }
 
-@Composable private fun SendStatusLine(status: String?, botWorking: Boolean) {
+@Composable private fun SendStatusLine(status: String?) {
     val text = when (status) {
         "sending" -> "Sending…"
-        "queued" -> if (botWorking) "Queued until this response finishes" else "Queued"
         "cancelled" -> "Not sent — stopped"
         "delivering" -> "Delivered to the computer"
         else -> null
     }
-    if (text != null) Text(text, style = Type.caption2, color = Palette.tertiary)
+    if (text != null) Text(tr(text), style = Type.caption2, color = Palette.tertiary)
 }
 
 /** A message this phone is still delivering: the same bubble, with how far it got. */
@@ -369,7 +368,7 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
         Row(Modifier.plainButton(action = open).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Symbol("clock.arrow.circlepath", size = 15.dp, tint = Palette.secondary)
-            Text(entry.text.ifEmpty { "Routine" }, style = Type.footnote, color = Palette.secondary)
+            Text(tr(entry.text.ifEmpty { "Routine" }), style = Type.footnote, color = Palette.secondary)
         }
         if (entry.data["retry"]?.jsonPrimitive?.booleanOrNull == true) {
             if (retrying) Spinner(14.dp)
@@ -380,24 +379,24 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
 
 /** A line from the computer. `addFallback`, on a failure the bot's fallbacks could have carried, opens them. */
 @Composable private fun NoticeRow(entry: Entry, addFallback: (() -> Unit)?) {
-    val text = entry.text
-    val seconds = entry.data["callSeconds"]?.jsonPrimitive?.longOrNull
+    val text = tr(entry.text)
+    val length = callLength(entry)
     when {
-        seconds != null -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        length.isNotEmpty() -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Symbol("waveform", size = 15.dp, tint = Palette.secondary)
             Spacer(Modifier.width(6.dp))
-            Text("$text · %02d:%02d".format(seconds / 60, seconds % 60), style = Type.footnote.monospacedDigit, color = Palette.secondary)
+            Text(text + length, style = Type.footnote.monospacedDigit, color = Palette.secondary)
         }
         entry.data.text("style") == "error" -> Row(Modifier.fillMaxWidth().clip(RoundedRectangle(12.dp))
             .background(Palette.danger.copy(alpha = 0.12f)).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Symbol("exclamationmark.triangle.fill", size = 16.dp, tint = Palette.danger)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SelectionContainer { Text(text, style = Type.footnote, color = Palette.text) }
+                SelectionContainer { Text(tr(text), style = Type.footnote, color = Palette.text) }
                 if (addFallback != null && entry.data["addFallback"]?.jsonPrimitive?.booleanOrNull == true) SecondaryButton("Add a fallback", action = addFallback)
             }
         }
         "agentSwitch" in entry.data -> AgentSwitchLine(text, (entry.data["agentSwitch"] as? JsonObject)?.text("carried"))
-        else -> Text(text, Modifier.fillMaxWidth(), style = Type.footnote, color = Palette.secondary, textAlign = TextAlign.Center)
+        else -> Text(tr(text), Modifier.fillMaxWidth(), style = Type.footnote, color = Palette.secondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -484,7 +483,7 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
             members.joinToString(" · ") { it.name }.takeIf { bot.name != members.joinToString(", ") { it.name } },
             bot.description.ifEmpty { null }) else listOfNotNull(
             if (bot.managedWorkspace) "${backendName(state, bot.backend)} · ${tr("Personal workspace")}"
-            else tr("{agent} in {path}").replace("{agent}", backendName(state, bot.backend)).replace("{path}", bot.cwd),
+            else fill(tr("{agent} in {path}"), "agent" to backendName(state, bot.backend), "path" to bot.cwd),
             bot.description.ifEmpty { null })
         for (line in lines) Text(line, style = Type.subheadline, color = Palette.secondary, textAlign = TextAlign.Center)
         Text(if (bot.kind == "group") "Everyone answers in turn. @mention a bot to ask just that one."

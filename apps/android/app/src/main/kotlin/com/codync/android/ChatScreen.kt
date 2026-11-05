@@ -137,7 +137,8 @@ import com.kyant.shapes.Capsule
                 MessageComposer(bot, chatState, store, onCall = if (state.voice == null && state.actualConnection is LinkState.Ready) startCall else null,
                     onInterrupt = if (state.voice?.botId == bot.id && state.voice.state.phase == VoicePhase.Speaking) store::interruptVoice else null,
                     replyTo = replyTo, cancelReply = { replyId = null },
-                    draftKey = editing?.let { "edit:${it.id}" } ?: bot.id, editing = editing, cancelEditing = cancelEditing)
+                    draftKey = editing?.let { "edit:${it.id}" } ?: bot.id, editing = editing, cancelEditing = cancelEditing,
+                    queued = queuedMessages(state.chatEntries(bot), bot.isWorking))
             }
         }
     }) {
@@ -218,17 +219,20 @@ import com.kyant.shapes.Capsule
     }
 }
 
+/** [bot]'s chat. What voice calls carried shows in each call's conversation instead. */
+private fun AppState.chatEntries(bot: Bot) = entries.filter { it.botId == bot.id && it.isChat }.hidingCalls()
+
 /** The messages: all this phone has, earlier ones from the computer near the top, following the newest. */
 @Composable private fun Transcript(bot: Bot, state: AppState, store: AppStore, connect: ConnectionRequestActions, padding: PaddingValues,
     indicatorTop: Dp, openRoutine: (String) -> Unit, reply: (Entry) -> Unit, edit: (Entry) -> Unit, addFallback: (Bot) -> Unit,
     openArtifact: (OpenArtifact) -> Unit, openCall: (String) -> Unit, openPeer: (String) -> Unit) {
-    // What voice calls carried shows in each call's conversation, not in the chat.
-    val entries = state.entries.filter { it.botId == bot.id && it.isChat }.hidingCalls()
+    val entries = state.chatEntries(bot)
     // A call's message that failed to send stays here, to be sent again.
     val pending = state.pending.filter { it.botId == bot.id && (it.call == null || it.status == SendStatus.Failed) }
     // An edited message shows its newest version unless the reader walked back through the arrows.
     val picks = remember(bot.id) { mutableStateMapOf<String, VersionPick>() }
-    val items = chatItems(entries, pending, picks)
+    // Messages waiting behind the bot's work show above the composer instead.
+    val items = chatItems(entries, pending, busy = bot.isWorking, picked = picks)
     val working = bot.isWorking(bot.id) && state.connection is LinkState.Ready
     val more = bot.id !in state.historyComplete
     val details by ThinkingDetails.enabled.collectAsStateWithLifecycle()

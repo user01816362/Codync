@@ -12,6 +12,8 @@ struct Composer: View {
     @Binding var replyingTo: Entry?
     /// A sent message being edited: the field holds its text, and sending edits it and asks the bot again.
     @Binding var editingMessage: Entry?
+    /// The user's messages waiting behind the bot's work, shown above the box (`QueuedMessages`).
+    var queued: [Entry] = []
     /// Starts a voice call; while the box is empty it takes the send button's place.
     var onCall: (() -> Void)?
     /// Interrupts the bot while it is speaking in a voice call.
@@ -94,6 +96,13 @@ struct Composer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if !queued.isEmpty {
+                // Over the box, past the + button.
+                QueuedMessages(entries: queued)
+                    .padding(.leading, 16 + (canAttach ? fieldHeight + 8 : 0))
+                    .padding(.trailing, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             if !commands.isEmpty {
                 CommandList(commands: commands, pick: run)
                     .padding(.horizontal, 16)
@@ -118,6 +127,7 @@ struct Composer: View {
         }
         .animation(Motion.layout, value: suggestions.map(\.id))
         .animation(Motion.layout, value: commands.map(\.id))
+        .animation(Motion.reduced(Motion.layout, reduceMotion), value: queued.isEmpty)
     }
 
     private var fieldPadding: CGFloat { 10 }
@@ -156,8 +166,6 @@ struct Composer: View {
             append(picked.map(\.file))
             return true
         }
-        .reviewInterruption(active: focused || pickingFiles || pickingPhotos || !files.isEmpty
-                            || dictation.listening || dictation.transcribing)
         .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { add(urls) }
         }

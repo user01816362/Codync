@@ -164,7 +164,7 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
     const accepted: OutgoingFile[] = []
     for (const f of incoming) {
       if (f.data.length > MAX_FILE_SIZE) {
-        store.setError(`${f.name} is larger than 100 MB.`)
+        store.setError(tr('{name} is larger than 100 MB.').replaceAll('{name}', () => f.name))
         continue
       }
       accepted.push({ id: crypto.randomUUID(), name: f.name, data: f.data })
@@ -198,8 +198,8 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
   const trailing: Trailing = onInterrupt && !draft && !files.length ? 'interrupt' : working && !draft && !files.length ? 'stop' : onCall && !draft && !files.length ? 'call' : 'send'
   const [symbol, label] = ({
     interrupt: ['stop.fill', 'Interrupt'],
-    stop: ['stop.fill', 'Stop'],
-    call: ['waveform', 'Call'],
+    stop: ['stop.fill', tr('Stop')],
+    call: ['waveform', tr('Call')],
     send: ['arrow.up', 'Send'],
   } as const)[trailing]
   const enabled = trailing !== 'send' || canSend
@@ -268,7 +268,7 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
                 value={draft}
                 placeholder={placeholder}
                 spellCheck
-                aria-label={editing ? 'Edit message' : reply ? 'Reply' : 'Message'}
+                aria-label={tr(editing ? 'Edit message' : reply ? 'Reply' : 'Message')}
                 aria-keyshortcuts="Enter Shift+Enter"
                 onCompositionStart={() => { composing.current = true }}
                 onCompositionEnd={() => { composing.current = false }}
@@ -351,7 +351,7 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
 }
 
 /** Keep the outgoing row until its height/fade transition finishes. */
-function ComposerReveal({ open, children }: { open: boolean; children: ReactNode }) {
+export function ComposerReveal({ open, children }: { open: boolean; children: ReactNode }) {
   const { mounted, shown } = usePresence(open)
   const last = useRef(children)
   if (open) last.current = children

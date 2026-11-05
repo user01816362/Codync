@@ -49,13 +49,13 @@ class MessageVersionsTest {
     @Test
     fun `picking an older version brings back its own answer`() {
         val pick = mapOf("u1" to VersionPick("u1", 2))
-        assertEquals(listOf("u1:first", "a1:answer to first", "u2:second"), ids(chatItems(chat(), emptyList(), pick)))
+        assertEquals(listOf("u1:first", "a1:answer to first", "u2:second"), ids(chatItems(chat(), emptyList(), picked = pick)))
     }
 
     @Test
     fun `a newer edit wins over a pick made before it`() {
         val pick = mapOf("u1" to VersionPick("u1", 1))
-        assertEquals(listOf("e1:edited first", "a2:answer to the edit", "u2:second"), ids(chatItems(chat(), emptyList(), pick)))
+        assertEquals(listOf("e1:edited first", "a2:answer to the edit", "u2:second"), ids(chatItems(chat(), emptyList(), picked = pick)))
     }
 
     @Test

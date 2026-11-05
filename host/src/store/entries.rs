@@ -26,6 +26,8 @@ fn row_entry(r: &rusqlite::Row) -> rusqlite::Result<Entry> {
 const ENTRY_COLS: &str = "seq, id, bot_id, rev, kind, turn, data, created_at, updated_at";
 /// A bot still winding down after its deletion can't leave lines behind (`?2` is the chat).
 const LIVE_CHAT: &str = "WHERE NOT EXISTS (SELECT 1 FROM bots WHERE id = ?2 AND deleted = 1)";
+/// Leaves out a message the user took back before it went out (`unqueue`): no bot, model or list reads it.
+pub(super) const NOT_REMOVED: &str = "json_extract(data, '$.removed') IS NOT 1";
 
 impl Store {
     pub fn insert_entry(&self, lane: &Lane, kind: EntryKind, turn: i64, data: &Value) -> Result<Entry> {
@@ -81,12 +83,11 @@ impl Store {
     }
 
     pub fn update_entry(&self, id: &str, data: &Value) -> Result<Option<Entry>> {
-        self.update_entry_in_turn(id, data, None)
+        self.update_entry_turn(id, None, data)
     }
 
-    /// Updates an entry and, when `turn` is given, the turn it belongs to (an edited message is answered again in
-    /// a new turn, though it keeps its place in the chat).
-    pub fn update_entry_in_turn(&self, id: &str, data: &Value, turn: Option<i64>) -> Result<Option<Entry>> {
+    /// [`Self::update_entry`] that also moves the entry into `turn` when given (a queued message on its way out).
+    pub fn update_entry_turn(&self, id: &str, turn: Option<i64>, data: &Value) -> Result<Option<Entry>> {
         let c = self.db.locked();
         let rev = next_rev(&c)?;
         c.execute(
@@ -221,11 +222,11 @@ impl Store {
         Ok(st.query_map(params![since, cap], row_entry)?.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Older entries of a chat.
+    /// Older entries of a chat, without the messages taken back: a client hears of those through `entries_since`.
     pub fn history(&self, bot_id: &str, before_seq: i64, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq < ?2
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq < ?2 AND {NOT_REMOVED}
              ORDER BY seq DESC LIMIT ?3"
         ))?;
         let mut rows: Vec<Entry> =
@@ -239,7 +240,7 @@ impl Store {
     pub fn file_messages(&self, bot_id: &str, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND {NOT_REMOVED}
                AND json_extract(data, '$.superseded') IS NULL
                AND (json_array_length(data, '$.files') > 0 OR json_array_length(data, '$.attachments') > 0)
              ORDER BY seq DESC LIMIT ?2"
@@ -267,7 +268,7 @@ impl Store {
     // An FTS5 trigram table once a bot's search passes a second.
     pub fn search_messages(&self, bot_id: &str, terms: &[String], from: Option<i64>, limit: i64) -> Result<Vec<Entry>> {
         let mut sql = format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq <= ?3 AND
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq <= ?3 AND {NOT_REMOVED} AND
                json_extract(data, '$.superseded') IS NULL AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1))"
         );
@@ -303,7 +304,7 @@ impl Store {
     pub fn conversation_since(&self, bot_id: &str, after_seq: i64, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND {NOT_REMOVED} AND
                json_extract(data, '$.superseded') IS NULL AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1)
                 OR (kind = 'notice' AND json_extract(data, '$.transcript') IS NOT NULL))
@@ -326,7 +327,7 @@ impl Store {
     pub fn messages_after(&self, lane: &Lane, after_seq: i64, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND {NOT_REMOVED} AND
                json_extract(data, '$.superseded') IS NULL AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1))
              ORDER BY seq DESC LIMIT ?3"
@@ -447,6 +448,24 @@ mod tests {
         assert_eq!(texts(&[], Some(seqs[2])), ["note 3", "note 2"], "starts at the message itself");
         assert_eq!(texts(&["1".to_owned()], Some(seqs[2])), ["note 1"]);
         assert_eq!(texts(&[], None), ["note 4", "note 3"]);
+    }
+
+    #[test]
+    fn a_message_taken_back_reaches_no_reader() {
+        let s = temp_store();
+        let main = Lane::main("b1");
+        let file = json!([{"name": "a.png", "size": 1}]);
+        let kept = s.insert_entry(&main, EntryKind::User, 1, &json!({"text": "ship it", "attachments": file})).unwrap();
+        let gone = json!({"text": "ship the prod table", "attachments": file, "status": "cancelled", "removed": true});
+        s.insert_entry(&main, EntryKind::User, 2, &gone).unwrap();
+        let ids = |rows: Vec<Entry>| rows.into_iter().map(|e| e.id).collect::<Vec<_>>();
+        let kept = [kept.id];
+        assert_eq!(ids(s.messages_after(&main, 0, 10).unwrap()), kept, "recaps, calls and rooms");
+        assert_eq!(ids(s.conversation_since("b1", 0, 10).unwrap()), kept, "dreaming");
+        assert_eq!(ids(s.search_messages("b1", &["ship".to_owned()], None, 10).unwrap()), kept, "memory search");
+        assert_eq!(ids(s.file_messages("b1", 10).unwrap()), kept, "the Library");
+        assert_eq!(ids(s.history("b1", i64::MAX, 10).unwrap()), kept, "paging, handoffs and calls");
+        assert_eq!(s.last_message("b1").unwrap().text, "ship it", "the roster");
     }
 
     #[test]

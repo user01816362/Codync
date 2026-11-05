@@ -6,11 +6,11 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.39.0
+## 2.39.1
 ### zh-Hant
-- 可以編輯已送出的訊息，讓機器人回答修改後的版本；用訊息下方的箭頭查看前後版本和各自得到的回答。
-- 可以清除對話，讓機器人從頭開始；它的記憶、檔案和資料庫都會保留。
+- 現在會在你從這支 iPhone 送出第五則訊息後，邀請你到 App Store 評分，一年最多兩次。
+- 推理強度滑桿新增漸層點陣，讓不同強度更容易辨識。
 
 ### en-US
-- Edit a message you sent and the bot answers the changed version; the arrows under it walk through its versions and the answers they got.
-- Clear a chat to start the bot's conversation over; its memory, files and Library stay.
+- Codync now invites you to rate it on the App Store after your fifth message from this iPhone, at most twice a year.
+- The reasoning effort slider now uses a dotted gradient to make levels easier to distinguish.

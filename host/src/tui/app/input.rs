@@ -355,6 +355,8 @@ impl App {
                     }
                 }
             }
+            KeyCode::Char('S') => self.steer_next(),
+            KeyCode::Char('D') => self.unqueue_last(),
             KeyCode::Char('*') => self.make_lead(),
             KeyCode::Char('E') if !roster_page => self.ask_clear_chat(),
             KeyCode::Char('x') => {
