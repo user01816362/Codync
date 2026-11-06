@@ -22,6 +22,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
 
+mod late;
+use late::{LateMentions, answer_later, room_notice};
+
 const MAX_ROUNDS: usize = 3;
 /// A member's turn that runs longer counts as a pass.
 const MEMBER_TIMEOUT: Duration = Duration::from_mins(10);
@@ -127,13 +130,14 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
     // Members busy elsewhere: their turn waits in their queue, and they answer on their own once free.
     let mut later: Vec<String> = vec![];
     // The newest message each member was shown when last asked: what it passed on, it has seen.
-    let mut asked: HashMap<String, i64> = HashMap::new();
+    let asked = Arc::new(Mutex::new(HashMap::<String, i64>::new()));
+    let budget = Arc::new(Mutex::new(0));
     'rounds: for round in 0..MAX_ROUNDS {
         let group = group(hub, group_id)?;
         let members = members(hub, &group);
         let since_user = since_last_user_message(hub, lane)?;
         let mut speakers =
-            if round == 0 { responders(&members, &since_user) } else { cited(&members, &since_user, &asked) };
+            if round == 0 { responders(&members, &since_user) } else { cited(&members, &since_user, &asked.locked()) };
         // Each round starts one member later, so the same bot doesn't always speak first.
         if !speakers.is_empty() {
             let offset = round % speakers.len();
@@ -152,7 +156,21 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
                 continue;
             }
             let (prompt, shown) = ask(hub, &group, &members, member, lane)?;
-            asked.insert(member.id.clone(), shown);
+            {
+                let mut seen = asked.locked();
+                if round == 0 && seen.contains_key(&member.id) {
+                    continue;
+                }
+                if round > 0
+                    && !cited(&members, &since_last_user_message(hub, lane)?, &seen).iter().any(|m| m.id == member.id)
+                {
+                    continue;
+                }
+                if !admit(&budget) {
+                    break 'rounds;
+                }
+                seen.insert(member.id.clone(), shown);
+            }
             let (reply, answer) = oneshot::channel();
             let busy = busy_elsewhere(hub, &member.id, lane);
             let turn = GroupTurn {
@@ -164,7 +182,8 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
                 reply,
                 answers: answers(&since_user),
             };
-            if hub.send_cmd(&member.id, Cmd::Group(turn)).is_err() {
+            if let Err(error) = hub.send_cmd(&member.id, Cmd::Group(turn)) {
+                room_notice(hub, lane, &format!("{} could not take the mention: {error}", member.name));
                 continue;
             }
             // The room doesn't wait on a turn elsewhere (it can run for hours): it says so, and the member
@@ -174,19 +193,42 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
                 let data = serde_json::json!({"text": text, "style": NoticeStyle::Info});
                 hub.add_entry(lane, EntryKind::Notice, hub.store.max_turn(group_id), &data);
                 later.push(member.id.clone());
-                tokio::spawn(answer_later(hub.clone(), group_id.to_owned(), (*member).clone(), answer));
+                tokio::spawn(answer_later(
+                    hub.clone(),
+                    lane.clone(),
+                    (*member).clone(),
+                    answer,
+                    LateMentions {
+                        epoch,
+                        rounds: MAX_ROUNDS - round - 1,
+                        asked: asked.clone(),
+                        budget: budget.clone(),
+                    },
+                ));
                 continue;
             }
             // A failed, cancelled or overdue member turn counts as a pass; its error shows in the room.
-            if let Ok(Ok(Ok(Some(text)))) = tokio::time::timeout(MEMBER_TIMEOUT, answer).await {
-                spoke += 1;
-                replies += 1;
-                last_reply = Some((member.id.clone(), member.name.clone(), text));
+            match tokio::time::timeout(MEMBER_TIMEOUT, answer).await {
+                Ok(Ok(Ok(Some(text)))) => {
+                    spoke += 1;
+                    replies += 1;
+                    last_reply = Some((member.id.clone(), member.name.clone(), text));
+                }
+                Err(_) => {
+                    room_notice(hub, lane, &format!("{} did not answer the mention within ten minutes.", member.name));
+                }
+                _ => {}
             }
         }
         if spoke == 0 {
             break;
         }
+    }
+    if hub.groups.current(lane, epoch)
+        && !cited(&members(hub, &group(hub, group_id)?), &since_last_user_message(hub, lane)?, &asked.locked())
+            .is_empty()
+    {
+        room_notice(hub, lane, "The group reply limit was reached. Send another message to continue.");
     }
     if let Some((from, name, text)) = last_reply {
         alert(hub, group_id, &from, &name, &text)?;
@@ -194,19 +236,18 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
     Ok(())
 }
 
-/// A busy member's reply, after the room turn moved on: it alerts like the room's last reply. Dropping the member's
-/// queued turn (see [`GroupTurn::late`]) ends this wait.
-async fn answer_later(
-    hub: Arc<Hub>,
-    group_id: String,
-    member: BotConfig,
-    answer: oneshot::Receiver<Result<Option<String>>>,
-) {
-    if let Ok(Ok(Some(text))) = answer.await
-        && let Err(error) = alert(&hub, &group_id, &member.id, &member.name, &text)
-    {
-        tracing::warn!(group = group_id, error = format!("{error:#}"), "late room reply not pushed");
+fn admit(budget: &Mutex<usize>) -> bool {
+    let mut used = budget.locked();
+    if *used >= MAX_REPLIES {
+        return false;
     }
+    *used += 1;
+    true
+}
+
+/// Receipt keys encode both IDs, avoiding collisions from separators in imported bot names.
+pub(crate) fn receipt_key(chat: &str, bot: &str) -> String {
+    format!("group.prompt.{}", serde_json::json!([chat, bot]))
 }
 
 /// The "done" push for `name`'s reply in the group.
@@ -308,7 +349,7 @@ fn names_everyone(text: &str) -> bool {
 
 /// `member` @-mentioned in `text`.
 fn names(text: &str, member: &BotConfig) -> bool {
-    handles(&member.name).iter().any(|h| mentions(text, h))
+    mentions(text, &member.id.to_lowercase()) || handles(&member.name).iter().any(|h| mentions(text, h))
 }
 
 /// Ways to @-mention a bot: its full name, without spaces, or its first word (lowercased).
@@ -326,11 +367,20 @@ fn handles(name: &str) -> Vec<String> {
 /// `@handle` in `text`, not followed by more of a Latin word (`@al` isn't `@alice`).
 /// CJK names are often followed straight by the message, so only ASCII letters end a match early.
 fn mentions(text: &str, handle: &str) -> bool {
-    let lower = text.to_lowercase();
+    let lower = text
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('>'))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_lowercase()
+        .replace('＠', "@");
     let needle = format!("@{handle}");
-    lower
-        .match_indices(&needle)
-        .any(|(i, _)| lower[i + needle.len()..].chars().next().is_none_or(|c| !(c.is_ascii_alphanumeric() || c == '_')))
+    lower.match_indices(&needle).any(|(i, _)| {
+        let before = lower[..i].chars().next_back();
+        let after = lower[i + needle.len()..].chars().next();
+        before.is_none_or(|c| !(c.is_alphanumeric() || matches!(c, '_' | '@')))
+            && after.is_none_or(|c| !(c.is_ascii_alphanumeric() || c == '_'))
+    })
 }
 
 fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotConfig, lane: &Lane) -> Result<String> {
@@ -349,14 +399,14 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
         for p in &peers {
             let about =
                 if p.description.trim().is_empty() { String::new() } else { format!(" ({})", p.description.trim()) };
-            out.push(format!("- {}{about}", p.name));
+            out.push(format!("- {}{about}; exact mention: @{}", p.name, p.id));
         }
     }
     out.push(format!(
         "You have your full toolkit here. Do the work first, then answer: your final reply of this turn is \
          the one message the room sees. Keep it short and conversational. After this round, only the \
          participants someone @-mentions answer again: @-mention another participant when you need their \
-         answer or action, and only then. If you have nothing new worth adding, reply exactly \"{PASS}\". Never \
+         answer or action, and only then. Use the exact mention from the participant list when names overlap. Plain names do not notify anyone. The host limits a room turn to three rounds and ten replies; a mention is a request, not a delivery or read receipt. If you have nothing new worth adding, reply exactly \"{PASS}\". Never \
          reveal private one-on-one context. Reactions are rare: react(emoji, to) only where a person would, \
          never to a question or a request, `to` naming whose newest message (\"user\" or a participant). With \
          nothing to add, a reaction and \"{PASS}\" agrees without a message."

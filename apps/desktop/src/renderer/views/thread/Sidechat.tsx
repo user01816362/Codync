@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Entry } from '@shared/models'
+import { Bubble } from './ChatRows'
+import { quoteSelection } from './selection-quote'
 import { BotAvatar } from '../../components/Avatar'
 import { Icon } from '../../components/Icon'
 import { ModalHeader } from '../../components/Overlay'
 import { Text } from '../../components/Text'
+import { prefs, usePref } from '../../lib/prefs'
 import { useTr } from '../../lib/use-language'
 import { useStore } from '../../store/context'
 import { allBotExchanges, groupCollaborations, peerOf, type BotExchange } from './bot-exchange'
@@ -13,9 +16,11 @@ import './sidechat.css'
 export function SidechatIndicator({ botId, open }: { botId: string; open: () => void }) {
   const store = useStore()
   const tr = useTr()
+  const [mode] = usePref(prefs.collaborationActivity)
   const exchanges = allBotExchanges(store.collaborationUpdates.get(botId) ?? [], store.allEntries(botId))
   const active = new Set(exchanges.filter((x) => x.outcome.kind === 'pending').map(peerOf)).size
   const title = active ? tr('{count} bots collaborating').replace('{count}', String(active + 1)) : tr('Collaboration activity')
+  if (mode === 'hidden') return null
   return <button className="press sidechat-indicator" onClick={open} aria-label={title}>
     <Icon name="person.2" size={13} /> <span>{title}</span> <Icon name="chevron.up" size={10} />
   </button>
@@ -65,22 +70,26 @@ export function SidechatView({ botId, close }: { botId: string; close: () => voi
   </div>
 }
 
-function ExchangeRow({ exchange }: { exchange: BotExchange }) {
+export function ExchangeRow({ exchange }: { exchange: BotExchange }) {
   const store = useStore()
+  const [expanded, setExpanded] = useState(true)
   const tr = useTr()
   const { sourceBotId: source, targetBotId: target, peerName, text, reply } = exchange.message
   const name = (id: string) => store.authorName(id, id === peerOf(exchange) ? peerName : undefined)
   const bot = (id: string) => store.bots.get(id)
   return <div className="sidechat-exchange">
-    <div className="sidechat-heading">
+    <button className="sidechat-heading press" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
       {bot(source) ? <BotAvatar bot={bot(source)!} size={20} animated={false} /> : null}
       <strong>{name(source)}</strong><Icon name="arrow.right" size={11} color="var(--tertiary)" />
       {bot(target) ? <BotAvatar bot={bot(target)!} size={20} animated={false} /> : null}
       <strong>{name(target)}</strong>
       <time>{new Date(exchange.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
-    </div>
-    <div className="sidechat-message">{text}</div>
-    {reply ? <><div className="sidechat-reply-label">{tr('Reply from {name}').replace('{name}', name(target))}</div><div className="sidechat-reply">{reply}</div></> : null}
+      <Icon name={expanded ? 'chevron.down' : 'chevron.right'} size={10} />
+    </button>
+    {expanded && <>
+    <Bubble className="sidechat-message selectable" items={() => [{ title: 'Copy', icon: 'square.on.square', action: () => window.codync.app.copy(text) }]} quote={selected => quoteSelection({ id: exchange.id, botId: exchange.chat, kind: 'notice', data: {} }, selected, source, 'request')}>{text}</Bubble>
+    {reply ? <><div className="sidechat-reply-label">{tr('Reply from {name}').replace('{name}', name(target))}</div><Bubble className="sidechat-reply selectable" items={() => [{ title: 'Copy', icon: 'square.on.square', action: () => window.codync.app.copy(reply) }]} quote={selected => quoteSelection({ id: exchange.id, botId: exchange.chat, kind: 'notice', data: {} }, selected, target, 'reply')}>{reply}</Bubble></> : null}
+    </>}
     <div className={exchange.outcome.kind === 'failed' ? 'sidechat-status failed' : 'sidechat-status'}>
       {exchange.outcome.kind === 'pending' ? tr('Waiting for a reply…') : exchange.outcome.kind === 'done' ? tr('Completed') : exchange.outcome.detail || tr("Didn't complete.")}
     </div>

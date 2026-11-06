@@ -95,7 +95,7 @@ export class BotStore extends BotSync {
               ids.push(id)
             }
           }
-          return client.send(botId, trimmed, nonce, ids, pasted, replyTo?.id ?? null, call)
+          return client.send(botId, trimmed, nonce, ids, pasted, replyTo?.id ?? null, call, replyTo?.selected ? { text: replyTo.text, part: replyTo.part } : null)
         }, true)
         this.outgoingFiles.delete(nonce)
         this.upsert(e)

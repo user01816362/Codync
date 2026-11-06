@@ -40,6 +40,18 @@ impl Actor {
             Cmd::SendToUser { text, reply } => {
                 let _ = reply.send(self.send_to_user(text));
             }
+            Cmd::ResearchProgress { entries, reply } => {
+                let result = if self.turn.is_some() && !self.stop_requested {
+                    self.on_update(&serde_json::json!({"sessionUpdate": "plan", "entries": entries, "research": true}));
+                    Ok(())
+                } else {
+                    Err(anyhow::anyhow!("research progress requires a running turn"))
+                };
+                let _ = reply.send(result);
+            }
+            Cmd::SendReport { text, report, reply } => {
+                let _ = reply.send(self.send_report_to_user(text, report));
+            }
             Cmd::StreamMessage { action, text, reply } => {
                 let _ = reply.send(self.stream_message(&action, &text));
             }

@@ -257,6 +257,7 @@ impl MessageLifetime {
                 let heading = e.data["heading"].as_str().unwrap_or("Bot request");
                 e.data["text"] = format!("{heading}\nRunning in {}'s chat…", self.target_name).into();
                 e.data["status"] = json!(RequestStatus::Sent);
+                e.data["botMessage"]["startedAt"] = json!(crate::store::now_ms());
                 self.hub.set_entry(id, &e.data);
             }
         }

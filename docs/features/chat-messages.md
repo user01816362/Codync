@@ -16,7 +16,7 @@ Fenced code blocks show their language and a copy action in the graphical client
 
 ## Structured reports
 
-The chat MCP tool `send_report` accepts a version 1 report with text, comparison, timeline and data sections, plus an optional list of sources and explicit one-based source references per section. The host validates size, kinds, source indexes and HTTP(S) URLs, escapes content as plain text, and sends one regular Markdown message. Existing clients and saved history therefore show the report without a new client protocol. Source titles and addresses are supplied by the agent; Codync does not independently verify their claims or fetch the sources. The sections render as text and lists, not interactive charts, forms or a native component registry.
+The chat MCP tool `send_report` accepts a version 1 report with text, comparison, timeline, data, bar and form sections, plus an optional list of sources and explicit one-based source references per section. Bar values must be finite non-negative numbers; the host renders a bounded text chart with the original values, so all clients and saved history can display it. The host validates size, kinds, source indexes and HTTP(S) URLs, escapes content as plain text, and stores both the structured report and its Markdown fallback in the message. Source titles and addresses are supplied by the agent; Codync does not independently verify their claims or fetch the sources. Updated desktop, iOS and Android clients render expandable sections, comparisons, timelines, native bars and text-answer forms. A form submits an ordinary user message through the existing outbox, grants no new permission and cannot execute generated actions. Older clients and the terminal retain the text fallback. `research_progress` updates the working-details checklist with agent-reported steps; `message_status` distinguishes recorded client acknowledgements from bot request execution.
 
 ## Messages and explicit streaming
 
@@ -134,3 +134,14 @@ once the turn ends, its last message's `↳ N steps` line counts them the same w
   opacity and a small scale change together. The transition honors Reduce Motion and reverses
   when work restarts during an exit. iPhone conversation insertion, removal and scrolling
   keep their existing animations.
+
+### Selected passages on desktop
+
+Select text inside a message and choose **Quote selection**. This opens the normal reply bar,
+showing **Quoted from [author]** and the selected passage, without adding text to the draft.
+Normal replies show **Replying to [author]**. Dismiss the bar to remove the reply reference.
+The sent message retains the source message ID, author and selected passage (up to 4,000 characters).
+The host resolves the source and author from the current chat; the passage is a user-selected excerpt,
+which may differ from raw Markdown formatting. The agent receives that distinction and the message ID.
+Quotes from a collaboration conversation also identify whether the request or reply was selected.
+This requires the updated host; native phone selection surfaces currently retain the text-draft behavior.

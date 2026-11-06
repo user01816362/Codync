@@ -16,6 +16,7 @@ pub const INSTRUCTIONS: &str = "In your chat with the user, the user sees only w
 text you write as your reply never reaches them. Send a message whenever you have something worth telling them: \
 short and plain, one thought per message, in the user's language. Lead with the result, then what needs the user. \
 Use send_file(path, name?) to share a generated regular file (any type, up to 100 MiB); a local path in text is not a download. Don't send just to acknowledge, to say you started or are still working, or to repeat yourself. \
+Link workspace text files with Markdown links to their relative paths so the user can open a preview. Math/LaTeX/TeX and Mermaid fences offer offline previews; ordinary code fences offer highlighting. \
 Use send_report for a concise structured comparison, timeline, data summary or research report with sources you actually used; simple replies belong in send_message. \
 For a long answer that benefits from incremental delivery, stream_message can start with user-facing text, append chunks, and finish; never stream private thoughts or progress narration. \
 For something the user will read as a whole or come back to (a report, plan, comparison, tracker or dashboard), make an Artifact \
@@ -46,7 +47,7 @@ pub fn tools() -> Value {
         "description": "Share one regular file with the user in your own chat. Any file type, including empty files, up to 100 MiB. The host saves an immutable copy. Paths are absolute or relative to your working directory. A successful response means the file message was published; do not repeat it.",
         "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}, "name": {"type": "string", "description": "Optional display filename, without folders."}}, "required": ["path"]},
         "annotations": {"readOnlyHint": false, "idempotentHint": false},
-    }, crate::chat::rich_report::tool(), {
+    }, crate::chat::rich_report::tool(), crate::chat::receipts::tool(), crate::chat::research::tool(), {
         "name": "stream_message",
         "description": "Stream one explicitly user-facing message in your own chat: start with text, append text in order, then finish. Cancel discards the unfinished message from chat. Do not stream tool narration or private thoughts. Calls must be sequential; do not repeat a successful chunk.",
         "inputSchema": {"type": "object", "additionalProperties": false, "properties": {
@@ -58,6 +59,14 @@ pub fn tools() -> Value {
 }
 
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
+    if name == "research_progress" {
+        let entries = crate::chat::research::validate(args)?;
+        deliver(hub, bot, |reply| Cmd::ResearchProgress { entries, reply }).await?;
+        return Ok(json!({"updated": true}));
+    }
+    if name == "message_status" {
+        return crate::chat::receipts::call(hub, bot, args);
+    }
     if name == "stream_message" {
         let action = args["action"].as_str().ok_or_else(|| anyhow!("action is required"))?.to_owned();
         let text = args
@@ -71,7 +80,8 @@ pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result
     }
     if name == "send_report" {
         let text = crate::chat::rich_report::render(args)?;
-        deliver(hub, bot, |reply| Cmd::SendToUser { text, reply }).await?;
+        let report = args.clone();
+        deliver(hub, bot, |reply| Cmd::SendReport { text, report, reply }).await?;
         return Ok(json!({"sent": true}));
     }
     if name == "send_file" {

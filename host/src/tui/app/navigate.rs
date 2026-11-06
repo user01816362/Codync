@@ -301,6 +301,32 @@ impl App {
                     self.call("keepConversation", json!({"entryId": e.id}), After::Answered(e.id.clone()));
                 }
             }
+            KeyCode::Char('Q') => {
+                if let Some(e) = picked {
+                    let (author, text) = if let Some(exchange) = super::Exchange::of(&id, &e) {
+                        if let Some(reply) = exchange.reply {
+                            (exchange.target, reply)
+                        } else {
+                            (exchange.source, exchange.text)
+                        }
+                    } else {
+                        (e.data["author"].as_str().unwrap_or(&id).to_owned(), e.text().to_owned())
+                    };
+                    let name = if e.kind == super::Kind::User {
+                        "You".to_owned()
+                    } else {
+                        self.bots.get(&author).map_or(author.as_str(), |bot| bot.name.as_str()).to_owned()
+                    };
+                    let passage: String = text.chars().take(4000).collect();
+                    let quote = passage.lines().map(|line| format!("> {line}")).collect::<Vec<_>>().join("\n");
+                    let draft = self.drafts.entry(id.clone()).or_default();
+                    *draft = Editor::with(&format!("{name}:\n{quote}\n\n{}", draft.text));
+                    self.reply = None;
+                    self.editing = None;
+                    self.pick = None;
+                    self.start_typing();
+                }
+            }
             KeyCode::Enter | KeyCode::Char('r') => match picked {
                 Some(e) if !e.takes_reply() => self.flash("Only messages take replies"),
                 Some(e) => {

@@ -252,6 +252,16 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                 let lead = format!("{} ", x.verb());
                 let failed = matches!(x.outcome, Outcome::Failed(_));
                 bot_message_line(out, app, e, (x.peer(), x.peer_name.as_deref()), &lead, failed, from);
+                if super::super::collaboration::mode() == 2 {
+                    for line in md::render(&x.text, width.saturating_sub(4), 0) {
+                        out.lines.push(line);
+                    }
+                    if let Some(reply) = &x.reply {
+                        for line in md::render(reply, width.saturating_sub(4), 0) {
+                            out.lines.push(line);
+                        }
+                    }
+                }
                 return;
             }
             let text = if let Some(status) = e.data["connectionRequest"]["status"].as_str() {

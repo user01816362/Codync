@@ -133,6 +133,7 @@ function GeneralSettings() {
   const [usageIconStyle, setUsageIconStyle] = usePref(prefs.usageIconStyle)
   const [compact, setCompact] = usePref(prefs.sidebarCompact)
   const [agentLogos, setAgentLogos] = usePref(prefs.agentLogos)
+  const [collaborationActivity, setCollaborationActivity] = usePref(prefs.collaborationActivity)
   const [thinkingDetails, setThinkingDetails] = usePref(prefs.thinkingDetails)
   const [showInDock, setShowInDock] = useState(true)
   useEffect(() => void window.codync.app.showInDock().then(setShowInDock), [])
@@ -216,6 +217,12 @@ function GeneralSettings() {
         <Switch on={thinkingDetails} onChange={setThinkingDetails}>
           Show thinking details
         </Switch>
+        <ValueRow label="Collaboration activity">
+          <ChoicePicker selection={collaborationActivity} options={[
+            { id: 'hidden', label: 'Hidden' }, { id: 'compact', label: 'Compact' }, { id: 'expanded', label: 'Expanded' },
+          ]} onChange={setCollaborationActivity} />
+        </ValueRow>
+        <Text size="footnote" tone="secondary">Controls the activity indicator and exchange messages on this device. Bots continue collaborating.</Text>
       </CardSection>
       <CardSection title="System">
         {window.codync.platform === 'darwin' ? <Switch on={showInDock} onChange={(on) => void window.codync.app.setShowInDock(on).then(setShowInDock)}>Show in Dock</Switch> : null}

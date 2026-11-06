@@ -4,6 +4,7 @@
 mod app;
 mod appearance;
 mod choice;
+mod collaboration;
 mod connections;
 mod details;
 mod drafts;

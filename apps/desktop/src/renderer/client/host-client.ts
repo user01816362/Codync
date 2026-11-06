@@ -208,8 +208,8 @@ export class HostClient {
   /** `pasted`: what the user pasted rather than typed, which memory never takes as their own words. `replyTo`: the
    * chat message this one replies to. */
   /** `call`: the voice call it was said in (on-device or speech to text). */
-  async send(botId: string, text: string, clientNonce: string, attachments: string[] | null, pasted: string[] = [], replyTo: string | null = null, call: string | null = null) {
-    return (await this.call<{ entry: Entry }>('send', { botId, text, clientNonce, attachments, ...(pasted.length ? { pasted } : {}), ...(replyTo ? { replyTo } : {}), ...(call ? { call } : {}) })).entry
+  async send(botId: string, text: string, clientNonce: string, attachments: string[] | null, pasted: string[] = [], replyTo: string | null = null, call: string | null = null, replySelection: { text: string; part?: 'request' | 'reply' } | null = null) {
+    return (await this.call<{ entry: Entry }>('send', { botId, text, clientNonce, attachments, ...(pasted.length ? { pasted } : {}), ...(replyTo ? { replyTo } : {}), ...(replySelection ? { replySelection } : {}), ...(call ? { call } : {}) })).entry
   }
 
   /** Edits one of the user's sent messages; the bot answers the edited version in a new turn. */

@@ -42,6 +42,17 @@ pub enum Cmd {
         text: String,
         reply: tokio::sync::oneshot::Sender<Result<()>>,
     },
+    /// An explicit agent-authored research checklist in the working details.
+    ResearchProgress {
+        entries: Value,
+        reply: tokio::sync::oneshot::Sender<Result<()>>,
+    },
+    /// A validated report with its portable text and structured source data.
+    SendReport {
+        text: String,
+        report: Value,
+        reply: tokio::sync::oneshot::Sender<Result<()>>,
+    },
     /// Explicitly user-facing message chunks; ACP narration is never promoted implicitly.
     StreamMessage {
         action: String,

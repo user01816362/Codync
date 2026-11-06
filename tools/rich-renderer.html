@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-codync-renderer'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<style>
+:root{color-scheme:light dark;font:14px system-ui}body{margin:8px;background:transparent;color:CanvasText}pre{white-space:pre;tab-size:2;font:13px ui-monospace,monospace}#output{overflow:auto}svg{max-width:100%;height:auto}math{font-size:1.15em}.hljs-keyword,.hljs-selector-tag,.hljs-literal{color:light-dark(#6f32a8,#cf9aff)}.hljs-string,.hljs-attr{color:light-dark(#28733b,#91cc99)}.hljs-comment{color:light-dark(#696969,#aaa)}.hljs-number,.hljs-built_in,.hljs-title{color:light-dark(#9a5126,#e4b28b)}#error{white-space:pre-wrap;font-size:13px}
+</style></head><body><div id="output" role="region" aria-label="Rendered content"></div><p id="error" role="status"></p>
+<script nonce="codync-renderer">
+'use strict';
+const assets=__CODYNC_ASSETS__;
+const payload=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('__CODYNC_PAYLOAD__'),c=>c.charCodeAt(0))));
+async function load(name){
+ const bytes=Uint8Array.from(atob(assets[name]),c=>c.charCodeAt(0));
+ const source=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+ const script=document.createElement('script');script.nonce='codync-renderer';script.textContent=source;document.head.append(script);
+}
+(async()=>{
+ const output=document.getElementById('output');
+ if(typeof payload.source!=='string'||payload.source.length>16000)throw new Error('Preview is limited to 16,000 characters.');
+ if(payload.kind==='mermaid'){
+  if(/%%\s*\{|^\s*---/m.test(payload.source))throw new Error('Diagram configuration directives are not supported.');
+  await load('mermaid');
+  mermaid.initialize({startOnLoad:false,securityLevel:'strict',suppressErrorRendering:true,maxTextSize:16000,maxEdges:200,flowchart:{htmlLabels:false},secure:['securityLevel','startOnLoad','maxTextSize','maxEdges','suppressErrorRendering']});
+  const result=await mermaid.render('diagram',payload.source);output.innerHTML=result.svg;
+  output.querySelectorAll('a').forEach(a=>{a.removeAttribute('href');a.removeAttribute('xlink:href')});
+ }else if(payload.kind==='math'){
+  await load('katex');
+  katex.render(payload.source,output,{displayMode:true,output:'mathml',trust:false,strict:'error',maxExpand:1000,maxSize:20,throwOnError:true});
+ }else{
+  await load('highlight');
+  const pre=document.createElement('pre');const code=document.createElement('code');pre.append(code);output.append(pre);
+  if(payload.language&&hljs.getLanguage(payload.language))code.innerHTML=hljs.highlight(payload.source,{language:payload.language,ignoreIllegals:true}).value;
+  else code.textContent=payload.source;
+ }
+})().catch(()=>{document.getElementById('output').replaceChildren();document.getElementById('error').textContent='This content could not be rendered. Choose Code to inspect the original source.'});
+document.addEventListener('click',event=>event.preventDefault());
+</script></body></html>

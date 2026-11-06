@@ -112,3 +112,12 @@ Run `cargo test` and `cargo clippy --all-targets -- -D warnings` in `host/`.
 ## Collaboration activity
 
 The collaboration indicator opens a read-only timeline of the current chat’s recent bot-message notices. The host returns up to 200 exchanges; live revisions are merged by entry ID and revision. Notices carry an optional collaboration ID derived from the originating turn, propagated through replies and remote requests. Older notices without that ID remain separate. Closing the view does not cancel work. The desktop uses a side panel or sheet, phones use sheets, and the terminal offers the action palette.
+
+
+## Activity display and quoting
+
+Settings → Chat → Collaboration activity is a device preference with three modes: **Hidden** hides the indicator and exchange rows, **Compact** shows collapsed exchange summaries, and **Expanded** opens the exchange content by default. This changes presentation only; accepted bot requests continue to run. Individual exchange requests and replies can be expanded or collapsed in the graphical clients, and Open conversation retains the full pair history. The terminal's action palette cycles the same modes; Expanded renders each exchange's text and reply.
+
+On desktop, select text inside a message or exchange and choose **Quote selection** from its context menu. On iOS and Android, **Select text / Quote** opens a native selection surface with Copy handles and **Quote selected text**. A quote contains the actual selected passage and its author's name, keeps the existing draft, and never sends automatically. It is editable user text, not a host-authenticated reply annotation. In the terminal, pick a message and press **Q** to quote it into the editable draft; trim the passage there. Selected text is limited to 4,000 characters. Mentions in Markdown quote lines do not dispatch another bot.
+
+Local builds and device interaction checks were not run at the user's request. macOS desktop types, iOS compilation and host checks run in the Build workflow. Android CI remains disabled at the user's request.

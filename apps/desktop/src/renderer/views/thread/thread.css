@@ -332,9 +332,14 @@
 }
 /* Agent-side cards (working, approvals) stop short of the far edge. */
 .agent-inset {
+  min-width: 0;
+  max-width: 100%;
   padding-right: 40px;
 }
 .chat-working {
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
   --working-duration: 0.42s;
   display: grid;
   grid-template-rows: 0fr;
@@ -346,10 +351,14 @@
   opacity: 1;
 }
 .chat-working-clip {
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   overflow: hidden;
 }
 .chat-working-content {
+  min-width: 0;
+  max-width: 100%;
   padding-top: 6px;
   transform: translateY(6px) scale(0.98);
   transform-origin: top left;
@@ -363,7 +372,7 @@
   /* A column stretches the row to the pill's width, so a long activity truncates. */
   flex-direction: column;
   width: fit-content;
-  max-width: var(--agent-bubble-max);
+  max-width: min(100%, var(--agent-bubble-max));
   padding: 12px;
   border-radius: var(--radius-xl);
   background: var(--bubble-agent);
@@ -382,8 +391,18 @@
 }
 .working-toggle {
   display: flex;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   text-align: left;
+}
+.working-status-row {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.working-status-row > :not(.working-status-text) {
+  flex-shrink: 0;
 }
 /* The unfolded steps scroll inside the pill, so a long turn never runs down the chat. */
 .working-steps {
@@ -455,3 +474,15 @@
     animation: fade-in 0.12s both;
   }
 }
+
+.rich-report { display: grid; gap: 14px; min-width: 0; }
+.rich-report section { display: grid; gap: 8px; }
+.rich-report-heading { text-align: start; font: inherit; font-weight: 600; color: inherit; padding: 4px 0; }
+.rich-report-content { display: grid; gap: 8px; }
+.rich-report-content p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rich-report-item { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; }
+.rich-report-item span { overflow-wrap: anywhere; }
+.rich-report-item meter { flex-basis: 100%; width: 100%; accent-color: var(--secondary); }
+.rich-report-timeline { padding-inline-start: 12px; }
+.rich-report a { text-decoration: underline; }
+.rich-report summary { cursor: pointer; }

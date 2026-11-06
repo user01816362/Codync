@@ -6,6 +6,11 @@ import os
 private let log = Logger(subsystem: "com.pokai.Codync", category: "BotStore")
 
 extension BotStore {
+    func prependQuote(_ text: String, to botId: String) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        setComposerDraft(text + composerDraft(for: botId), for: botId)
+    }
+
     func composerDraft(for botId: String) -> String {
         composerDrafts[botId] ?? ""
     }

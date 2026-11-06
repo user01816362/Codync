@@ -86,7 +86,7 @@ internal fun workingSteps(entries: List<Entry>): List<Entry> {
         "plan" -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Symbol("checklist", size = 16.dp, tint = Palette.text)
-                Text(tr("Plan"), style = Type.subheadline.bold, color = Palette.text)
+                Text(tr(d.text("title") ?: "Plan"), style = Type.subheadline.bold, color = Palette.text)
             }
             for (item in (d["entries"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }) {
                 val status = item.text("status")
@@ -122,7 +122,7 @@ internal fun workingSteps(entries: List<Entry>): List<Entry> {
     val label: @Composable () -> Unit = {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) { Symbol(icon, size = 15.dp, tint = Palette.secondary) }
-            Text(if (title == "Tool") tr("Tool") else title, Modifier.weight(1f), style = Type.subheadline, color = Palette.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(if (title == "Tool") tr("Tool") else title, Modifier.weight(1f), style = Type.subheadline, color = Palette.text)
             when (d.text("status")) {
                 "completed" -> Symbol("checkmark", size = 14.dp, tint = Palette.accent)
                 "failed" -> Symbol("xmark", size = 14.dp, tint = Palette.danger)

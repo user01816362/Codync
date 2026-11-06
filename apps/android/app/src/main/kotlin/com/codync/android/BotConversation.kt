@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,11 +51,15 @@ internal fun AppState.authorName(id: String?, fallback: String? = null): String 
     bots.firstOrNull { it.id == id }?.name ?: fallback ?: "A deleted bot"
 
 /** The compact line a bot-to-bot exchange leaves in the chat; tapping it opens the conversation (iOS `BotMessageRow`). */
-@Composable internal fun BotMessageRow(group: BotExchangeGroup, state: AppState, open: () -> Unit) {
+@Composable internal fun BotMessageRow(group: BotExchangeGroup, state: AppState, store: AppStore, open: () -> Unit) {
+    val mode by ThinkingDetails.collaborationMode.collectAsStateWithLifecycle()
+    var expanded by remember(group.id, mode) { mutableStateOf(mode == "expanded") }
+    if (mode == "hidden") return
+    Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     val peer = state.bots.firstOrNull { it.id == group.peerId }
     val name = state.authorName(group.peerId, group.peerName)
     val ink = if (group.failed) Palette.danger else Palette.secondary
-    Row(Modifier.fillMaxWidth().padding(top = 2.dp).plainButton(action = open)
+    Row(Modifier.fillMaxWidth().padding(top = 2.dp).plainButton { expanded = !expanded }
         .semantics(mergeDescendants = true) { contentDescription = "${group.title} $name${if (group.failed) ", failed" else ""}" }
         .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
@@ -61,7 +67,12 @@ internal fun AppState.authorName(id: String?, fallback: String? = null): String 
         Text(group.title, style = Type.footnote, color = ink)
         if (peer != null) BotAvatar(peer, state.bots, 18.dp)
         Text(name, style = Type.footnote.semibold, color = if (group.failed) Palette.danger else Palette.text)
-        Symbol("chevron.right", size = 10.dp, tint = Palette.tertiary)
+        Symbol(if (expanded) "chevron.down" else "chevron.right", size = 10.dp, tint = Palette.tertiary)
+    }
+    if (expanded) {
+        group.exchanges.forEach { SidechatExchange(it, state, store) }
+        SecondaryButton("Open conversation", action = open)
+    }
     }
 }
 

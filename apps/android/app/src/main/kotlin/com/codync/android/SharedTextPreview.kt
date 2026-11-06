@@ -58,12 +58,14 @@ import java.security.MessageDigest
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { failed = true }
     }
+    val markdown = name.endsWith(".md", true) || name.endsWith(".markdown", true)
+    val horizontal = rememberScrollState()
     Column(Modifier.fillMaxSize().background(Palette.background)) {
         ModalHeader(name)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(20.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(if (markdown) Modifier else Modifier.horizontalScroll(horizontal)).padding(20.dp)) {
             val content = text
             when {
-                content != null && (name.endsWith(".md", true) || name.endsWith(".markdown", true)) -> MarkdownText(content)
+                content != null && markdown -> MarkdownText(content)
                 content != null -> Text(content, style = Type.footnote.monospaced, color = Palette.text)
                 failed -> Text(tr("Couldn't open this file."), color = Palette.secondary)
                 else -> Spinner()

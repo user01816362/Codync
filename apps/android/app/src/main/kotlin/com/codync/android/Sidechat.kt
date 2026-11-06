@@ -1,5 +1,6 @@
 package com.codync.android
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +39,8 @@ import kotlinx.serialization.json.put
 import java.util.Date
 
 @Composable internal fun SidechatIndicator(bot: Bot, state: AppState, open: () -> Unit) {
+    val mode by ThinkingDetails.collaborationMode.collectAsStateWithLifecycle()
+    if (mode == "hidden") return
     val exchanges = BotExchange.all(state.collaborationUpdates[bot.id].orEmpty(), state.entries.filter { it.botId == bot.id })
     val active = exchanges.filter { it.outcome == BotExchange.Outcome.Pending }.map { it.peerId }.toSet().size
     val title = if (active > 0) tr("{count} bots collaborating").replace("{count}", "${active + 1}") else tr("Collaboration activity")
@@ -87,18 +91,20 @@ import java.util.Date
                         Text(tr("Started by {name}").replace("{name}", name), style = Type.footnote.medium, color = Palette.tertiary)
                         Text(android.text.format.DateFormat.getDateFormat(LocalContext.current).format(Date(first.createdAt)), style = Type.footnote, color = Palette.tertiary)
                     }
-                    group.forEach { SidechatExchange(it, state) }
+                    group.forEach { SidechatExchange(it, state, store) }
                 }
             }
         }
     }
 }
 
-@Composable private fun SidechatExchange(exchange: BotExchange, state: AppState) {
+@Composable internal fun SidechatExchange(exchange: BotExchange, state: AppState, store: AppStore) {
+    var expanded by remember(exchange.id) { mutableStateOf(true) }
+    var selection by remember(exchange.id) { mutableStateOf<QuoteSelectionTarget?>(null) }
     val name = { id: String -> state.authorName(id, exchange.peerName.takeIf { id == exchange.peerId }) }
     val time = android.text.format.DateFormat.getTimeFormat(LocalContext.current).format(Date(exchange.createdAt))
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(Modifier.plainButton { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             state.bots.firstOrNull { it.id == exchange.source }?.let { BotAvatar(it, state.bots, 20.dp) }
             Text(name(exchange.source), style = Type.footnote.semibold, color = Palette.text)
             Symbol("arrow.right", size = 11.dp, tint = Palette.tertiary)
@@ -106,12 +112,19 @@ import java.util.Date
             Text(name(exchange.target), style = Type.footnote.semibold, color = Palette.text)
             Spacer(Modifier.weight(1f))
             Text(time, style = Type.footnote, color = Palette.tertiary)
+            Symbol(if (expanded) "chevron.down" else "chevron.right", size = 10.dp, tint = Palette.tertiary)
         }
-        SelectionContainer { Text(exchange.text, style = Type.body, color = Palette.text) }
+        if (expanded) {
+        SelectionContainer { Text(exchange.text, Modifier.contextActions { listOf(MenuItem("Select text / Quote", icon = "arrowshape.turn.up.left") {
+            selection = QuoteSelectionTarget(exchange.text, name(exchange.source))
+        }) }, style = Type.body, color = Palette.text) }
         val reply = exchange.reply
         if (!reply.isNullOrEmpty()) {
             Text(tr("Reply from {name}").replace("{name}", name(exchange.target)), style = Type.footnote.semibold, color = Palette.secondary)
-            SelectionContainer { Text(reply, style = Type.body, color = Palette.secondary) }
+            SelectionContainer { Text(reply, Modifier.contextActions { listOf(MenuItem("Select text / Quote", icon = "arrowshape.turn.up.left") {
+                selection = QuoteSelectionTarget(reply, name(exchange.target))
+            }) }, style = Type.body, color = Palette.secondary) }
+        }
         }
         val status = when (val outcome = exchange.outcome) {
             BotExchange.Outcome.Pending -> tr("Waiting for a reply…")
@@ -119,5 +132,8 @@ import java.util.Date
             is BotExchange.Outcome.Failed -> outcome.detail.ifEmpty { tr("Didn't complete.") }
         }
         Text(status, style = Type.footnote, color = if (exchange.outcome is BotExchange.Outcome.Failed) Palette.danger else Palette.tertiary)
+    }
+    CodyncSheet(selection, { selection = null }) { target ->
+        QuoteSelectionSheet(target) { text -> store.appendDraft(exchange.chatId, text); selection = null }
     }
 }

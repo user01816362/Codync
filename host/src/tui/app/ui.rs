@@ -63,11 +63,12 @@ pub enum Action {
     AboutAnalytics,
     Language,
     ThinkingDetails,
+    CollaborationActivity,
     Keys,
     Appearance(super::super::appearance::Appearance),
 }
 
-pub const ACTIONS: [(&str, &str, Action); 20] = [
+pub const ACTIONS: [(&str, &str, Action); 21] = [
     ("New bot…", "n", Action::NewBot),
     ("New group chat…", "m", Action::NewGroup),
     ("Extensions: agents, connectors, skills…", "A", Action::Market),
@@ -87,6 +88,7 @@ pub const ACTIONS: [(&str, &str, Action); 20] = [
     ("Appearance: Dark", "", Action::Appearance(super::super::appearance::Appearance::Dark)),
     ("App language…", "", Action::Language),
     ("Show thinking details", "", Action::ThinkingDetails),
+    ("Collaboration activity: Hidden / Compact / Expanded", "", Action::CollaborationActivity),
     ("Keys", "?", Action::Keys),
 ];
 

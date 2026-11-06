@@ -17,6 +17,7 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var agentSwitch: AgentSwitch?
     /// notice (error): the bot has no fallbacks and its agent ran out of usage or was rate limited: offer to add one.
     public var addFallback: Bool?
+    public var report: RichReport?
     public var text: String?
     public var final: Bool?
     public var streaming: Bool?

@@ -1,4 +1,4 @@
-//! Bounded, read-only reports authored by an agent and rendered as portable Markdown.
+//! Bounded reports authored by an agent, with native content and a portable Markdown fallback.
 //!
 //! This deliberately uses the normal message path: old clients and the terminal see the same
 //! information. It is not A2UI and does not execute model-supplied markup or actions.
@@ -54,7 +54,7 @@ struct Section {
 pub(super) fn tool() -> Value {
     json!({
         "name": "send_report",
-        "description": "Send a compact structured report as a normal chat message. Use only for content that benefits from sections, comparisons, timelines, data tables or cited sources. Cite only sources you actually used. Lists and data are read-only; do not use this tool for forms or actions.",
+        "description": "Send a compact structured report as a normal chat message. Use only for content that benefits from sections, comparisons, timelines, data or a simple bar chart. For bar sections each item's value must be a finite non-negative number. Cite only sources you actually used. Form sections collect up to eight plain text answers; submission sends an ordinary user message and grants no permission. Never request secrets or credentials. Other sections are read-only.",
         "inputSchema": {
             "type": "object", "additionalProperties": false,
             "properties": {
@@ -63,7 +63,7 @@ pub(super) fn tool() -> Value {
                 "sections": {"type": "array", "minItems": 1, "maxItems": MAX_SECTIONS, "items": {
                     "type": "object", "additionalProperties": false,
                     "properties": {
-                        "kind": {"type": "string", "enum": ["text", "comparison", "timeline", "data"]},
+                        "kind": {"type": "string", "enum": ["text", "comparison", "timeline", "data", "bar", "form"]},
                         "heading": {"type": "string", "minLength": 1, "maxLength": 200},
                         "text": {"type": "string", "maxLength": 6000},
                         "items": {"type": "array", "maxItems": MAX_ITEMS, "items": {"type": "object", "additionalProperties": false, "properties": {"label": {"type": "string"}, "value": {"type": "string"}}, "required": ["label", "value"]}},
@@ -125,12 +125,40 @@ pub(super) fn render(args: &Value) -> Result<String> {
                 section.items.is_empty() && !section.text.trim().is_empty(),
                 "text sections require text and no items"
             ),
-            "comparison" | "timeline" | "data" => {
+            "comparison" | "timeline" | "data" | "form" => {
+                if section.kind == "form" {
+                    ensure!(section.items.len() <= 8, "forms allow at most eight fields");
+                    result.push_str("Reply with your answers to these fields (never enter passwords or secrets):\n");
+                }
                 ensure!(!section.items.is_empty(), "section requires items");
                 for item in &section.items {
                     check_text(&item.label, 500)?;
                     check_text(&item.value, 2000)?;
                     let _ = write!(result, "\n- **{}:** {}", escape(&item.label), escape(&item.value));
+                }
+                result.push('\n');
+            }
+            "bar" => {
+                ensure!(!section.items.is_empty(), "bar chart requires items");
+                let mut values = Vec::with_capacity(section.items.len());
+                for item in &section.items {
+                    check_text(&item.label, 500)?;
+                    check_text(&item.value, 32)?;
+                    let value: f64 = item.value.parse().context("bar chart values must be numbers")?;
+                    ensure!(value.is_finite() && value >= 0.0, "bar chart values must be finite and non-negative");
+                    values.push(value);
+                }
+                let max = values.iter().copied().fold(0.0_f64, f64::max);
+                for (item, value) in section.items.iter().zip(values) {
+                    let width =
+                        if max == 0.0 { 0 } else { (1..=20).filter(|&i| value / max >= f64::from(i) / 20.0).count() };
+                    let _ = write!(
+                        result,
+                        "\n- **{}:** {} {}",
+                        escape(&item.label),
+                        "▰".repeat(width),
+                        escape(&item.value)
+                    );
                 }
                 result.push('\n');
             }

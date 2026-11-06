@@ -163,6 +163,7 @@ struct UserBubble: View {
     var reply: (() -> Void)?
     var edit: (() -> Void)?
     @Environment(BotStore.self) private var model
+    @State private var selecting = false
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -174,6 +175,11 @@ struct UserBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.leading, 56)
+        .codyncSheet(isPresented: $selecting) {
+            QuoteSelectionSheet(text: entry.data.text ?? "", author: "You") { text in
+                model.prependQuote(text, to: entry.botId)
+            }
+        }
     }
 
     private var text: some View {
@@ -190,7 +196,8 @@ struct UserBubble: View {
                 .padding(.vertical, 10)
                 .background(Palette.bubbleUser, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .contextActions(reactions: model.reactionPick(entry)) {
-                    var items = [MenuItem("Copy", icon: "square.on.square") { Pasteboard.copy(entry.data.text) }]
+                    var items = [MenuItem("Copy", icon: "square.on.square") { Pasteboard.copy(entry.data.text) },
+                                 MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") { selecting = true }]
                     if let reply { items.append(MenuItem("Reply", icon: "arrowshape.turn.up.left", action: reply)) }
                     if let edit { items.append(MenuItem("Edit", icon: "pencil", action: edit)) }
                     return items
@@ -238,6 +245,7 @@ struct AgentBubble: View {
     var openArtifact: ((ArtifactRef) -> Void)?
     @Environment(BotStore.self) private var model
     @State private var workspace: WorkspacePreviewTarget?
+    @State private var selecting = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -247,7 +255,13 @@ struct AgentBubble: View {
                 } else if let files = entry.data.files, !files.isEmpty {
                     ForEach(files) { file in FileDownloadCard(entry: entry, file: file) }
                 } else {
-                    MarkdownText(entry.data.text ?? "").equatable()
+                    Group {
+                        if let report = entry.data.report, report.version == 1 {
+                            RichReportView(report: report) { model.send($0, to: entry.botId) }
+                        } else {
+                            MarkdownText(entry.data.text ?? "").equatable()
+                        }
+                    }
                         .environment(\.openURL, OpenURLAction { url in
                             if let path = workspaceLink(url) {
                                 workspace = WorkspacePreviewTarget(path: path)
@@ -265,6 +279,7 @@ struct AgentBubble: View {
                     var items = [
                         MenuItem("Copy", icon: "square.on.square") { Pasteboard.copy(entry.data.text) },
                         MenuItem("Show what it did", icon: "list.bullet", action: openTrace),
+                        MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") { selecting = true },
                     ]
                     if let reply { items.insert(MenuItem("Reply", icon: "arrowshape.turn.up.left", action: reply), at: 1) }
                     return items
@@ -273,6 +288,11 @@ struct AgentBubble: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.trailing, 40)
         .codyncSheet(item: $workspace) { target in WorkspaceTextPreview(botId: entry.data.author ?? entry.botId, path: target.path) }
+        .codyncSheet(isPresented: $selecting) {
+            QuoteSelectionSheet(text: entry.data.text ?? "", author: model.authorName(entry.data.author ?? entry.botId)) { text in
+                model.prependQuote(text, to: entry.botId)
+            }
+        }
     }
 }
 

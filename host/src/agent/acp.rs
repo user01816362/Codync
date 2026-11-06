@@ -17,6 +17,7 @@ use tokio::process::ChildStdin;
 use tokio::sync::{mpsc, oneshot};
 
 pub mod codebuddy;
+mod framing;
 
 /// stderr lines kept to explain a crash.
 const STDERR_TAIL_LINES: usize = 12;
@@ -170,10 +171,30 @@ fn codex_kind(info: &Value) -> Option<String> {
     Some(kind)
 }
 
+fn reserve_image_bytes(queued: &std::sync::Mutex<usize>, size: usize) -> bool {
+    let mut used = queued.locked();
+    if size > (64 * 1024 * 1024_usize).saturating_sub(*used) {
+        return false;
+    }
+    *used += size;
+    true
+}
+
+fn image_bytes(params: &Value) -> usize {
+    let update = &params["update"];
+    if update["sessionUpdate"] == "agent_message_chunk" && update["content"]["type"] == "image" {
+        update["content"]["data"].as_str().map_or(0, str::len)
+    } else {
+        0
+    }
+}
+
 pub struct Acp {
     /// `None` once stopped: the closed pipe tells the agent to exit.
     stdin: tokio::sync::Mutex<Option<ChildStdin>>,
     next_id: AtomicI64,
+    queued_image_bytes: Arc<std::sync::Mutex<usize>>,
+    replaying: Arc<AtomicI64>,
     pending: Pending,
     /// Owns the agent's whole process tree: dropping it kills what the agent started.
     child: Arc<tokio::sync::Mutex<Process>>,
@@ -213,6 +234,8 @@ impl Acp {
         // queue would stall this reader, and with it the response — a deadlock.
         let (tx, rx) = mpsc::unbounded_channel();
         let pending = Pending::default();
+        let queued_image_bytes = Arc::new(std::sync::Mutex::new(0));
+        let replaying = Arc::new(AtomicI64::new(0));
 
         let tail = Arc::new(std::sync::Mutex::new(VecDeque::<String>::with_capacity(STDERR_TAIL_LINES)));
         {
@@ -231,11 +254,22 @@ impl Acp {
         }
         {
             let pending = pending.clone();
+            let queued_image_bytes = queued_image_bytes.clone();
+            let replaying = replaying.clone();
             tokio::spawn(async move {
-                let mut lines = BufReader::new(stdout).lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    let Ok(msg) = serde_json::from_str::<Value>(&line) else {
-                        tracing::debug!(target: "agent", stdout = %line, "ignoring non-JSON output");
+                let mut reader = BufReader::new(stdout);
+                let mut input_error = None;
+                loop {
+                    let line = match framing::next(&mut reader).await {
+                        Ok(Some(line)) => line,
+                        Ok(None) => break,
+                        Err(error) => {
+                            input_error = Some(format!("Agent input rejected: {error}"));
+                            break;
+                        }
+                    };
+                    let Ok(msg) = serde_json::from_slice::<Value>(&line) else {
+                        tracing::debug!(target: "agent", "ignoring non-JSON output");
                         continue;
                     };
                     let method = msg["method"].as_str().map(str::to_owned);
@@ -244,9 +278,22 @@ impl Acp {
                             let _ = tx.send(Incoming::Request { id, method, params: msg["params"].clone() });
                         }
                         (Some(method), _) => {
+                            let size = if method == "session/update" { image_bytes(&msg["params"]) } else { 0 };
+                            // Images replayed by session/load already live in durable chat snapshots.
+                            // Do not retain them while the actor awaits the load response.
+                            if size > 0 && replaying.load(Ordering::Acquire) != 0 {
+                                continue;
+                            }
+                            if size > 0 && !reserve_image_bytes(&queued_image_bytes, size) {
+                                input_error = Some("Agent images exceeded the 64 MiB pending-image budget.".to_owned());
+                                break;
+                            }
                             let _ = tx.send(Incoming::Notification { method, params: msg["params"].clone() });
                         }
                         (None, Some(id)) => {
+                            if let Some(id) = id.as_i64() {
+                                let _ = replaying.compare_exchange(id, 0, Ordering::AcqRel, Ordering::Acquire);
+                            }
                             if let Some(id) = id.as_i64()
                                 && let Some(waiter) = pending.locked().remove(&id)
                             {
@@ -262,7 +309,10 @@ impl Acp {
                 }
                 // Process gone: dropping the waiters fails them as `FailureKind::Exited`.
                 pending.locked().clear();
-                let stderr_tail = tail.locked().iter().cloned().collect::<Vec<_>>().join("\n");
+                let mut stderr_tail = tail.locked().iter().cloned().collect::<Vec<_>>().join("\n");
+                if let Some(error) = input_error {
+                    stderr_tail = format!("{error}\n{stderr_tail}");
+                }
                 let _ = tx.send(Incoming::Closed { stderr_tail });
             });
         }
@@ -270,6 +320,8 @@ impl Acp {
         let acp = Arc::new(Self {
             stdin: tokio::sync::Mutex::new(Some(stdin)),
             next_id: AtomicI64::new(1),
+            queued_image_bytes,
+            replaying,
             pending,
             child,
             #[cfg(unix)]
@@ -277,6 +329,16 @@ impl Acp {
         });
         note_started(&acp);
         Ok((acp, rx))
+    }
+
+    /// Release the byte reservation when an image notification leaves the inbox, even if
+    /// it is replayed history or belongs to an inactive session and will not be published.
+    pub fn received_notification(&self, method: &str, params: &Value) {
+        if method == "session/update" {
+            let size = image_bytes(params);
+            let mut used = self.queued_image_bytes.locked();
+            *used = used.saturating_sub(size);
+        }
     }
 
     #[cfg(unix)]
@@ -310,6 +372,9 @@ impl Acp {
     /// (a `session/cancel`) reaches the agent after the request itself.
     pub async fn send(&self, method: &str, params: Value) -> Result<Answer> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        if method == "session/load" {
+            self.replaying.store(id, Ordering::Release);
+        }
         let (tx, rx) = oneshot::channel();
         self.pending.locked().insert(id, tx);
         let answer = Answer { id, pending: self.pending.clone(), rx: Some(rx) };

@@ -5,7 +5,7 @@ name: iOS IPA (unsigned)
 # so the IPA lands on the release that build publishes; dispatch it by hand for a build alone.
 on:
   workflow_run:
-    workflows: ["Fork build (macOS, unsigned)"]
+    workflows: ["Build"]
     types: [completed]
   workflow_dispatch:
 

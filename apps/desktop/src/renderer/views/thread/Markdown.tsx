@@ -1,7 +1,8 @@
+import { RichContentPreview } from './RichContentPreview'
 import { memo, useContext, type ReactNode } from 'react'
 import { parseMarkdown, type Block } from './markdown-blocks.ts'
 import { inlinePattern, splitCodeSpans, unescapeInline } from './markdown-inline.ts'
-import { Hairline, IconButton } from '../../components/Controls'
+import { Hairline } from '../../components/Controls'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { WorkspacePreviewContext } from './WorkspacePreviewContext'
@@ -55,11 +56,13 @@ function emphasis(text: string, key: string, open?: ((path: string) => void) | n
   return out
 }
 
-const MarkdownBlock = memo(function MarkdownBlock({ block }: { block: Block }) {
+const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences }: { block: Block; literalFences?: boolean }) {
   const open = useContext(WorkspacePreviewContext)
   switch (block.kind) {
     case 'paragraph':
-      return <div className="md-text md-spaced md-body">{inline(block.text, 'i', open)}</div>
+      return block.text.trim().startsWith('$$') && block.text.trim().endsWith('$$') && block.text.trim().length > 4
+        ? <RichContentPreview source={block.text.trim().slice(2, -2)} language="math" />
+        : <div className="md-text md-spaced md-body">{inline(block.text, 'i', open)}</div>
     case 'heading':
       return (
         <div className={`md-text md-spaced md-heading-${Math.min(block.level, 3)}`}>
@@ -95,25 +98,17 @@ const MarkdownBlock = memo(function MarkdownBlock({ block }: { block: Block }) {
     case 'quote':
       return <div className="md-text md-spaced md-body md-quote">{inline(block.text, 'i', open)}</div>
     case 'code':
-      return (
-        <div className="md-code">
-          <div className="md-code-header">
-            <span>{block.language}</span>
-            <IconButton title="Copy" icon="square.on.square" size={26} onClick={() => window.codync.app.copy(block.text)} />
-          </div>
-          <div className="md-code-scroll"><pre className="md-code-text">{block.text}</pre></div>
-        </div>
-      )
+      return <RichContentPreview source={block.text} language={block.language.toLowerCase()} renderMarkdown={literalFences ? undefined : text => <MarkdownText text={text} literalFences />} />
   }
-}, (a, b) => JSON.stringify(a.block) === JSON.stringify(b.block))
+}, (a, b) => a.literalFences === b.literalFences && JSON.stringify(a.block) === JSON.stringify(b.block))
 
 /** The desktop's Markdown for messages; a block that didn't change keeps its rendering. */
-export const MarkdownText = memo(function MarkdownText({ text }: { text: string }) {
+export const MarkdownText = memo(function MarkdownText({ text, literalFences = false }: { text: string; literalFences?: boolean }) {
   const blocks = parseMarkdown(text)
   return (
     <VStack gap={10} shrink className="markdown selectable">
       {blocks.map((b, i) => (
-        <MarkdownBlock key={i} block={b} />
+        <MarkdownBlock key={i} block={b} literalFences={literalFences} />
       ))}
     </VStack>
   )

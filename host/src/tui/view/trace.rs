@@ -239,7 +239,7 @@ fn push_plan(out: &mut Vec<Line<'static>>, e: &Entry, width: usize) {
     let done = items.iter().filter(|i| i["status"] == "completed").count();
     out.push(Line::from(vec![
         Span::styled(" ☐ ", t.secondary),
-        label(&tr("Plan")),
+        label(&tr(e.data["title"].as_str().unwrap_or("Plan"))),
         Span::styled(format!("{done}/{}", items.len()), t.text),
     ]));
     for i in &items {

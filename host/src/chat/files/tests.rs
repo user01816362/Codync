@@ -18,11 +18,13 @@ impl Drop for Temp {
 fn image_snapshots_validate_payload_and_use_verified_file_storage() {
     let temp = Temp::new();
     let root = temp.0.join("snapshots");
-    let png = b"\x89PNG\r\n\x1a\nexample";
-    let encoded = base64::engine::general_purpose::STANDARD.encode(png);
+    let mut output = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::new_rgba8(1, 1).write_to(&mut output, image::ImageFormat::Png).unwrap();
+    let png = output.into_inner();
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&png);
     let mut saved = snapshot_image(&root, "image/png", &encoded, &AtomicBool::new(false)).unwrap();
     assert_eq!(saved.meta.name, "Image.png");
-    assert_eq!(saved.meta.sha256, digest_hex(&Sha256::digest(png)));
+    assert_eq!(saved.meta.sha256, digest_hex(&Sha256::digest(&png)));
     assert_eq!(read(&root, &saved.meta, 0).unwrap(), png);
     saved.commit();
     assert!(snapshot_image(&root, "image/jpeg", &encoded, &AtomicBool::new(false)).is_err());

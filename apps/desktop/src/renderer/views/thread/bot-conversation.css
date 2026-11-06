@@ -33,3 +33,6 @@
 .bot-conversation-status {
   padding: 6px 12px;
 }
+
+.collaboration-inline { width: 100%; }
+.collaboration-inline-details { display: grid; gap: 16px; padding: 12px 16px; }

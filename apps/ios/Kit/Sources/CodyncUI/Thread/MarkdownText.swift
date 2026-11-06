@@ -6,16 +6,18 @@ import SwiftUI
 /// Equatable so a reply that didn't change skips its body.
 public struct MarkdownText: View, Equatable {
     let source: String
+    let allowMarkdownPreview: Bool
 
-    public init(_ source: String) {
+    public init(_ source: String, allowMarkdownPreview: Bool = true) {
         self.source = source
+        self.allowMarkdownPreview = allowMarkdownPreview
     }
 
     public var body: some View {
         let blocks = MarkdownBlocks.parse(source)
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                MarkdownBlock(block: block)
+                MarkdownBlock(block: block, allowMarkdownPreview: allowMarkdownPreview)
             }
         }
         .textSelection(.enabled)
@@ -38,13 +40,17 @@ public struct MarkdownText: View, Equatable {
 /// One block of a reply.
 private struct MarkdownBlock: View {
     let block: MarkdownBlocks.Block
+    let allowMarkdownPreview: Bool
 
     @ViewBuilder var body: some View {
         switch block {
         case let .paragraph(t):
-            Text(MarkdownText.inline(t))
-                .font(.body)
-                .foregroundStyle(Palette.text)
+            let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("$$"), trimmed.hasSuffix("$$"), trimmed.count > 4 {
+                RichContentPreview(source: String(trimmed.dropFirst(2).dropLast(2)), language: "math")
+            } else {
+                Text(MarkdownText.inline(t)).font(.body).foregroundStyle(Palette.text)
+            }
         case let .heading(t, level):
             Text(MarkdownText.inline(t))
                 .font(level == 1 ? .title3.bold() : level == 2 ? .headline : .subheadline.bold())
@@ -67,21 +73,7 @@ private struct MarkdownBlock: View {
                 .padding(.leading, 10)
                 .overlay(alignment: .leading) { Rectangle().fill(Palette.border).frame(width: 3) }
         case let .code(t, language):
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text(language).font(.caption).foregroundStyle(Palette.secondary).lineLimit(1)
-                    Spacer()
-                    IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(t) }
-                }
-                .padding(.leading, 10).padding(.trailing, 4)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    Text(t)
-                        .font(.system(.footnote, design: .monospaced))
-                        .foregroundStyle(Palette.text)
-                        .padding(10)
-                }
-            }
-            .background(Palette.codeBackground, in: RoundedRectangle(cornerRadius: 8))
+            RichContentPreview(source: t, language: language.lowercased(), allowMarkdownPreview: allowMarkdownPreview)
         }
     }
 }

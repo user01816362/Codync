@@ -29,6 +29,29 @@ pub fn quote(store: &Store, chat: &str, id: &str) -> Result<Value> {
     Ok(quote)
 }
 
+/// Resolve a selected passage against a real source in this chat. The author comes from storage,
+/// never from the client. Rendered Markdown selections are user-provided excerpts, not a verbatim proof.
+pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Result<Value> {
+    let text = selected["text"].as_str().unwrap_or_default().trim();
+    ensure!(!text.is_empty() && text.chars().count() <= 4000, "select between 1 and 4000 characters");
+    let mut reply = if let Some(part) = selected["part"].as_str() {
+        ensure!(part == "request" || part == "reply", "unknown quote source");
+        let e = store.entry(id).filter(|e| e.bot_id == chat).ok_or_else(|| anyhow!("unknown message"))?;
+        let message = &e.data["botMessage"];
+        let (field, author) = if part == "request" { ("text", "sourceBotId") } else { ("reply", "targetBotId") };
+        ensure!(message[field].as_str().is_some_and(|s| !s.is_empty()), "unknown collaboration message");
+        let author = message[author].as_str().ok_or_else(|| anyhow!("unknown message author"))?;
+        json!({"id": id, "author": author, "part": part})
+    } else {
+        quote(store, chat, id)?
+    };
+    // Selecting an artifact card's text must not replace the excerpt with an artifact-location note.
+    reply.as_object_mut().unwrap().remove("artifact");
+    reply["text"] = text.into();
+    reply["selected"] = true.into();
+    Ok(reply)
+}
+
 /// The note `me` reads before a reply's text: `[Codync: this replies to your message: "…"]`, or for its own artifact's
 /// card, where that artifact is (`artifacts::note`). Coming from Codync, it stands even when the quoted message is no longer
 /// in the agent's session.
@@ -45,6 +68,12 @@ pub fn note(hub: &Hub, me: &str, reply: &Value) -> Option<String> {
         author if author == me => "your message".to_owned(),
         author => format!("{}'s message", hub.bot_name(author)),
     };
+    if reply["selected"] == true {
+        let id = reply["id"].as_str().unwrap_or_default();
+        return Some(format!(
+            "[Codync: the user replies to {whose} (message {id}), selecting this passage: \"{text}\"]"
+        ));
+    }
     Some(format!("[Codync: this replies to {whose}: \"{text}\"]"))
 }
 

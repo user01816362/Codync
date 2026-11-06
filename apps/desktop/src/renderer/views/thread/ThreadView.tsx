@@ -1,3 +1,4 @@
+import { useSelectionQuote } from './selection-quote'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { draftOf, isGroup, isWorking, isWorkingIn, type Bot, type BotDraft, type Entry } from '@shared/models'
 import { BotAvatar, GroupAvatar } from '../../components/Avatar'
@@ -71,6 +72,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     cancelEdit()
     setReplyTo(entry)
   }, [cancelEdit])
+  useSelectionQuote(botId, entry => { startReply(entry); setShowSidechat(false); setBotChat(null) }, !!store.mismatch)
   /** Opens a sent message in the composer; sending edits it in place and the bot answers it again. */
   const startEdit = useCallback((entry: Entry) => {
     setReplyTo(null)

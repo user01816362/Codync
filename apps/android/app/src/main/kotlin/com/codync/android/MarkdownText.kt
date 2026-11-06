@@ -1,7 +1,5 @@
 package com.codync.android
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -11,7 +9,6 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,18 +60,22 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
  * bold, italic, code, strikethrough and links. Images show as their text: a reply never makes
  * the phone fetch an address.
  */
-@Composable fun MarkdownText(source: String, selectable: Boolean = true, color: Color = Palette.text, openFile: ((String) -> Unit)? = null) {
+@Composable fun MarkdownText(source: String, selectable: Boolean = true, color: Color = Palette.text, openFile: ((String) -> Unit)? = null, allowMarkdownPreview: Boolean = true) {
     val blocks = remember(source) { MarkdownBlocks.parse(source) }
     val content: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { for (block in blocks) MarkdownBlock(block, color, openFile) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { for (block in blocks) MarkdownBlock(block, color, openFile, allowMarkdownPreview) }
     }
     if (selectable) SelectionContainer(content = content) else content()
 }
 
-@Composable private fun MarkdownBlock(block: Block, ink: Color, openFile: ((String) -> Unit)?) {
+@Composable private fun MarkdownBlock(block: Block, ink: Color, openFile: ((String) -> Unit)?, allowMarkdownPreview: Boolean) {
     val code = Palette.text.copy(alpha = 0.08f)
     when (block) {
-        is Block.Paragraph -> Text(inline(block.text, code, openFile), style = Type.body, color = ink)
+        is Block.Paragraph -> Column {
+            val text = block.text.trim()
+            if (text.length > 4 && text.startsWith("$$") && text.endsWith("$$")) RichContentPreview(text.drop(2).dropLast(2), "math")
+            else Text(inline(block.text, code, openFile), style = Type.body, color = ink)
+        }
         is Block.Heading -> Text(inline(block.text, code, openFile), style = when (block.level) {
             1 -> Type.title3.bold; 2 -> Type.headline; else -> Type.subheadline.bold
         }, color = ink)
@@ -88,21 +89,7 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
             Box(Modifier.width(3.dp).fillMaxHeight().background(Palette.border))
             Text(inline(block.text, code, openFile), Modifier.padding(start = 10.dp), style = Type.body, color = Palette.secondary)
         }
-        is Block.Code -> {
-            val clipboard = LocalContext.current.getSystemService(ClipboardManager::class.java)
-            Column(Modifier.fillMaxWidth().clip(RoundedRectangle(8.dp)).background(Palette.codeBackground)) {
-                Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(block.language, style = Type.caption, color = Palette.secondary, maxLines = 1)
-                    Spacer(Modifier.weight(1f))
-                    IconButton("Copy", "square.on.square") {
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Code", block.text))
-                    }
-                }
-                Box(Modifier.horizontalScroll(rememberScrollState())) {
-                    Text(block.text, Modifier.padding(10.dp), style = Type.footnote.monospaced, color = Palette.text, softWrap = false)
-                }
-            }
-        }
+        is Block.Code -> RichContentPreview(block.text, block.language.lowercase(), allowMarkdownPreview)
     }
 }
 

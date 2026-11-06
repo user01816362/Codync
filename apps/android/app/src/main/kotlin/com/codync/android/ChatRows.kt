@@ -201,10 +201,11 @@ internal class ConnectionRequestActions(val openApp: (String, ComposioApp) -> Un
 }
 
 /** The menu a message opens on long press: copy, reply quoting it, edit it, what the agent did. */
-private fun messageMenu(context: android.content.Context, entry: Entry, reply: (() -> Unit)?, edit: (() -> Unit)?, trace: (() -> Unit)?) = buildList {
+private fun messageMenu(context: android.content.Context, entry: Entry, reply: (() -> Unit)?, edit: (() -> Unit)?, trace: (() -> Unit)?, select: (() -> Unit)? = null) = buildList {
     add(MenuItem("Copy", icon = "square.on.square") {
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Message", entry.text))
     })
+    if (select != null) add(MenuItem("Select text / Quote", icon = "arrowshape.turn.up.left", action = select))
     if (reply != null) add(MenuItem("Reply", icon = "arrowshape.turn.up.left", action = reply))
     if (edit != null) add(MenuItem("Edit", icon = "pencil", action = edit))
     if (trace != null) add(MenuItem("Show what it did", icon = "list.bullet", action = trace))
@@ -233,16 +234,21 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
 @Composable private fun UserBubble(entry: Entry, state: AppState, store: AppStore, reply: (() -> Unit)?, edit: (() -> Unit)?) {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
+    var selection by remember { mutableStateOf<QuoteSelectionTarget?>(null) }
+    val select = { selection = QuoteSelectionTarget(entry.text, "You") }
     val attachments = entry.data["attachments"]?.jsonArray?.map { WireJson.decodeFromJsonElement<Attachment>(it) }.orEmpty()
     Column(Modifier.fillMaxWidth().padding(start = 56.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (attachments.isNotEmpty()) AttachmentList(attachments, entry.botId, state, store)
         val quote = entry.replyTo
         if (entry.text.isNotEmpty() || quote != null) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleUser)
             .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { SelectionContainer { UserText(entry.text, quote) } }) {
-                messageMenu(context, entry, reply, edit, null)
+                messageMenu(context, entry, reply, edit, null, select)
             }) { UserText(entry.text, quote) }
         SendStatusLine(entry.status)
         if (entry.editedAt != null) Text(tr("Edited"), style = Type.caption2, color = Palette.tertiary)
+    }
+    CodyncSheet(selection, { selection = null }) { target ->
+        QuoteSelectionSheet(target) { text -> store.appendDraft(entry.botId, text); selection = null }
     }
 }
 
@@ -308,17 +314,28 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     val files = entry.files
     val artifact = entry.artifact
     var workspacePath by remember { mutableStateOf<String?>(null) }
+    var selection by remember { mutableStateOf<QuoteSelectionTarget?>(null) }
+    val select = { selection = QuoteSelectionTarget(entry.text, state.authorName(entry.data["author"]?.jsonPrimitive?.contentOrNull ?: entry.botId)) }
     Column(Modifier.fillMaxWidth().padding(end = 40.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         // An artifact card or a message with files is that: the text is only the computer's fallback.
         if (artifact != null) ArtifactCardView(artifact, entry.botId, state, store, Modifier.contextActions(reactions = reactionPick(entry, store),
-            onClick = { focus.clearFocus(); openArtifact(OpenArtifact(entry.botId, artifact.id, artifact.title, entry.id)) }) { messageMenu(context, entry, reply, null, openTrace) })
-        else if (files.isNotEmpty()) Column(Modifier.contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }) { messageMenu(context, entry, reply, null, openTrace) },
+            onClick = { focus.clearFocus(); openArtifact(OpenArtifact(entry.botId, artifact.id, artifact.title, entry.id)) }) { messageMenu(context, entry, reply, null, openTrace, select) })
+        else if (files.isNotEmpty()) Column(Modifier.contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }) { messageMenu(context, entry, reply, null, openTrace, select) },
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
             for (file in files) FileDownloadCard(entry, file, state, store)
         } else if (entry.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
             .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { AgentText(entry.text, selectable = true) }) {
-                messageMenu(context, entry, reply, null, openTrace)
-            }) { AgentText(entry.text, selectable = false) { workspacePath = it } }
+                messageMenu(context, entry, reply, null, openTrace, select)
+            }) {
+                val report = entry.data["report"] as? JsonObject
+                if (report?.get("version")?.jsonPrimitive?.contentOrNull == "1") RichReportView(report) { text ->
+                    store.sendDraft("${entry.botId}/report/${entry.id}", entry.botId, text, null) {}
+                }
+                else AgentText(entry.text, selectable = false) { workspacePath = it }
+            }
+    }
+    CodyncSheet(selection, { selection = null }) { target ->
+        QuoteSelectionSheet(target) { text -> store.appendDraft(entry.botId, text); selection = null }
     }
     CodyncSheet(workspacePath, { workspacePath = null }) { path ->
         WorkspaceTextPreview(entry.data["author"]?.jsonPrimitive?.contentOrNull ?: entry.botId, path, store)

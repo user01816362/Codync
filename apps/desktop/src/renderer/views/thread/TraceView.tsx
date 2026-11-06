@@ -105,7 +105,7 @@ export function TraceRow({ entry, unfolded }: { entry: Entry; unfolded: boolean 
       return (
         <VStack gap={6}>
           <Label icon={<Icon name="checklist" size={11} weight="bold" />} weight="bold">
-            {tr('Plan')}
+            {tr(d.title ?? 'Plan')}
           </Label>
           {(d.entries ?? []).map((item, i) => (
             <Label
@@ -152,7 +152,7 @@ export function ToolRow({ data }: { data: EntryData }) {
       <IconSlot width={18} tone="secondary">
         <Icon name={toolIcon(data.toolKind)} size={10} />
       </IconSlot>
-      <Text size="subheadline" tone="text" lines={2} grow>{title === 'Tool' ? tr('Tool') : title}</Text>
+      <Text size="subheadline" tone="text" grow className="trace-tool-title">{title === 'Tool' ? tr('Tool') : title}</Text>
       {data.status === 'completed' ? (
         <Icon name="checkmark" size={10} color="var(--accent)" />
       ) : data.status === 'failed' ? (

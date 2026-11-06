@@ -1,3 +1,5 @@
+import { quoteSelection } from './selection-quote'
+import { RichReportView } from './RichReportView'
 import { FileDownloadCard } from './FileDownloadCard'
 import { ArtifactCard } from '../library/ArtifactCard'
 import { memo, useRef, useState } from 'react'
@@ -103,23 +105,34 @@ export function AuthorLabel({ botId, name }: { botId?: string | null; name?: str
 
 /** The message a reply quotes, as its first line without Markdown markers: at the top of its bubble, and in the composer while replying. */
 export function QuoteRow({ quote, className }: { quote: ReplyQuote; className?: string }) {
+  const store = useStore()
+  const author = quote.author === 'user' ? 'You' : store.authorName(quote.author)
   return (
     <HStack gap={6} className={className ?? 'bubble-quote'}>
       <Icon name="text.bubble" size={12} color="var(--secondary)" />
-      <Text size="footnote" tone="secondary" truncate grow>{`“${messagePreview(quote.text)}”`}</Text>
+      <Text size="footnote" tone="secondary" truncate grow>{`${quote.selected ? 'Quoted from' : 'Replying to'} ${author}: “${messagePreview(quote.text)}”`}</Text>
     </HStack>
   )
 }
 
 /** A message's text with a right-click menu (with quick reactions on top). */
-export function Bubble({ className, items, reactions, children }: { className: string; items: () => MenuItem[]; reactions?: ReactionPick; children: React.ReactNode }) {
+export function Bubble({ className, items, reactions, children, quote }: { className: string; items: () => MenuItem[]; reactions?: ReactionPick; children: React.ReactNode; quote?: (selected: string) => void }) {
   const menu = useContextMenu()
+  const body = useRef<HTMLDivElement>(null)
+  const selected = useRef('')
   return (
     <>
-      <div className={className} onContextMenu={menu.onContextMenu}>
+      <div ref={body} className={className} onContextMenu={event => {
+        const selection = window.getSelection()
+        selected.current = selection && body.current?.contains(selection.anchorNode) && body.current?.contains(selection.focusNode) ? selection.toString() : ''
+        menu.onContextMenu(event)
+      }}>
         {children}
       </div>
-      <AnchoredMenu open={menu.open} onClose={menu.close} point={menu.point} items={items} reactions={reactions} />
+      <AnchoredMenu open={menu.open} onClose={menu.close} point={menu.point} items={() => [
+        ...(quote && selected.current.trim() ? [{ title: 'Quote selection', icon: 'arrowshape.turn.up.left', action: () => quote?.(selected.current) }] : []),
+        ...items(),
+      ]} reactions={reactions} />
     </>
   )
 }
@@ -160,6 +173,7 @@ export function UserBubble({ entry, reply, edit }: { entry: Entry; reply?: () =>
         {entry.data.text || entry.data.replyTo ? (
           <Bubble
             className="bubble user selectable"
+            quote={selected => quoteSelection(entry, selected)}
             reactions={reactionPick(store, entry)}
             items={() => [
               { title: 'Copy', icon: 'square.on.square', action: copy },
@@ -210,6 +224,7 @@ export function AgentBubble({ entry, openTrace, reply, openArtifact }: { entry: 
       <div className="message-body">
         <Bubble
           className={entry.data.files?.length || entry.data.artifact ? 'file-message' : 'bubble agent'}
+          quote={selected => { quoteSelection(entry, selected) }}
           reactions={reactionPick(store, entry)}
           items={() => [
             { title: 'Copy', icon: 'square.on.square', action: copy },
@@ -223,7 +238,7 @@ export function AgentBubble({ entry, openTrace, reply, openArtifact }: { entry: 
             <div className="file-message-cards">{entry.data.files.map((file) => <FileDownloadCard key={file.id} entry={entry} file={file} />)}</div>
           ) : (
             <WorkspacePreviewContext.Provider value={openPreview ? (path) => openPreview({ botId: entry.data.author ?? entry.botId, path }) : null}>
-              <MarkdownText text={entry.data.text ?? ''} />
+              {entry.data.report?.version === 1 ? <RichReportView report={entry.data.report} submit={text => store.send(text, entry.botId)} /> : <MarkdownText text={entry.data.text ?? ''} />}
             </WorkspacePreviewContext.Provider>
           )}
         </Bubble>

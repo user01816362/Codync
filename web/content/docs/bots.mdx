@@ -162,3 +162,19 @@ Sign in to the app and claim your computer before uploading. Choosing an image o
 On iPhone, custom pictures stay still in Live Activities and the Dynamic Island. Built-in characters keep their animations. If a cached custom image cannot load, a still default character takes its place.
 
 In the **Terminal UI**, press Ctrl+O in a bot's settings. Enter a local file path or HTTPS URL, choose original colors, tint, or default, then press Enter. The terminal keeps its text avatar; graphical apps show your image.
+
+
+## Rich replies and delivery
+
+Bots can send expandable reports, comparisons, timelines, bar charts and source links. A report form collects text answers and sends them as an ordinary chat message; it grants no additional access. Sources are supplied by the bot and are not independently verified by Codync.
+
+Fenced Markdown opens as a readable preview. Use the small **Code / Preview** toggle in the top-right corner to inspect its source. Diagrams and equations also start in Preview; ordinary source starts in Code and offers highlighting in Preview. Standalone `$$…$$` paragraphs also offer math preview. Previews work offline, keep the original source, and accept up to 16,000 characters. The terminal retains readable source and report text. Bot-shared and uploaded text files open in the existing preview; explicit workspace Markdown links open bounded text files from the bot's workspace on Unix and Windows hosts.
+
+In groups, use an exact `@bot-id` if names overlap. Busy bots answer when available; their late replies can hand off to another member within the room's limits. Outside a group, bots must use `message_bot` to contact one another. A plain mention in a private reply does not send a request. The agent's `message_status` tool distinguishes queueing, execution and completion; a client acknowledgement means the chat was displayed, not proof that a person read or understood it.
+
+
+In **Settings → Chat → Collaboration activity**, choose **Hidden**, **Compact** or **Expanded**. Compact exchange rows can expand inline; each exchange also has its own collapse control. Hiding activity changes this device's display and keeps bot work running.
+
+To quote a passage, select text and choose **Quote selection** on desktop. On phones, open a message's **Select text / Quote** action, select the passage and tap **Quote selected text**. The author and selected text are added to your existing draft for review; nothing sends automatically. In the terminal, pick a message and press **Q**, then edit the quoted text in the composer.
+
+Absolute file links forwarded between bots can open from any registered bot workspace on the same computer. Relative links use the speaking bot's workspace. Files elsewhere must be explicitly shared by the bot; preview does not grant access to the rest of your disk.

@@ -5,6 +5,7 @@ import SwiftUI
 struct SidechatIndicator: View {
     let botId: String
     let open: () -> Void
+    @AppStorage("collaborationActivityMode") private var mode = "compact"
     @Environment(BotStore.self) private var model
 
     private var exchanges: [BotExchange] { BotExchange.all(fetched: model.collaborationUpdates[botId] ?? [], live: model.chat(botId)) }
@@ -12,6 +13,7 @@ struct SidechatIndicator: View {
     var body: some View {
         let exchanges = exchanges
         let active = Set(exchanges.filter { $0.outcome == .pending }.map(\.peerId)).count
+        if mode != "hidden" {
             Button(action: open) {
                 HStack(spacing: 7) {
                     Image(systemName: "person.2")
@@ -27,6 +29,7 @@ struct SidechatIndicator: View {
             }
             .buttonStyle(PressScale())
             .accessibilityHint("Opens bot collaboration activity")
+        }
     }
 }
 
@@ -51,13 +54,13 @@ struct SidechatView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             if let first = group.exchanges.first {
                                 HStack {
-                                    Text(L10n.tr("Started by {name}").replacingOccurrences(of: "{name}", with: name(first.source, exchange: first)))
+                                    Text(L10n.tr("Started by {name}").replacingOccurrences(of: "{name}", with: model.authorName(first.source, fallback: first.source == first.peerId ? first.peerName : nil)))
                                     Spacer()
                                     Text(first.date, style: .date)
                                 }
                                 .font(.footnote.weight(.medium)).foregroundStyle(Palette.tertiary)
                             }
-                            ForEach(group.exchanges) { exchange in exchangeRow(exchange) }
+                            ForEach(group.exchanges) { exchange in SidechatExchange(exchange: exchange) }
                         }
                     }
                 }
@@ -83,12 +86,20 @@ struct SidechatView: View {
         }
     }
 
+}
+
+struct SidechatExchange: View {
+    let exchange: BotExchange
+    @State private var expanded = true
+    @State private var selection: QuoteSelectionTarget?
+    @Environment(BotStore.self) private var model
     private func name(_ id: String, exchange: BotExchange) -> String {
         model.authorName(id, fallback: id == exchange.peerId ? exchange.peerName : nil)
     }
 
-    private func exchangeRow(_ exchange: BotExchange) -> some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 7) {
+            Button { withAnimation { expanded.toggle() } } label: {
             HStack(spacing: 6) {
                 if let bot = model.bots[exchange.source] { CharacterAvatar(bot: bot, size: 20, animated: false) }
                 Text(name(exchange.source, exchange: exchange)).fontWeight(.semibold)
@@ -97,13 +108,25 @@ struct SidechatView: View {
                 Text(name(exchange.target, exchange: exchange)).fontWeight(.semibold)
                 Spacer(minLength: 4)
                 Text(exchange.date, style: .time).foregroundStyle(Palette.tertiary)
+                Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption2)
             }
             .font(.footnote)
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+            if expanded {
             Text(exchange.text).font(.subheadline).foregroundStyle(Palette.text).textSelection(.enabled)
+                .contextActions { [MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") {
+                    selection = QuoteSelectionTarget(text: exchange.text, author: name(exchange.source, exchange: exchange))
+                }] }
             if let reply = exchange.reply, !reply.isEmpty {
                 Text(L10n.tr("Reply from {name}").replacingOccurrences(of: "{name}", with: name(exchange.target, exchange: exchange)))
                     .font(.footnote.weight(.medium)).foregroundStyle(Palette.secondary)
                 Text(reply).font(.subheadline).foregroundStyle(Palette.secondary).textSelection(.enabled)
+                    .contextActions { [MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") {
+                        selection = QuoteSelectionTarget(text: reply, author: name(exchange.target, exchange: exchange))
+                    }] }
+            }
             }
             switch exchange.outcome {
             case .pending:
@@ -115,5 +138,8 @@ struct SidechatView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .codyncSheet(item: $selection) { target in
+            QuoteSelectionSheet(text: target.text, author: target.author) { model.prependQuote($0, to: exchange.chatId) }
+        }
     }
 }

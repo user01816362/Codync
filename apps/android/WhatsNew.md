@@ -7,6 +7,21 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.40.3
+### zh-Hant
+- Markdown 預設顯示易讀的預覽，可在右上角切換原始碼，並修正空白預覽和長路徑顯示。
+- 可在設定中隱藏協作活動、顯示精簡摘要或預設展開，並選取訊息文字加入引用草稿。
+- 對話支援可展開的報告、比較、時間軸、長條圖及文字回答表單，並顯示來源連結。
+- 程式碼、Mermaid 圖表及數學公式可離線預覽，保留原始文字。
+- 改善群組 bot 忙碌後的提及接續，並顯示傳送失敗或達到回覆上限的提示。
+
+### en-US
+- Markdown opens as a readable preview with a small Code/Preview toggle; fixed blank previews and long task paths.
+- Choose Hidden, Compact or Expanded collaboration activity, and quote selected message text into your draft.
+- Read expandable reports, comparisons, timelines, bar charts and text-answer forms with source links.
+- Preview highlighted code, Mermaid diagrams and math offline while keeping the original source.
+- Improved mention handoffs after busy bots reply, with visible delivery failures and room limits.
+
 ## 2.40.2
 ### zh-Hant
 - bot 現在可以讓 dev server 持續在電腦上執行，不會因為 bot 閒置或重新啟動而中斷。port 會顯示在聊天標題下方；點 bot 的名稱，就能看記錄、重新啟動或停止；手機連得到電腦時，也能直接開啟。

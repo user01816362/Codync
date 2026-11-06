@@ -78,7 +78,7 @@ struct TraceRow: View {
             ToolRow(data: d)
         case "plan":
             VStack(alignment: .leading, spacing: 6) {
-                Label(L10n.tr("Plan"), systemImage: "checklist").font(.subheadline.bold())
+                Label(L10n.tr(d.title ?? "Plan"), systemImage: "checklist").font(.subheadline.bold())
                 ForEach(Array((d.entries ?? []).enumerated()), id: \.offset) { _, item in
                     Label {
                         Text(item.content).strikethrough(item.status == "completed").foregroundStyle(Palette.text)
@@ -147,7 +147,8 @@ struct ToolRow: View {
         let title = data.title ?? "Tool"
         return HStack(spacing: 8) {
             Image(systemName: icon).frame(width: 18).foregroundStyle(Palette.secondary)
-            Text(title == "Tool" ? L10n.tr("Tool") : title).font(.subheadline).foregroundStyle(Palette.text).lineLimit(2)
+            Text(title == "Tool" ? L10n.tr("Tool") : title).font(.subheadline).foregroundStyle(Palette.text)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             switch data.status {
             case "completed": Image(systemName: "checkmark").foregroundStyle(Palette.accent)

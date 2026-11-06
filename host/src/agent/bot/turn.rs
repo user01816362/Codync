@@ -219,8 +219,16 @@ impl Actor {
         }
         // Requests that came in before this turn: a permission gets the answer it would have had a moment ago.
         while let Some(inc) = self.conn.as_mut().and_then(|c| c.rx.try_recv().ok()) {
-            if let Incoming::Request { id, method, params } = inc {
-                self.answer_outside_turn(id, &method, &params).await;
+            match inc {
+                Incoming::Request { id, method, params } => {
+                    self.answer_outside_turn(id, &method, &params).await;
+                }
+                Incoming::Notification { method, params } => {
+                    if let Some(conn) = &self.conn {
+                        conn.acp.received_notification(&method, &params);
+                    }
+                }
+                Incoming::Closed { .. } => {}
             }
         }
         let sid = self.turn_session.clone().ok_or_else(|| anyhow!("no session"))?;
@@ -240,6 +248,13 @@ impl Actor {
         memory::turns::begin_turn(&self.cfg.id, &sid, self.hub.runtime(&self.cfg.id).message);
         // Written before this returns, so a Stop right after is sent after the prompt.
         let answer = acp.send("session/prompt", params).await?;
+        if let Some(group) = &self.active_group {
+            let key = crate::chat::group::receipt_key(&group.lane.chat, &self.cfg.id);
+            let receipt = json!({"throughSeq": group.shown, "at": now_ms()});
+            if let Err(error) = self.hub.store.kv_set(&key, &receipt.to_string()) {
+                tracing::warn!(%error, "could not save group prompt dispatch receipt");
+            }
+        }
         if !self.turn_memory_revision.is_empty()
             && let Err(error) = memory::mark_announced(&self.hub.store, &self.cfg.id, &sid, &self.turn_memory_revision)
         {

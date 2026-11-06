@@ -284,7 +284,7 @@ private fun AppState.chatEntries(bot: Bot) = entries.filter { it.botId == bot.id
                         pickVersion = item.versions?.let { versions -> { version: Entry -> picks[versions.first().id] = VersionPick(version.id, versions.size) } })
                 }
                 is ChatItem.Pending -> PendingBubble(item.send, item.groupStart, state, store)
-                is ChatItem.Exchanges -> BotMessageRow(item.group, state) { openPeer(item.group.peerId) }
+                is ChatItem.Exchanges -> BotMessageRow(item.group, state, store) { openPeer(item.group.peerId) }
             }
         }
         if (working) item("working") { WorkingIndicator(bot, workingSteps(state.entries.filter { it.botId == bot.id }), details) }

@@ -195,7 +195,11 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             let row = hub.store.bot(bot)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
             // `replyTo`: the message of this chat it answers (`chat::replies`).
             let reply = match b["replyTo"].as_str().filter(|id| !id.is_empty()) {
-                Some(id) => Some(crate::chat::replies::quote(&hub.store, bot, id)?),
+                Some(id) => Some(if b["replySelection"].is_object() {
+                    crate::chat::replies::selection(&hub.store, bot, id, &b["replySelection"])?
+                } else {
+                    crate::chat::replies::quote(&hub.store, bot, id)?
+                }),
                 None => None,
             };
             let mut attachments = Vec::new();

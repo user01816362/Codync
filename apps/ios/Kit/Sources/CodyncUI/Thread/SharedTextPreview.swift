@@ -22,12 +22,13 @@ struct SharedTextPreview: View {
     }
 
     var body: some View {
+        let markdown = name.lowercased().hasSuffix(".md") || name.lowercased().hasSuffix(".markdown")
         VStack(spacing: 0) {
             ModalHeader(name)
-            ScrollView([.vertical, .horizontal]) {
+            ScrollView(markdown ? .vertical : [.vertical, .horizontal]) {
                 Group {
                     if let text {
-                        if name.lowercased().hasSuffix(".md") || name.lowercased().hasSuffix(".markdown") {
+                        if markdown {
                             MarkdownText(text)
                         } else {
                             Text(text).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)

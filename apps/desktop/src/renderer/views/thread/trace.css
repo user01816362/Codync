@@ -19,3 +19,10 @@
 .trace-thought {
   white-space: pre-wrap;
 }
+
+/* Expanded task details retain the complete command, including paths with no break points. */
+.trace-tool-title {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}

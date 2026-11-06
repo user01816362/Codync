@@ -82,6 +82,7 @@ export const prefs = {
   promptsSent: pref('promptsSent', 0),
   appLanguage: pref<AppLanguage>('appLanguage', 'system'),
   /** The working pill unfolds the turn's thinking and steps; off keeps the chat to its messages. */
+  collaborationActivity: pref<'hidden' | 'compact' | 'expanded'>('collaborationActivityMode', 'compact'),
   thinkingDetails: pref('showThinkingDetails', false),
   extensionsMovedTipSeen: pref('extensionsMovedTipSeen', false),
 }

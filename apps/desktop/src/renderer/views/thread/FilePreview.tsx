@@ -22,7 +22,9 @@ export function FilePreview({ preview, close }: { preview: PreviewFile; close: (
     if ('path' in preview) {
       void store.previewWorkspaceFile(preview.botId, preview.path).then((value) => {
         if (active) setResult({ text: value.text })
-      }).catch(() => { if (active) setResult({ error: tr("Couldn't open this file.") }) })
+      }).catch((error: unknown) => {
+        if (active) setResult({ error: error instanceof Error && error.message ? `${tr("Couldn't open this file.")} ${error.message}` : tr("Couldn't open this file.") })
+      })
       return () => { active = false }
     }
     const dataPromise = 'entry' in preview ? store.sharedFileData(preview.file, preview.entry.id) : store.attachmentData(preview.file.id, preview.botId, preview.file.size)

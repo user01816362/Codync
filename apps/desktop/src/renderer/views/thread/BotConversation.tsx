@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { prefs, usePref } from '../../lib/prefs'
+import { ExchangeRow } from './Sidechat'
+import { Button } from '../../components/Controls'
+import { useEffect, useRef, useState } from 'react'
 import { BotAvatar } from '../../components/Avatar'
 import { Icon } from '../../components/Icon'
 import { ModalHeader } from '../../components/Overlay'
@@ -17,23 +20,35 @@ import { fill } from '../../lib/fill.ts'
 /** The compact chat row for bot-to-bot messages with one peer: who, never what. Opens the conversation. */
 export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; open: (peerId: string) => void }) {
   const store = useStore()
+  const [mode] = usePref(prefs.collaborationActivity)
+  const [expanded, setExpanded] = useState<boolean | null>(null)
+  useEffect(() => setExpanded(null), [mode])
+  const shown = expanded ?? mode === 'expanded'
   const { peerId, peerName, count, failed } = groupSummary(exchanges)
   const peer = store.bots.get(peerId)
   const name = store.authorName(peerId, peerName)
   const lead = count > 1 ? `${count} messages with` : verbOf(exchanges[0]!)
+  if (mode === 'hidden') return null
   return (
+    <div className="collaboration-inline">
     <button
       className={failed ? 'press bot-message-row failed' : 'press bot-message-row'}
-      onClick={() => open(peerId)}
-      title="Open conversation"
+      onClick={() => setExpanded(!shown)}
+      title={shown ? "Collapse collaboration" : "Expand collaboration"}
+      aria-expanded={shown}
       aria-label={`${lead} ${name}${failed ? ', failed' : ''}`}
     >
       {failed ? <Icon name="exclamationmark.triangle.fill" size={10} color="var(--danger)" /> : null}
       <Text size="footnote">{lead}</Text>
       {peer ? <BotAvatar bot={peer} size={18} animated={false} /> : null}
       <Text size="footnote" weight="semibold" tone={failed ? 'danger' : 'text'}>{name}</Text>
-      <Icon name="chevron.right" size={10} color="var(--tertiary)" />
+      <Icon name={shown ? 'chevron.down' : 'chevron.right'} size={10} color="var(--tertiary)" />
     </button>
+    {shown && <div className="collaboration-inline-details">
+      {exchanges.map(exchange => <ExchangeRow key={exchange.id} exchange={exchange} />)}
+      <Button kind="secondary" onClick={() => open(peerId)}>Open conversation</Button>
+    </div>}
+    </div>
   )
 }
 

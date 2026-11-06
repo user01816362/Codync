@@ -121,6 +121,14 @@ pub fn group<'a>(chat: &str, entries: &[&'a Entry]) -> Vec<Item<'a>> {
     let mut run: Vec<(&Entry, Exchange)> = vec![];
     for &e in entries {
         if let Some(x) = Exchange::of(chat, e) {
+            if super::super::collaboration::mode() == 0 {
+                continue;
+            }
+            if super::super::collaboration::mode() == 2 {
+                flush(&mut out, &mut run);
+                out.push(Item::Entry(e));
+                continue;
+            }
             if run.last().is_some_and(|(_, r)| r.peer() != x.peer()) {
                 flush(&mut out, &mut run);
             }

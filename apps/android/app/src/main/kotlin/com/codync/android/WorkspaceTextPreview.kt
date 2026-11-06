@@ -33,23 +33,25 @@ internal fun workspaceLink(destination: String): String? = try {
 @Composable internal fun WorkspaceTextPreview(botId: String, path: String, store: AppStore) {
     var text by remember(path) { mutableStateOf<String?>(null) }
     var name by remember(path) { mutableStateOf(path.substringAfterLast('/')) }
-    var failed by remember(path) { mutableStateOf(false) }
+    var failure by remember(path) { mutableStateOf<String?>(null) }
     LaunchedEffect(botId, path) {
         try {
             val response = store.hostQuery("previewWorkspaceFile", body("botId" to botId, "path" to path)).jsonObject
             name = response.getValue("name").jsonPrimitive.content
             text = response.getValue("text").jsonPrimitive.content
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { failed = true }
+        catch (error: Exception) { failure = error.message ?: "Couldn't open this file." }
     }
+    val markdown = name.endsWith(".md", true) || name.endsWith(".markdown", true)
+    val horizontal = rememberScrollState()
     Column(Modifier.fillMaxSize().background(Palette.background)) {
         ModalHeader(name)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(20.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(if (markdown) Modifier else Modifier.horizontalScroll(horizontal)).padding(20.dp)) {
             val content = text
             when {
-                content != null && (name.endsWith(".md", true) || name.endsWith(".markdown", true)) -> MarkdownText(content)
+                content != null && markdown -> MarkdownText(content)
                 content != null -> Text(content, style = Type.footnote.monospaced, color = Palette.text)
-                failed -> Text(tr("Couldn't open this file."), color = Palette.secondary)
+                failure != null -> Text(failure.orEmpty(), color = Palette.secondary)
                 else -> Spinner()
             }
         }

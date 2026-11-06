@@ -32,6 +32,9 @@ impl Actor {
                 self.exit_tail = Some(tail);
             }
             Some(Incoming::Notification { method, params }) => {
+                if let Some(conn) = &self.conn {
+                    conn.acp.received_notification(&method, &params);
+                }
                 // Any session's, turn or not: the agent changed an option itself.
                 if method == "session/update"
                     && params["update"]["sessionUpdate"] == "config_option_update"
@@ -152,7 +155,10 @@ impl Actor {
                 }
             }
             "plan" => {
-                let data = json!({"entries": u["entries"].clone(), "author": self.cfg.id});
+                let mut data = json!({"entries": u["entries"].clone(), "author": self.cfg.id});
+                if u["research"] == true {
+                    data["title"] = "Research".into();
+                }
                 match &self.plan_entry {
                     Some(id) => {
                         self.hub.set_entry(id, &data);
@@ -302,8 +308,17 @@ impl Actor {
     /// A `send_message`: the user's next bubble, in the turn's lane, right away. Only in the
     /// bot's own chat; a room, a bot request or a routine reads the turn's reply.
     pub(super) fn send_to_user(&mut self, text: String) -> anyhow::Result<()> {
+        self.send_message_data(text, None)
+    }
+
+    /// Store a validated report beside its readable fallback for clients that understand it.
+    pub(super) fn send_report_to_user(&mut self, text: String, report: Value) -> anyhow::Result<()> {
+        self.send_message_data(text, Some(report))
+    }
+
+    fn send_message_data(&mut self, text: String, report: Option<Value>) -> anyhow::Result<()> {
         self.settle_stream(false);
-        let Some(turn) = self.turn else { return self.send_between_turns(&text) };
+        let Some(turn) = self.turn else { return self.send_between_turns(&text, report) };
         // A background result can't be told from this turn's own send (no session in the call): it may try again later.
         if self.active_request.is_some() {
             anyhow::bail!(
@@ -314,8 +329,11 @@ impl Actor {
             anyhow::bail!("send_message isn't available in this turn: write your answer as your reply {LATER}");
         }
         self.close_seg();
-        self.add(EntryKind::Agent, turn, json!({"text": text, "final": true}))
-            .ok_or_else(|| anyhow::anyhow!("couldn't save the message"))?;
+        let mut data = json!({"text": text, "final": true});
+        if let Some(report) = report {
+            data["report"] = report;
+        }
+        self.add(EntryKind::Agent, turn, data).ok_or_else(|| anyhow::anyhow!("couldn't save the message"))?;
         self.sent.push(text);
         self.last_text = None;
         self.set_activity("Working…");
@@ -324,11 +342,14 @@ impl Actor {
 
     /// A `send_message` from work the agent goes on with after its turn ended (a background subagent's result): a
     /// message in the bot's own chat, with the alert a finished turn sends, unless the user stopped its last turn.
-    fn send_between_turns(&self, text: &str) -> anyhow::Result<()> {
+    fn send_between_turns(&self, text: &str, report: Option<Value>) -> anyhow::Result<()> {
         anyhow::ensure!(self.conn.is_some(), "no turn is running");
         anyhow::ensure!(!self.stop_requested, "the user stopped you: send nothing until they write again");
-        self.add_between_turns(EntryKind::Agent, &json!({"text": text, "final": true, "author": self.cfg.id}))
-            .ok_or_else(|| anyhow::anyhow!("couldn't save the message"))?;
+        let mut data = json!({"text": text, "final": true, "author": self.cfg.id});
+        if let Some(report) = report {
+            data["report"] = report;
+        }
+        self.add_between_turns(EntryKind::Agent, &data).ok_or_else(|| anyhow::anyhow!("couldn't save the message"))?;
         push::notify(&self.hub, &self.cfg, None, &self.cfg.name, text, AlertKind::Done);
         Ok(())
     }

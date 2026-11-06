@@ -6,35 +6,49 @@ struct BotChatTarget: Identifiable, Equatable {
     let id: String
 }
 
-/// The compact line a bot-to-bot message leaves in the chat; tapping it opens the conversation.
+/// A compact summary that unfolds the real exchanges without leaving the chat.
 struct BotMessageRow: View {
     let group: BotExchangeGroup
     let open: () -> Void
+    @AppStorage("collaborationActivityMode") private var mode = "compact"
+    @State private var expanded: Bool?
     @Environment(BotStore.self) private var model
+
+    private var shown: Bool { expanded ?? (mode == "expanded") }
 
     var body: some View {
         let peer = model.bots[group.peerId]
         let name = model.authorName(group.peerId, fallback: group.peerName)
         let failed = group.failed
-        Button(action: open) {
-            HStack(spacing: 6) {
-                if failed {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
+        VStack(alignment: .leading, spacing: 12) {
+            if mode != "hidden" {
+                Button { withAnimation { expanded = !shown } } label: {
+                    HStack(spacing: 6) {
+                        if failed {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
+                        }
+                        Text(group.title).foregroundStyle(failed ? Palette.danger : Palette.secondary)
+                        if let peer { CharacterAvatar(bot: peer, size: 18, animated: false) }
+                        Text(name).fontWeight(.semibold).foregroundStyle(failed ? Palette.danger : Palette.text)
+                        Image(systemName: shown ? "chevron.down" : "chevron.right")
+                            .font(.caption2).foregroundStyle(Palette.tertiary)
+                    }
+                    .font(.footnote)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
-                Text(group.title).foregroundStyle(failed ? Palette.danger : Palette.secondary)
-                if let peer { CharacterAvatar(bot: peer, size: 18, animated: false) }
-                Text(name).fontWeight(.semibold).foregroundStyle(failed ? Palette.danger : Palette.text)
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Palette.tertiary)
+                .buttonStyle(PressScale())
+                .padding(.top, 2)
+                .accessibilityLabel(group.accessibilityLabel(peerName: name))
+                .accessibilityValue(shown ? "Expanded" : "Collapsed")
+                if shown {
+                    ForEach(group.exchanges) { SidechatExchange(exchange: $0) }
+                    Button("Open conversation", action: open).buttonStyle(SecondaryButtonStyle())
+                }
             }
-            .font(.footnote)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(PressScale())
-        .padding(.top, 2)
-        .accessibilityLabel(group.accessibilityLabel(peerName: name))
-        .accessibilityHint("Opens the conversation")
+        .onChange(of: mode) { _, _ in expanded = nil }
     }
 }
 

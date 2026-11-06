@@ -1,4 +1,4 @@
-name: Fork build (macOS, unsigned)
+name: Build
 
 # Builds the desktop app on every push to main so it can be downloaded and tried without
 # Xcode, a Rust toolchain or disk space. No repository secrets are used: the app is built
@@ -40,6 +40,84 @@ jobs:
         run: |
           npm run typecheck
           npm test
+
+      - name: Check offline rich rendering in an isolated browser
+        working-directory: apps/desktop
+        run: |
+          npx playwright install chromium
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict'
+          import { readFile } from 'node:fs/promises'
+          import { chromium } from '@playwright/test'
+          const template = await readFile('src/renderer/views/thread/rich-renderer.html', 'utf8')
+          const appHTML = await readFile('src/renderer/index.html', 'utf8')
+          const appCSP = appHTML.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/i)?.[1]
+          assert.ok(appCSP, 'Use the actual app content security policy in preview checks')
+          const previewURL = 'https://preview.codync.invalid/renderer'
+          const browser = await chromium.launch()
+          try {
+            const context = await browser.newContext({ offline: true })
+            const requests = []
+            context.on('request', request => requests.push(request.url()))
+            for (const [kind, language, source, selector] of [
+              ['code', 'javascript', 'const answer = 42;', '#output .hljs-keyword'],
+              ['math', 'math', String.raw`\frac{1}{2}`, '#output math'],
+              ['mermaid', 'mermaid', 'graph TD; A-->B;', '#output svg'],
+            ]) {
+              const page = await context.newPage()
+              const html = template.replace('__CODYNC_PAYLOAD__', Buffer.from(JSON.stringify({ kind, language, source })).toString('base64'))
+              // Stand in for the app's existing local artifact protocol, retaining the real parent policy.
+              await page.route(previewURL, route => route.fulfill({ contentType: 'text/html', body: html }))
+              const policy = appCSP.replaceAll('codync-artifact:', 'https://preview.codync.invalid')
+              await page.setContent(`<meta http-equiv="Content-Security-Policy" content="${policy}"><iframe sandbox="allow-scripts" title="Preview"></iframe>`)
+              await page.locator('iframe').evaluate((element, url) => { element.src = url }, previewURL)
+              const frame = page.frameLocator('iframe')
+              await frame.locator(selector).first().waitFor({ timeout: 30000 })
+              assert.equal(await frame.locator('#error').textContent(), '')
+              await page.close()
+              console.log(`${kind}: rendered offline inside sandbox`)
+            }
+            const layoutCSS = await readFile('src/renderer/views/thread/thread.css', 'utf8')
+            const traceCSS = await readFile('src/renderer/views/thread/trace.css', 'utf8')
+            const command = 'cp "/Users/user/' + 'a'.repeat(400) + '/cosmic.jpg" "/Users/user/output.jpg"'
+            for (const width of [220, 480, 900]) {
+              const page = await context.newPage()
+              await page.setContent(`<style>
+                * { box-sizing: border-box; transition: none !important; animation: none !important; }
+                :root { --agent-bubble-max: 100%; --radius-xl: 18px; --bubble-agent: #222; }
+                .hstack { display: flex; align-items: center; gap: 8px; }
+                .vstack { display: flex; flex-direction: column; }
+                .truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                ${layoutCSS} ${traceCSS}
+                #fixture { width: ${width}px; }
+              </style><div id="fixture"><div class="chat-working shown"><div class="chat-working-clip"><div class="chat-working-content">
+                <div class="vstack agent-inset" style="align-items:flex-start"><div class="working">
+                  <button class="working-toggle"><span class="hstack working-status-row">
+                    <span>◌</span><span id="activity" class="truncate working-status-text" style="flex:1;min-width:0"></span><span id="timer">12:34</span><span>›</span>
+                  </span></button>
+                </div></div>
+              </div></div></div></div>`)
+              await page.locator('#activity').evaluate((element, command) => { element.textContent = command }, command)
+              const fits = await page.evaluate(() => {
+                const edge = document.querySelector('#fixture').getBoundingClientRect().right
+                return ['.working', '.working-toggle', '.working-status-row', '#timer'].every(selector => document.querySelector(selector).getBoundingClientRect().right <= edge + 1)
+              })
+              assert.ok(fits, `Working indicator overflowed at ${width}px`)
+              await page.locator('.working').evaluate(element => element.classList.add('expanded'))
+              await page.locator('.working').evaluate((element, command) => {
+                const row = document.createElement('div'); row.className = 'hstack'; row.style.minWidth = '0'
+                const title = document.createElement('span'); title.id = 'tool-title'; title.className = 'trace-tool-title'; title.style.cssText = 'flex:1;min-width:0'; title.textContent = command
+                row.append(title); element.append(row)
+              }, command)
+              assert.ok(await page.locator('#tool-title').evaluate(element => element.scrollWidth <= element.clientWidth + 1 && element.getBoundingClientRect().height > 24), `Long tool title did not wrap at ${width}px`)
+              await page.close()
+            }
+            console.log('Long activity paths fit compact and expanded layouts at all three widths')
+            assert.deepEqual(requests.filter(url => url !== previewURL), [], 'Rendering must make no external network requests')
+          } finally {
+            await browser.close()
+          }
+          JS
 
       - name: Build the iOS package
         working-directory: apps/ios/Kit

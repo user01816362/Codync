@@ -225,6 +225,9 @@ export function groupBotReactions(reactions: BotReaction[]): { emoji: string; bo
 
 /** The message a user message replies to, as the host quoted it. */
 export interface ReplyQuote {
+  /** A passage selected by the user, with the original message retained as its source. */
+  selected?: boolean
+  part?: 'request' | 'reply'
   id: string
   /** `user`, or the bot that wrote it. */
   author: string
@@ -289,7 +292,17 @@ export interface AgentSwitch {
   carried: string | null
 }
 
+export interface RichReport {
+  version: 1
+  title: string
+  sections: { kind: 'text' | 'comparison' | 'timeline' | 'data' | 'bar' | 'form'; heading: string; text?: string; items?: { label: string; value: string }[]; citations?: number[] }[]
+  sources?: { title: string; url: string }[]
+}
+
 export interface EntryData {
+  /** Local composer selection; never changes the original stored message. */
+  selectedQuote?: ReplyQuote
+  report?: RichReport
   /** Structured conversation data added to the existing team-tool notice. */
   botMessage?: BotMessage
   /** notice: the agent summarized its context; kept out of the chat. */
@@ -422,6 +435,7 @@ export function isEditable(e: Entry): boolean {
 
 /** The quote a sending reply shows until the computer's own replaces it. */
 export function quoteOf(e: Entry): ReplyQuote {
+  if (e.data.selectedQuote) return e.data.selectedQuote
   const names = [...(e.data.attachments ?? []), ...(e.data.files ?? [])].map((f) => f.name).join(', ')
   const quote: ReplyQuote = { id: e.id, author: e.kind === 'user' ? 'user' : (e.data.author ?? e.botId), text: (e.data.text || names).slice(0, 500) }
   if (e.data.artifact) quote.artifact = e.data.artifact.id

@@ -144,6 +144,24 @@ pub fn snapshot_image(root: &Path, mime: &str, encoded: &str, cancelled: &Atomic
         _ => false,
     };
     ensure!(valid, "image data does not match its type");
+    if extension == "gif" {
+        // GIF is displayed by clients; constrain its logical screen before handing it to a decoder.
+        ensure!(bytes.len() >= 13, "invalid GIF header");
+        let width = u16::from_le_bytes([bytes[6], bytes[7]]);
+        let height = u16::from_le_bytes([bytes[8], bytes[9]]);
+        ensure!(
+            width > 0 && height > 0 && u64::from(width) * u64::from(height) <= 16_000_000,
+            "GIF dimensions exceed limits"
+        );
+    } else {
+        let mut reader = image::ImageReader::new(std::io::Cursor::new(&bytes)).with_guessed_format()?;
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(8192);
+        limits.max_image_height = Some(8192);
+        limits.max_alloc = Some(128 * 1024 * 1024);
+        reader.limits(limits);
+        let _ = reader.decode().context("image is damaged or exceeds decoding limits")?;
+    }
     std::fs::create_dir_all(root).context("creating the shared file folder")?;
     let id = uuid::Uuid::new_v4().to_string();
     let final_path = path(root, &id)?;
