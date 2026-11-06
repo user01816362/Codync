@@ -126,8 +126,12 @@ impl Actor {
         let collaboration = if self.active_request.is_some() {
             None
         } else {
-            Some(self.reply_collaboration.clone().or_else(|| entry_ids.last().cloned())
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()))
+            Some(
+                self.reply_collaboration
+                    .clone()
+                    .or_else(|| entry_ids.last().cloned())
+                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+            )
         };
         self.hub.team.start_turn_with_collaboration(&self.cfg.id, team_turn, collaboration);
         self.exit_tail = None;

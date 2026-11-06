@@ -523,8 +523,12 @@ mod tests {
             .map(|e| e.data["text"].as_str().unwrap().to_owned())
             .collect();
         assert_eq!(texts, ["first", "second"]);
-        let all: Vec<_> = s.bot_exchanges("a", 10).unwrap().into_iter()
-            .map(|e| e.data["text"].as_str().unwrap().to_owned()).collect();
+        let all: Vec<_> = s
+            .bot_exchanges("a", 10)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.data["text"].as_str().unwrap().to_owned())
+            .collect();
         assert_eq!(all, ["first", "other peer", "second"]);
         assert_eq!(s.bot_exchanges("a", 1).unwrap()[0].data["text"], "second");
         assert_eq!(s.entry(&old.id).unwrap().data, old_data, "existing notice is untouched");

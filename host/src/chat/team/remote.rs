@@ -141,11 +141,22 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, to: &Target, lett
     let peer = peer_name(hub, &to.network, &letter.to);
     let collaboration = letter.meta.as_ref().and_then(|meta| meta["collaborationId"].as_str()).map(str::to_owned);
     let heading = format!("Messaged {peer}: {}", letter.body);
-    let exchange =
-        Exchange { request: &id, source: &source.id, target: &address, text: &letter.body, collaboration_id: collaboration.as_deref(), peer_name: Some(&peer) };
+    let exchange = Exchange {
+        request: &id,
+        source: &source.id,
+        target: &address,
+        text: &letter.body,
+        collaboration_id: collaboration.as_deref(),
+        peer_name: Some(&peer),
+    };
     let entry = exchange.notice(hub, &source.id, &heading, false)?;
     let quote = truncate(&letter.body, REQUEST_QUOTE_BYTES);
-    let waiter = Waiter { to: ReplyTo::Bot { id: source.id.clone(), entry: entry.clone() }, quote, collaboration_id: collaboration, peer: peer.clone() };
+    let waiter = Waiter {
+        to: ReplyTo::Bot { id: source.id.clone(), entry: entry.clone() },
+        quote,
+        collaboration_id: collaboration,
+        peer: peer.clone(),
+    };
     hub.waiting.insert(id.clone(), waiter);
     let said = match node.send(letter).await {
         Ok(Sent::Delivered) => {
@@ -206,7 +217,8 @@ pub(super) fn ask_for_replies(
 /// The answer to letter `id` goes to its asker's replies.
 pub(super) fn awaits_in_replies(hub: &Hub, id: &str, peer: &str, message: &str) {
     let quote = truncate(message, REQUEST_QUOTE_BYTES);
-    hub.waiting.insert(id.to_owned(), Waiter { to: ReplyTo::Replies, quote, collaboration_id: None, peer: peer.to_owned() });
+    hub.waiting
+        .insert(id.to_owned(), Waiter { to: ReplyTo::Replies, quote, collaboration_id: None, peer: peer.to_owned() });
 }
 
 /// Says where a request waits, unless its reply already came (a quick one can beat this).
@@ -224,11 +236,22 @@ fn waiting(hub: &Hub, id: &str, text: &str, status: RequestStatus) {
 fn requested(hub: &Arc<Hub>, network: &str, target: &BotConfig, m: &Message, back: Return) -> Result<()> {
     let peer = peer_name(hub, network, &m.from);
     let from = m.from.to_string();
-    let collaboration = m.meta.as_ref().and_then(|meta| meta["collaborationId"].as_str())
-        .filter(|id| !id.is_empty() && id.len() <= 128).map(str::to_owned);
-    let mut lifetime = MessageLifetime::new(hub, &m.id, &m.body, Back::Remote(back), &target.name, collaboration.clone());
-    let exchange =
-        Exchange { request: &m.id, source: &from, target: &target.id, text: &m.body, collaboration_id: collaboration.as_deref(), peer_name: Some(&peer) };
+    let collaboration = m
+        .meta
+        .as_ref()
+        .and_then(|meta| meta["collaborationId"].as_str())
+        .filter(|id| !id.is_empty() && id.len() <= 128)
+        .map(str::to_owned);
+    let mut lifetime =
+        MessageLifetime::new(hub, &m.id, &m.body, Back::Remote(back), &target.name, collaboration.clone());
+    let exchange = Exchange {
+        request: &m.id,
+        source: &from,
+        target: &target.id,
+        text: &m.body,
+        collaboration_id: collaboration.as_deref(),
+        peer_name: Some(&peer),
+    };
     lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {peer}: {}", m.body), true)?);
     let who = format!("{peer}, an agent on another of the user's computers,");
     lifetime.deliver(&target.id, m.hops, request_prompt(&who, &peer, &m.body))
@@ -307,7 +330,13 @@ fn replied(hub: &Hub, id: &str, waiter: Waiter, m: &Message) {
             Ok(truncate(&m.body, MAX_MESSAGE_BYTES))
         }
     };
-    let reply =
-        BotReply { request_id: id.to_owned(), collaboration_id: waiter.collaboration_id, quote: waiter.quote, from_name: peer.clone(), outcome, hops: m.hops };
+    let reply = BotReply {
+        request_id: id.to_owned(),
+        collaboration_id: waiter.collaboration_id,
+        quote: waiter.quote,
+        from_name: peer.clone(),
+        outcome,
+        hops: m.hops,
+    };
     let _ = hub.send_cmd(&sender, Cmd::BotReply(reply));
 }

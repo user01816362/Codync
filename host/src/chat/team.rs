@@ -218,7 +218,14 @@ struct MessageLifetime {
 
 impl MessageLifetime {
     /// A request's lifetime before its notices: dropped early, it ends the ones saved by then.
-    fn new(hub: &Arc<Hub>, request_id: &str, message: &str, back: Back, target_name: &str, collaboration_id: Option<String>) -> Self {
+    fn new(
+        hub: &Arc<Hub>,
+        request_id: &str,
+        message: &str,
+        back: Back,
+        target_name: &str,
+        collaboration_id: Option<String>,
+    ) -> Self {
         Self {
             hub: hub.clone(),
             request_id: request_id.to_owned(),
@@ -423,8 +430,22 @@ fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> R
     let (hops, collaboration) = hub.team.reserve_message_scoped(&source.id)?;
     let id = uuid::Uuid::new_v4().to_string();
     // From here on the lifetime gives the reservation back, also when a notice can't be saved.
-    let mut lifetime = MessageLifetime::new(hub, &id, message, Back::Local { sender: source.id.clone() }, &target.name, collaboration.clone());
-    let exchange = Exchange { request: &id, source: &source.id, target: &target.id, text: message, collaboration_id: collaboration.as_deref(), peer_name: None };
+    let mut lifetime = MessageLifetime::new(
+        hub,
+        &id,
+        message,
+        Back::Local { sender: source.id.clone() },
+        &target.name,
+        collaboration.clone(),
+    );
+    let exchange = Exchange {
+        request: &id,
+        source: &source.id,
+        target: &target.id,
+        text: message,
+        collaboration_id: collaboration.as_deref(),
+        peer_name: None,
+    };
     let (asked, from) =
         (format!("Messaged {}: {message}", target.name), format!("Message from {}: {message}", source.name));
     lifetime.entries.push(exchange.notice(hub, &source.id, &asked, false)?);

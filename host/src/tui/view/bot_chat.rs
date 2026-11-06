@@ -83,8 +83,13 @@ fn body_lines(app: &App, c: &BotChatSheet, exchanges: &[Exchange], peer: Peer, w
             ConversationRow::Message { author, text, shows_author } => {
                 if shows_author {
                     out.push(Line::default());
-                    let fallback = exchanges.iter().find(|x| x.peer() == author.as_str()).and_then(|x| x.peer_name.as_deref());
-                    let (name, color) = name_and_color(app, &author, if c.peer.is_empty() { (author.as_str(), fallback) } else { peer });
+                    let fallback =
+                        exchanges.iter().find(|x| x.peer() == author.as_str()).and_then(|x| x.peer_name.as_deref());
+                    let (name, color) = name_and_color(
+                        app,
+                        &author,
+                        if c.peer.is_empty() { (author.as_str(), fallback) } else { peer },
+                    );
                     out.push(Line::from(vec![
                         Span::raw(" "),
                         person(app, &author),
@@ -100,8 +105,13 @@ fn body_lines(app: &App, c: &BotChatSheet, exchanges: &[Exchange], peer: Peer, w
                     let detail = if detail.is_empty() { "Didn't complete.".to_owned() } else { detail };
                     out.extend(md::wrap(&[Span::styled(detail, t.red)], width, &[Span::raw(" ")], &[Span::raw(" ")]));
                 } else {
-                    let fallback = exchanges.iter().find(|x| x.peer() == awaiting.as_str()).and_then(|x| x.peer_name.as_deref());
-                    let (name, _) = name_and_color(app, &awaiting, if c.peer.is_empty() { (awaiting.as_str(), fallback) } else { peer });
+                    let fallback =
+                        exchanges.iter().find(|x| x.peer() == awaiting.as_str()).and_then(|x| x.peer_name.as_deref());
+                    let (name, _) = name_and_color(
+                        app,
+                        &awaiting,
+                        if c.peer.is_empty() { (awaiting.as_str(), fallback) } else { peer },
+                    );
                     out.push(Line::from(Span::styled(format!(" Waiting for {name}…"), t.dim)));
                 }
             }

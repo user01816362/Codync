@@ -25,21 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Generate the checked-in project and format Rust on the runner so contributors with
-      # limited local disk space can retrieve the exact generated changes as an artifact.
-      - name: Prepare generated sources
-        run: |
-          command -v xcodegen >/dev/null || brew install xcodegen
-          xcodegen generate --spec apps/project.yml
-          (cd host && rustup toolchain install && cargo fmt --all)
-          git diff --binary -- apps/Codync.xcodeproj/project.pbxproj host/src > "$RUNNER_TEMP/generated.patch"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: generated-source-patch
-          path: ${{ runner.temp }}/generated.patch
-          retention-days: 14
-
       - name: Build the iOS package
         working-directory: apps/ios/Kit
         run: >-
