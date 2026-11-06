@@ -19,3 +19,15 @@ test('blocks: headings, nested lists, rules, tables and code', () => {
 test('a pipe line without its rule stays text', () => {
   assert.deepEqual(parseMarkdown('| not a table'), [{ kind: 'paragraph', text: '| not a table' }])
 })
+
+
+test('nested and incomplete code fences keep their content', () => {
+  assert.deepEqual(parseMarkdown('````md\n```js\nx\n```\n````\nafter'), [
+    { kind: 'code', language: 'md', text: '```js\nx\n```' }, { kind: 'paragraph', text: 'after' },
+  ])
+  assert.deepEqual(parseMarkdown('~~~python\nx = 1\n```\n~~~'), [
+    { kind: 'code', language: 'python', text: 'x = 1\n```' },
+  ])
+  assert.deepEqual(parseMarkdown('    ```python\n    print(1)\n    ```'), [{ kind: 'code', language: 'python', text: 'print(1)' }])
+  assert.deepEqual(parseMarkdown('```js\nx'), [{ kind: 'code', language: 'js', text: 'x' }])
+})

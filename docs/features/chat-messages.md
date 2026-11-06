@@ -10,6 +10,10 @@ destination URL; clicking opens it in the default browser. iPhone links keep the
 system link interaction. The terminal already underlines Markdown link labels;
 it has no pointer tooltip or link-opening action.
 
+## Code blocks
+
+Fenced code blocks show their language and a copy action in the graphical clients. The copied content excludes the fences and their opening indentation. Backtick and tilde fences support longer enclosing fences, including unfinished blocks. The terminal renders the same fences and copies the selected message using its existing action.
+
 ## Messages are sent, not streamed
 
 - Every bot gets the built-in `chat` MCP server (`codync-host mcp chat`,

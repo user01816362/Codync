@@ -24,6 +24,7 @@ export function parseMarkdown(source: string): Block[] {
   let table: string[] = []
   let code: string[] | null = null
   let language = ''
+  let fence: { marker: string; length: number; indent: number } | null = null
   const flush = () => {
     if (paragraph.length) {
       blocks.push({ kind: 'paragraph', text: paragraph.join('\n') })
@@ -38,19 +39,20 @@ export function parseMarkdown(source: string): Block[] {
   }
   for (const raw of source.split('\n')) {
     const line = raw.trim()
-    if (line.startsWith('```')) {
-      if (code) {
+    const match = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(raw)
+    if (code) {
+      if (match && fence && match[1]![0] === fence.marker && match[1]!.length >= fence.length && !match[2]!.trim()) {
         blocks.push({ kind: 'code', text: code.join('\n'), language })
         code = null
-      } else {
-        flush()
-        code = []
-        language = line.slice(3)
-      }
+        fence = null
+      } else code.push(raw.replace(/^[ \t]*/, (indent) => indent.slice(Math.min(indent.length, fence?.indent ?? 0))))
       continue
     }
-    if (code) {
-      code.push(raw)
+    if (match && !(match[1]![0] === '`' && match[2]!.includes('`'))) {
+      flush()
+      code = []
+      fence = { marker: match[1]![0]!, length: match[1]!.length, indent: raw.length - raw.trimStart().length }
+      language = match[2]!.trim()
       continue
     }
     if (line.startsWith('|')) {

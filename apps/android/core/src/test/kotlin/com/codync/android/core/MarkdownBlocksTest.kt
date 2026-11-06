@@ -17,4 +17,12 @@ class MarkdownBlocksTest {
         assertEquals(listOf(Block.Heading("Plan", 2), Block.Bullet("read", "1.", 0), Block.Quote("note"),
             Block.Code("val x = 1", "kotlin"), Block.Paragraph("text\nmore")), blocks)
     }
+
+    @Test fun `nested and incomplete code fences preserve content`() {
+        assertEquals(listOf(Block.Code("```js\nx\n```", "md"), Block.Paragraph("after")),
+            MarkdownBlocks.parse("````md\n```js\nx\n```\n````\nafter"))
+        assertEquals(listOf(Block.Code("x = 1\n```", "python")), MarkdownBlocks.parse("~~~python\nx = 1\n```\n~~~"))
+        assertEquals(listOf(Block.Code("print(1)", "python")), MarkdownBlocks.parse("    ```python\n    print(1)\n    ```"))
+        assertEquals(listOf(Block.Code("x", "js")), MarkdownBlocks.parse("```js\nx"))
+    }
 }

@@ -56,6 +56,16 @@
 .md-code {
   background: var(--code-background);
   border-radius: 8px;
+}
+.md-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 0 10px;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.md-code-scroll {
   overflow-x: auto;
 }
 .md-code-text {

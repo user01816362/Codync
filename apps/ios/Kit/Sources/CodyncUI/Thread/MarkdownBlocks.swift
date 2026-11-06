@@ -20,6 +20,9 @@ enum MarkdownBlocks {
         var table: [String] = []
         var code: [String]?
         var language = ""
+        var fenceMarker: Character?
+        var fenceLength = 0
+        var fenceIndent = 0
 
         func flush() {
             if !paragraph.isEmpty {
@@ -39,19 +42,31 @@ enum MarkdownBlocks {
 
         for raw in source.components(separatedBy: "\n") {
             let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.hasPrefix("```") {
-                if let c = code {
-                    blocks.append(.code(c.joined(separator: "\n"), language: language))
+            let indent = raw.prefix { $0 == " " || $0 == "\t" }.count
+            let candidate = raw.dropFirst(indent)
+            let marker = candidate.first
+            let length = candidate.prefix { $0 == marker }.count
+            let isFence = (marker == "`" || marker == "~") && length >= 3
+            let remainder = isFence ? String(candidate.dropFirst(length)) : ""
+            if code != nil {
+                if isFence, marker == fenceMarker, length >= fenceLength,
+                   remainder.trimmingCharacters(in: .whitespaces).isEmpty {
+                    blocks.append(.code((code ?? []).joined(separator: "\n"), language: language))
                     code = nil
+                    fenceMarker = nil
                 } else {
-                    flush()
-                    code = []
-                    language = String(line.dropFirst(3))
+                    let spaces = raw.prefix { $0 == " " || $0 == "\t" }.count
+                    code?.append(String(raw.dropFirst(min(spaces, fenceIndent))))
                 }
                 continue
             }
-            if code != nil {
-                code?.append(raw)
+            if isFence, !(marker == "`" && remainder.contains("`")) {
+                flush()
+                code = []
+                fenceMarker = marker
+                fenceLength = length
+                fenceIndent = indent
+                language = remainder.trimmingCharacters(in: .whitespaces)
                 continue
             }
             if line.hasPrefix("|") {

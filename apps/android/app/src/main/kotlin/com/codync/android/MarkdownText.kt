@@ -1,5 +1,7 @@
 package com.codync.android
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -7,6 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -83,9 +88,20 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
             Box(Modifier.width(3.dp).fillMaxHeight().background(Palette.border))
             Text(inline(block.text, code), Modifier.padding(start = 10.dp), style = Type.body, color = Palette.secondary)
         }
-        is Block.Code -> Box(Modifier.fillMaxWidth().clip(RoundedRectangle(8.dp)).background(Palette.codeBackground)
-            .horizontalScroll(rememberScrollState())) {
-            Text(block.text, Modifier.padding(10.dp), style = Type.footnote.monospaced, color = Palette.text, softWrap = false)
+        is Block.Code -> {
+            val clipboard = LocalContext.current.getSystemService(ClipboardManager::class.java)
+            Column(Modifier.fillMaxWidth().clip(RoundedRectangle(8.dp)).background(Palette.codeBackground)) {
+                Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(block.language, style = Type.caption, color = Palette.secondary, maxLines = 1)
+                    Spacer(Modifier.weight(1f))
+                    IconButton("Copy", "square.on.square") {
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Code", block.text))
+                    }
+                }
+                Box(Modifier.horizontalScroll(rememberScrollState())) {
+                    Text(block.text, Modifier.padding(10.dp), style = Type.footnote.monospaced, color = Palette.text, softWrap = false)
+                }
+            }
         }
     }
 }

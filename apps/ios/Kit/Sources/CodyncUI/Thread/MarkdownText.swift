@@ -66,12 +66,20 @@ private struct MarkdownBlock: View {
                 .foregroundStyle(Palette.secondary)
                 .padding(.leading, 10)
                 .overlay(alignment: .leading) { Rectangle().fill(Palette.border).frame(width: 3) }
-        case let .code(t, _):
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(t)
-                    .font(.system(.footnote, design: .monospaced))
-                    .foregroundStyle(Palette.text)
-                    .padding(10)
+        case let .code(t, language):
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text(language).font(.caption).foregroundStyle(Palette.secondary).lineLimit(1)
+                    Spacer()
+                    IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(t) }
+                }
+                .padding(.leading, 10).padding(.trailing, 4)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Text(t)
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundStyle(Palette.text)
+                        .padding(10)
+                }
             }
             .background(Palette.codeBackground, in: RoundedRectangle(cornerRadius: 8))
         }

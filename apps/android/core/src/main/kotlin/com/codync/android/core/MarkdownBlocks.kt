@@ -6,6 +6,7 @@ package com.codync.android.core
  * app has the same), so every client splits a reply the same way.
  */
 object MarkdownBlocks {
+    private val fencePattern = Regex("^[ \t]*(`{3,}|~{3,})(.*)$")
     sealed interface Block {
         data class Paragraph(val text: String) : Block
         data class Heading(val text: String, val level: Int) : Block
@@ -22,6 +23,9 @@ object MarkdownBlocks {
         val table = mutableListOf<String>()
         var code: MutableList<String>? = null
         var language = ""
+        var fenceMarker: Char? = null
+        var fenceLength = 0
+        var fenceIndent = 0
 
         fun flush() {
             if (paragraph.isNotEmpty()) { blocks += Block.Paragraph(paragraph.joinToString("\n")); paragraph.clear() }
@@ -35,13 +39,27 @@ object MarkdownBlocks {
 
         for (raw in source.split("\n")) {
             val line = raw.trim(' ', '\t')
-            if (line.startsWith("```")) {
-                val open = code
-                if (open != null) { blocks += Block.Code(open.joinToString("\n"), language); code = null }
-                else { flush(); code = mutableListOf(); language = line.drop(3) }
+            val match = fencePattern.matchEntire(raw)
+            val marker = match?.groupValues?.get(1)
+            val remainder = match?.groupValues?.get(2).orEmpty()
+            val open = code
+            if (open != null) {
+                if (marker != null && marker.first() == fenceMarker && marker.length >= fenceLength && remainder.isBlank()) {
+                    blocks += Block.Code(open.joinToString("\n"), language)
+                    code = null
+                    fenceMarker = null
+                } else open += raw.drop(minOf(raw.takeWhile { it == ' ' || it == '\t' }.length, fenceIndent))
                 continue
             }
-            code?.let { it += raw; continue }
+            if (marker != null && !(marker.first() == '`' && '`' in remainder)) {
+                flush()
+                code = mutableListOf()
+                fenceMarker = marker.first()
+                fenceLength = marker.length
+                fenceIndent = raw.takeWhile { it == ' ' || it == '\t' }.length
+                language = remainder.trim()
+                continue
+            }
             if (line.startsWith("|")) {
                 if (paragraph.isNotEmpty()) flush()
                 table += line

@@ -16,10 +16,12 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 
 ## 2.39.1
 ### zh-Hant
+- 程式碼區塊現在可以直接複製，並顯示程式語言。
 - 開啟協作活動，查看 bot 之間的請求、回覆和進度。
 - 推理強度滑桿新增漸層點陣，讓不同強度更容易辨識。
 
 ### en-US
+- Copy code blocks directly and see their language.
 - Open collaboration activity to see requests, replies and progress between bots.
 - The reasoning effort slider now uses a dotted gradient to make levels easier to distinguish.
 

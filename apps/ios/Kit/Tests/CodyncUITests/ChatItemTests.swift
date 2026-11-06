@@ -160,3 +160,12 @@ import Testing
     #expect(height(3) > height(1) && height(3) < 190)
     #expect(height(25) == 190)
 }
+
+@Test func markdownFencesPreserveNestedAndIncompleteCode() {
+    #expect(MarkdownBlocks.parse("````md\n```js\nx\n```\n````\nafter") == [
+        .code("```js\nx\n```", language: "md"), .paragraph("after")
+    ])
+    #expect(MarkdownBlocks.parse("~~~python\nx = 1\n```\n~~~") == [.code("x = 1\n```", language: "python")])
+    #expect(MarkdownBlocks.parse("    ```python\n    print(1)\n    ```") == [.code("print(1)", language: "python")])
+    #expect(MarkdownBlocks.parse("```js\nx") == [.code("x", language: "js")])
+}

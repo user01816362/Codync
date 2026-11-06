@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from 'react'
 import { parseMarkdown, type Block } from './markdown-blocks.ts'
-import { Hairline } from '../../components/Controls'
+import { Hairline, IconButton } from '../../components/Controls'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import './markdown.css'
@@ -93,7 +93,11 @@ const MarkdownBlock = memo(function MarkdownBlock({ block }: { block: Block }) {
     case 'code':
       return (
         <div className="md-code">
-          <pre className="md-code-text">{block.text}</pre>
+          <div className="md-code-header">
+            <span>{block.language}</span>
+            <IconButton title="Copy" icon="square.on.square" size={26} onClick={() => window.codync.app.copy(block.text)} />
+          </div>
+          <div className="md-code-scroll"><pre className="md-code-text">{block.text}</pre></div>
         </div>
       )
   }

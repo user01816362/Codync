@@ -188,15 +188,27 @@ pub fn render(text: &str, width: usize, indent: usize) -> Vec<Line<'static>> {
     let t = theme();
     let pad = Span::raw(" ".repeat(indent));
     let mut out = vec![];
-    let mut in_code = false;
+    let mut fence: Option<(char, usize, usize)> = None;
     for raw in text.lines() {
         let trimmed = raw.trim_start();
-        if trimmed.starts_with("```") {
-            in_code = !in_code;
-            continue;
+        let marker = trimmed.chars().next().filter(|c| matches!(c, '`' | '~'));
+        let length = marker.map_or(0, |m| trimmed.chars().take_while(|c| *c == m).count());
+        if length >= 3 {
+            let rest = &trimmed[length..];
+            if let Some((open, size, _)) = fence {
+                if marker == Some(open) && length >= size && rest.trim().is_empty() {
+                    fence = None;
+                    continue;
+                }
+            } else if marker != Some('`') || !rest.contains('`') {
+                fence = marker.map(|m| (m, length, raw.len() - trimmed.len()));
+                continue;
+            }
         }
-        if in_code {
-            let code = raw.replace('\t', "    ");
+        if fence.is_some() {
+            let fence_indent = fence.map_or(0, |(_, _, indent)| indent);
+            let spaces = raw.bytes().take_while(|b| *b == b' ' || *b == b'\t').count();
+            let code = raw[spaces.min(fence_indent)..].replace('\t', "    ");
             let room = width.saturating_sub(indent + 2).max(1);
             let body = if self::width(&code) > room { truncate(&code, room) } else { code };
             let fill = room.saturating_sub(self::width(&body));
@@ -282,6 +294,19 @@ mod tests {
         let s = inline("run `cargo` **now**", Style::default());
         let parts: Vec<&str> = s.iter().map(|s| s.content.as_ref()).collect();
         assert_eq!(parts, ["run ", "cargo", " ", "now"]);
+    }
+
+    #[test]
+    fn fenced_code_preserves_nested_fences_and_indentation() {
+        let lines = render("    ````md\n    ```js\n    x\n    ```\n    ````\nafter", 30, 0);
+        let content = text(&lines);
+        assert_eq!(content[0].trim(), "```js");
+        assert_eq!(content[1].trim(), "x");
+        assert_eq!(content[2].trim(), "```");
+        assert_eq!(content[3], "after");
+        let tilde = text(&render("~~~python\nx\n```\n~~~", 30, 0));
+        assert_eq!(tilde.len(), 2);
+        assert_eq!(tilde[1].trim(), "```");
     }
 
     #[test]
