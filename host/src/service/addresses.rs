@@ -11,7 +11,13 @@ pub fn addresses(port: u16) -> Vec<String> {
     // Read once: every hello asks, and a bad entry warns once.
     static EXTERNAL: LazyLock<Vec<String>> =
         LazyLock::new(|| external_urls(&std::env::var("CODYNC_EXTERNAL_URL").unwrap_or_default()));
-    EXTERNAL.iter().cloned().chain(crate::reach::public_url()).chain(interface_addresses(port)).take(MAX_ADDRESSES).collect()
+    EXTERNAL
+        .iter()
+        .cloned()
+        .chain(crate::reach::public_url())
+        .chain(interface_addresses(port))
+        .take(MAX_ADDRESSES)
+        .collect()
 }
 
 /// This computer's own addresses that other devices can reach, best first: Tailscale, then LAN.
