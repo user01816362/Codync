@@ -19,3 +19,7 @@ Messages support Markdown and file cards. Agents can publish interactive HTML ar
 ## First increment
 
 The existing fenced-code renderers understand nested longer fences, tildes and incomplete fences, retaining code text while stripping the opening indentation. Desktop, iPhone and Android expose a copy control and language label; the terminal continues to copy the whole selected message. This does not introduce streaming final messages, syntax highlighting, citations, charts, or generated UI.
+
+## Shared text previews
+
+Small bot-shared Markdown and source files open from their file cards in desktop side panels and phone sheets. They use the existing authenticated, verified file snapshot; the renderer does not run file content. Images already use the shared image viewer. ACP message chunks currently extract text, so directly returned ACP image content is not yet published automatically; agents can explicitly send an image file with `send_file` today.

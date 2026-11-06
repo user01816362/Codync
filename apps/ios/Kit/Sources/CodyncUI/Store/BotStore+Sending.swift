@@ -1,4 +1,5 @@
 import CodyncKit
+import CryptoKit
 import Foundation
 import os
 
@@ -258,7 +259,12 @@ extension BotStore {
     /// A file a bot shared, read whole and checked: on disk after the first fetch (shared files never change).
     public func sharedFileData(_ file: SharedFile, entryId: String) async -> Data? {
         guard let url = Self.attachmentCache(file.id) else { return nil }
-        if let data = try? Data(contentsOf: url) { return data }
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+           (attributes[.size] as? NSNumber)?.int64Value == file.size,
+           let data = try? Data(contentsOf: url),
+           SHA256.hash(data: data).map({ String(format: "%02x", $0) }).joined() == file.sha256 {
+            return data
+        }
         guard let client = live, let data = try? await FileDownload().data(client: client, entryId: entryId, file: file) else { return nil }
         Self.cacheAttachment(file.id, data)
         return data

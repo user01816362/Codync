@@ -16,11 +16,13 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 
 ## 2.39.1
 ### zh-Hant
+- 開啟 bot 分享的 Markdown 和程式碼檔案，直接在對話中預覽。
 - 程式碼區塊現在可以直接複製，並顯示程式語言。
 - 開啟協作活動，查看 bot 之間的請求、回覆和進度。
 - 推理強度滑桿新增漸層點陣，讓不同強度更容易辨識。
 
 ### en-US
+- Preview Markdown and code files shared by bots in your conversation.
 - Copy code blocks directly and see their language.
 - Open collaboration activity to see requests, replies and progress between bots.
 - The reasoning effort slider now uses a dotted gradient to make levels easier to distinguish.

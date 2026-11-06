@@ -84,3 +84,14 @@ private func metadata(_ data: Data, name: String = "file.bin") -> SharedFile {
     }
     try metadata(Data(), name: ".hidden").validate()
 }
+
+@Test func sharedTextPreviewIsLimitedToSmallTextFiles() {
+    func file(_ name: String, _ size: Int64) -> SharedFile {
+        SharedFile(id: UUID().uuidString, name: name, size: size, sha256: String(repeating: "a", count: 64))
+    }
+    #expect(file("README.MD", 5).showsAsText)
+    #expect(file("app.ts", 5).showsAsText)
+    #expect(!file("md", 5).showsAsText)
+    #expect(!file("photo.png", 5).showsAsText)
+    #expect(!file("big.txt", 1024 * 1024 + 1).showsAsText)
+}

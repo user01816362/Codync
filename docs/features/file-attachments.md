@@ -78,6 +78,13 @@ into memory through the same `readFile` chunks, checks size and SHA-256, and kee
 in the sent-attachment cache under its file id; a failed read leaves the placeholder.
 The terminal UI shows only the card.
 
+Small bot-shared Markdown and source/text files (at most 1 MiB) can also be opened from their
+cards. Desktop uses a side panel, or a sheet in a narrow window; iPhone and Android use a sheet.
+Markdown renders as a document and source stays selectable plain text. Contents are checked against
+the saved size and SHA-256 and must be valid UTF-8 without NUL characters. The viewer never executes
+file content. Unsupported and larger files remain downloadable. The terminal currently saves shared
+files rather than showing a text preview.
+
 This feature adds no previews of other file types, folder packaging, background
 transfers, persistent resume or Watch UI. Existing bots do not publish workspace files
 automatically: they must call `send_file`.

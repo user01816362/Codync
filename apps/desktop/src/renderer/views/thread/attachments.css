@@ -67,3 +67,6 @@
 .file-card-detail {
   overflow-wrap: anywhere;
 }
+
+.file-preview-name { display: block; max-width: 100%; text-align: left; cursor: pointer; }
+.file-preview-name:hover { text-decoration: underline; }

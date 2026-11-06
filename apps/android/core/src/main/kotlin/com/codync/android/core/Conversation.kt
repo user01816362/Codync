@@ -124,6 +124,8 @@ private fun isImageName(name: String) = name.substringAfterLast('.', "").lowerca
     /** An image small enough to show in the chat (the phone fetches all of it). */
     val showsAsImage: Boolean get() = isImageName(name) && size <= 20L * 1024 * 1024
 
+    val showsAsText: Boolean get() = size in 0..(1024L * 1024) && name.substringAfterLast('.', "").lowercase() in TEXT_PREVIEW_EXTENSIONS
+
     /** Before any of it is read: a name that can't leave its folder and a hash to check. */
     fun validate() {
         require(size in 0..MAX_FILE_BYTES && sha256.length == 64 && sha256.all { it in "0123456789abcdef" } &&
@@ -131,6 +133,8 @@ private fun isImageName(name: String) = name.substringAfterLast('.', "").lowerca
             '/' !in name && '\\' !in name && name.codePoints().noneMatch { Character.getType(it).toByte() in CONTROLS }) { "Invalid file metadata." }
     }
 }
+
+private val TEXT_PREVIEW_EXTENSIONS = "md markdown txt log json jsonl yaml yml toml xml csv tsv html css js jsx ts tsx py rs go swift kt kts java c h cpp hpp sh bash zsh sql diff patch".split(' ').toSet()
 
 /** Unicode control and format characters, which a file name may not contain. */
 private val CONTROLS = setOf(Character.CONTROL, Character.FORMAT)

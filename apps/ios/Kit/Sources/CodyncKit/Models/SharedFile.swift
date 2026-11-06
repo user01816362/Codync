@@ -17,6 +17,13 @@ public struct SharedFile: Codable, Hashable, Sendable, Identifiable {
     /// An image small enough to show in the chat (the phone fetches all of it).
     public var showsAsImage: Bool { Attachment.isImage(name) && size <= 20 * 1024 * 1024 }
 
+    /// A small text file can be opened without handing its contents to another app.
+    public var showsAsText: Bool {
+        let extensions = Set("md markdown txt log json jsonl yaml yml toml xml csv tsv html css js jsx ts tsx py rs go swift kt kts java c h cpp hpp sh bash zsh sql diff patch".split(separator: " "))
+        let suffix = name.lowercased().split(separator: ".").last ?? ""
+        return name.contains(".") && size >= 0 && size <= 1024 * 1024 && extensions.contains(suffix)
+    }
+
     public func validate() throws {
         guard size >= 0, size <= 100 * 1024 * 1024,
               sha256.count == 64, sha256.allSatisfy({ "0123456789abcdef".contains($0) }),

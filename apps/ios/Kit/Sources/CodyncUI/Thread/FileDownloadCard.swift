@@ -7,6 +7,7 @@ struct FileDownloadCard: View {
     let file: SharedFile
     @Environment(BotStore.self) private var model
     @State private var viewing = false
+    @State private var viewingText = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -16,6 +17,7 @@ struct FileDownloadCard: View {
         .padding(14)
         .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 16))
         .codyncSheet(isPresented: $viewing) { AttachmentViewer(shared: file, entryId: entry.id) }
+        .codyncSheet(isPresented: $viewingText) { SharedTextPreview(file: file, entryId: entry.id) }
     }
 
     /// The picture itself; tap for full size.
@@ -34,10 +36,17 @@ struct FileDownloadCard: View {
         return HStack(spacing: 12) {
             Image(systemName: AttachmentIcon.symbol(file.name)).font(.system(size: 24)).foregroundStyle(Palette.secondary)
             VStack(alignment: .leading, spacing: 3) {
-                Text(file.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.text).lineLimit(2)
+                if file.showsAsText {
+                    Button { Motion.animate { viewingText = true } } label: {
+                        Text(file.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.text).lineLimit(2)
+                    }.buttonStyle(.plain)
+                } else {
+                    Text(file.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.text).lineLimit(2)
+                }
                 Text(Self.detail(state, size: file.size)).font(.caption2).foregroundStyle(Palette.secondary)
             }
             Spacer(minLength: 0)
+            if file.showsAsText { IconButton("Open", systemImage: "doc.text") { Motion.animate { viewingText = true } } }
             Button {
                 Motion.animate {
                     if case .downloading = state { model.fileDownloads.cancel(file.id) }

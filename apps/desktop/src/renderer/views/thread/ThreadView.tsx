@@ -16,6 +16,7 @@ import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
 import type { VersionPick } from './message-versions'
 import { BotConversationView, BotMessageRow } from './BotConversation'
 import { SidechatIndicator, SidechatView } from './Sidechat'
+import { FilePreview, PreviewContext, type PreviewFile } from './FilePreview'
 import { CallConversationView, CallLineRow } from '../call/CallRows'
 import { hidingCalls } from '@shared/calls'
 import { ChatRow, TimeSeparator } from './ChatRows'
@@ -53,6 +54,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   const bot = store.bots.get(botId) ?? null
   const [showTrace, setShowTrace] = useState(false)
   const [showSidechat, setShowSidechat] = useState(false)
+  const [preview, setPreview] = useState<PreviewFile | null>(null)
   const [replyTo, setReplyTo] = useState<Entry | null>(null)
   const [editing, setEditing] = useState<Entry | null>(null)
   const cancelEdit = useCallback(() => {
@@ -121,7 +123,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     }
   }, [])
 
-  const panelOpen = wide && (showSettings || showSidechat)
+  const panelOpen = wide && (showSettings || showSidechat || preview !== null)
   squeezeBelow.current = panelOpen ? Math.max(360, detailsWidth) : 0
   // The side panel's edge drags its width, leaving the conversation at least 380 wide.
   const panelWidth = (w: number) => Math.min(Math.max(360, w), width.current - 380)
@@ -131,6 +133,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   }, [wide])
   const toggleDetails = useCallback(() => {
     setShowSidechat(false)
+    setPreview(null)
     if (!wide) setCompactDetails((c) => !c)
     else setShowSettings((s) => !s)
   }, [wide])
@@ -143,6 +146,12 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     [toggleDetails],
   )
 
+  const openFilePreview = useCallback((item: PreviewFile) => {
+    setShowSettings(false)
+    setShowSidechat(false)
+    setCompactDetails(false)
+    setPreview(item)
+  }, [])
   const openTrace = useCallback(() => setShowTrace(true), [])
   const openArtifact = useCallback((id: string) => {
     setArtifactId(id)
@@ -150,6 +159,8 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   }, [])
 
   const presentRoutine = useCallback((id: string | null) => {
+    setPreview(null)
+    setShowSidechat(false)
     setRoutineId(id)
     setRoutineRequest((r) => r + 1)
     setDetailsTab('details')
@@ -182,6 +193,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   )
 
   return (
+    <PreviewContext.Provider value={openFilePreview}>
     <div className="thread-view" ref={root}>
       <div className="conversation">
         <div className="top-chrome">
@@ -216,7 +228,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           ) : artifactId ? null : (
             // The artifact over the chat has its own box (two would both take the voice shortcut).
             <>
-              <SidechatIndicator botId={botId} open={() => { setShowSettings(false); setCompactDetails(false); setShowSidechat(true) }} />
+              <SidechatIndicator botId={botId} open={() => { setShowSettings(false); setCompactDetails(false); setPreview(null); setShowSidechat(true) }} />
               <QueuedMessages botId={botId} />
               <Composer
                 botId={botId}
@@ -244,9 +256,12 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
         max={width.current - 380}
         onResize={(w) => setDetailsWidth(panelWidth(w))}
       >
-        {showSidechat ? <SidechatView botId={botId} close={() => setShowSidechat(false)} /> : details}
+        {preview ? <FilePreview key={preview.file.id} preview={preview} close={() => setPreview(null)} /> : showSidechat ? <SidechatView botId={botId} close={() => setShowSidechat(false)} /> : details}
       </ChatSidePanel>
 
+      <Sheet open={!wide && preview !== null} onClose={() => setPreview(null)} width={620} height={560}>
+        {preview ? <FilePreview key={preview.file.id} preview={preview} close={() => setPreview(null)} /> : null}
+      </Sheet>
       <Sheet open={!wide && showSidechat} onClose={() => setShowSidechat(false)} width={620} height={560}>
         <SidechatView botId={botId} close={() => setShowSidechat(false)} />
       </Sheet>
@@ -272,6 +287,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
         {member ? <BotEditorView key={member.id} draft={draftOf(member)} /> : null}
       </FormSheet>
     </div>
+    </PreviewContext.Provider>
   )
 })
 
