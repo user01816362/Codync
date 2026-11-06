@@ -42,7 +42,6 @@ public struct TraceView: View {
             .defaultScrollAnchor(.bottom)
         }
         .background(Palette.background)
-        .tracked(.screenViewed(.trace))
     }
 }
 

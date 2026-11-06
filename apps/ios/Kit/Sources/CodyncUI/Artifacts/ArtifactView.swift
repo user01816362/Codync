@@ -66,7 +66,6 @@ struct ArtifactView: View {
         .onChange(of: model.artifacts.newest(target.id)) { model.loadArtifact(target.id, botId: botId) }
         .codyncSheet(item: $renaming) { ArtifactRenameSheet(artifact: $0) }
         .artifactShareSheet($sharing)
-        .tracked(.screenViewed(.artifact))
         .codyncDialog("Couldn't open the artifact",
                       isPresented: Binding(get: { shareError != nil }, set: { if !$0 { shareError = nil } }),
                       message: shareError, cancel: "OK") { [] }

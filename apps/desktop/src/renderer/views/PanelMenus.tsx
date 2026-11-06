@@ -14,10 +14,10 @@ import { useTr } from '../lib/use-language'
 // right-click actions, both built on the same keyboard-driven rows.
 
 export function ProfileAvatar() {
-  const { user, isBusy, isReady } = useAccount()
+  const { user, isBusy, isReady, isConfigured } = useAccount()
   return (
     <span className="profile-avatar" aria-hidden>
-      {isBusy || !isReady ? <Spinner size={14} /> : user?.avatarURL ? (
+      {!isConfigured ? <Icon name="ellipsis" size={16} weight="semibold" color="var(--secondary)" /> : isBusy || !isReady ? <Spinner size={14} /> : user?.avatarURL ? (
         <img src={user.avatarURL} alt="" className="profile-avatar-image" />
       ) : (
         <Icon name="person.fill" size={15} weight="medium" color="var(--secondary)" />
@@ -52,10 +52,10 @@ export function AccountPanelLayer({ compact, approvals, onDismiss, onUsage, onSe
 }) {
   const tr = useTr()
   const [page, setPage] = useState<'main' | 'support'>('main')
-  const { user, isBusy, errorMessage } = useAccount()
+  const { user, isBusy, errorMessage, isConfigured } = useAccount()
   useScreenViewed('account')
   const signedIn = user !== null
-  const auth: PanelItem[] = signedIn
+  const auth: PanelItem[] = !isConfigured ? [] : signedIn
     ? [
         { title: isBusy ? 'Please wait…' : 'Sign out', icon: 'rectangle.portrait.and.arrow.right', disabled: isBusy, action: () => { onDismiss(); void account.signOut() } },
         { title: 'Delete account', icon: 'trash', destructive: true, disabled: isBusy, action: () => { onDismiss(); account.askToDelete() } },
@@ -90,7 +90,7 @@ export function AccountPanelLayer({ compact, approvals, onDismiss, onUsage, onSe
           items={items}
           onDismiss={onDismiss}
           after={(i) =>
-            page === 'main' && i === 3 ? (
+            page === 'main' && i === 3 && isConfigured ? (
               <>
                 <div className="panel-divider" />
                 <div className="panel-identity">

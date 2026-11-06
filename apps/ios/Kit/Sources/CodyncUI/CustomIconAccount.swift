@@ -3,13 +3,15 @@ import SwiftUI
 
 /// App-owned authentication intents used by the shared icon editor.
 public struct CustomIconAccount: Sendable {
+    public let configured: Bool
     public let signedIn: Bool
     public let loading: Bool
     public let error: String?
-    let signIn: @MainActor @Sendable (AnalyticsEvent.SignInProvider) -> Void
+    let signIn: @MainActor @Sendable (SignInProvider) -> Void
 
-    public init(signedIn: Bool, loading: Bool, error: String?,
-                signIn: @escaping @MainActor @Sendable (AnalyticsEvent.SignInProvider) -> Void) {
+    public init(configured: Bool, signedIn: Bool, loading: Bool, error: String?,
+                signIn: @escaping @MainActor @Sendable (SignInProvider) -> Void) {
+        self.configured = configured
         self.signedIn = signedIn
         self.loading = loading
         self.error = error

@@ -9,6 +9,11 @@ UI: *About usage analytics…*) shows the same promise in the app, in one text p
 `AnalyticsSheet.kt`, `host/src/tui/view/analytics.rs`), and the Windows installer sums it up
 (`apps/desktop/resources/installer.nsh`): change all five with the policy.
 
+**Local fork exception:** this fork removes the iPhone analytics client, crash reporting, and
+analytics UI; the iPhone app sends no usage or crash analytics. The iPhone-specific source paths
+and flows described below refer to upstream Codync and are not present here. Host telemetry is
+also disabled in the fork; Android and desktop analytics code remains in place.
+
 ## Rules
 
 - **Only feature use, never content.** No message text, prompts, code, file names, paths,

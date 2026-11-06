@@ -104,7 +104,7 @@ export const docSections: { title: string; pages: DocPage[] }[] = [
         slug: "remote-access",
         title: "Remote access",
         description:
-          "How your phone reaches your computer: directly over Wi-Fi, Tailscale or your own URL, or through the Codync relay, always end-to-end encrypted.",
+          "Pair a phone without a Codync account, then connect over Wi-Fi, Tailscale, Cloudflare Tunnel or your own HTTPS URL.",
       },
       {
         slug: "linux-servers",

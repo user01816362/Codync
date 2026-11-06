@@ -87,11 +87,15 @@ export function AccountWelcomeView({ onContinue }: { onContinue: () => void }) {
               {onThis}
             </Button>
           )}
-          <ProviderButton provider="apple" mark={<Icon name="apple.logo" size={20} />} title="Continue with Apple" />
-          <ProviderButton provider="google" kind="secondary" mark={<img src={googleLogo} alt="" width={20} height={20} />} title="Continue with Google" />
-          <ProviderButton provider="github" kind="secondary" mark={<Icon name="github.logo" size={20} />} title="Continue with GitHub" />
+          {account.isConfigured ? (
+            <>
+              <ProviderButton provider="apple" mark={<Icon name="apple.logo" size={20} />} title="Continue with Apple" />
+              <ProviderButton provider="google" kind="secondary" mark={<img src={googleLogo} alt="" width={20} height={20} />} title="Continue with Google" />
+              <ProviderButton provider="github" kind="secondary" mark={<Icon name="github.logo" size={20} />} title="Continue with GitHub" />
+            </>
+          ) : null}
           {!account.isConfigured ? (
-            <Text as="div" size="footnote" tone="tertiary">{tr(deviceName === 'Mac' ? "Sign-in isn't configured in this build. You can still use Codync on this Mac." : "Sign-in isn't configured in this build. You can still use Codync on this computer.")}</Text>
+            <Text as="div" size="footnote" tone="tertiary">{tr(deviceName === 'Mac' ? 'Your bots stay on this Mac. Pair your phone from Settings → Computers.' : 'Your bots stay on this computer. Pair your phone from Settings → Computers.')}</Text>
           ) : null}
           {account.errorMessage ? <Text as="div" size="footnote" tone="attention">{account.errorMessage}</Text> : null}
         </VStack>

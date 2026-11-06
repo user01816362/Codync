@@ -59,7 +59,6 @@ struct BotDetailsView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Palette.background)
         .overlay(alignment: .topTrailing) { actions }
-        .tracked(.screenViewed(.botDetails))
         .task(id: botId) { draft = bot.map(BotDraft.init) }
         // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
         .onChange(of: bot.map(BotDraft.init)) { base, fresh in

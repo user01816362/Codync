@@ -82,7 +82,6 @@ struct AppLanguageTests {
         #expect(L10n.tr("Siri and Dictation are disabled", preference: .zh, systemIsChinese: false) == "Siri 和听写已关闭")
         #expect(L10n.tr("the Codync cloud refused (403 forbidden): Sign in on the computer to use remote screen relay.", preference: .zh, systemIsChinese: false) == "Codync 云拒绝了（403 禁止）：请先在电脑上登录，才能使用远程屏幕中继。")
         #expect(L10n.tr("Privacy", preference: .zh, systemIsChinese: false) == "隐私")
-        #expect(L10n.tr("Share usage analytics", preference: .zh, systemIsChinese: false) == "共享用量分析")
         #expect(L10n.tr("Personal workspace", preference: .zh, systemIsChinese: false) == "个人工作区")
         #expect(L10n.tr("Fast mode", preference: .zh, systemIsChinese: false) == "快速模式")
         #expect(L10n.tr("Use the computer", preference: .zh, systemIsChinese: false) == "使用电脑")

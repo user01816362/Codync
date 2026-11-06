@@ -1,5 +1,4 @@
 {
-  "About usage analytics": "使用状況分析について",
   "Access": "アクセス",
   "Account": "アカウント",
   "Add Widget": "ウィジェットの追加",
@@ -264,7 +263,6 @@
   "Search": "検索",
   "Search Widgets": "ウィジェットを検索",
   "Sending": "送信中",
-  "Share usage analytics": "使用状況分析の共有",
   "Show Live Activities": "ライブアクティビティを表示",
   "Show in Dock": "ドックに表示",
   "Show in Dynamic Island": "Dynamic Islandに表示",
@@ -793,7 +791,6 @@
   "GitHub sign-up needs additional account information. Your account is not signed in yet.": "GitHub サインアップには追加のアカウント情報が必要です。あなたのアカウントはまだサインインしていません。",
   "Sign in again to reach your account.": "もう一度サインインしてアカウントにアクセスします。",
   "Codync account": "Codyncアカウント",
-  "Usage analytics": "使用状況分析",
   "Features you use": "使用する機能",
   "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model.": "アプリとその画面を開く、セットアップとペアリング (および通知を許可するかどうか)、ボットの作成または削除、メッセージの送信 (添付ファイルの数、ファイルは不可)、ルーチンまたは音声通話の実行、コネクタのインストール。それぞれに、アプリのバージョン、プラットフォーム、ボットのエージェントとモデルが付属しています。",
   "Crashes and errors": "クラッシュとエラー",

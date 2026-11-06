@@ -27,7 +27,7 @@ export function CustomIconEditor({ target }: { target: string }) {
   const input = useRef<HTMLInputElement>(null)
   const icon = store.icons[target]
   const disabled = editor.busy || session.isBusy || !session.isReady || store.connection.kind !== 'online'
-  if (!store.hello?.icons) return null
+  if (!store.hello?.icons || !session.isConfigured) return null
   return <VStack gap={10} className="custom-icon-editor">
     <Text size="subheadline" weight="semibold">Custom icon</Text>
     <HStack gap={8} wrap justify="center">

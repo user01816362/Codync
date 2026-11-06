@@ -222,8 +222,6 @@ final class GeminiCall {
     @Test func playbackThatNeverFinishesGoesBackToListening() async throws {
         let call = try await GeminiCall()
         defer { call.close() }
-        var stalls = 0
-        call.engine.onStall = { stalls += 1 }
         try await call.ready()
         call.sockets.last?.play(#"{"serverContent":{"modelTurn":{"parts":[{"inlineData":{"mimeType":"audio/pcm;rate=24000","data":"AAAAAA=="}}]}}}"#)
         #expect(await until { call.engine.phase == .speaking })
@@ -231,15 +229,12 @@ final class GeminiCall {
         call.engine.speak(reply: "Deployed.")
         // The speaker never reports the buffer rendered (#214): the watchdog takes the call back.
         #expect(await until { call.engine.phase == .listening })
-        #expect(stalls == 1)
         #expect(await until { call.sockets.last?.sent("clientContent").count == 1 }, "the reply isn't stuck behind it")
     }
 
     @Test func playbackThatFinishesReturnsToListeningAtOnce() async throws {
         let call = try await GeminiCall()
         defer { call.close() }
-        var stalls = 0
-        call.engine.onStall = { stalls += 1 }
         try await call.ready()
         call.sockets.last?.play(#"{"serverContent":{"modelTurn":{"parts":[{"inlineData":{"data":"AAAAAA=="}}]}}}"#)
         #expect(await until { call.engine.phase == .speaking })
@@ -334,32 +329,4 @@ final class GeminiCall {
         #expect(await call.fake.calls.filter { $0 == "startCall" }.count == Reconnect.delays.count, "a new session each try")
     }
 
-    @Test func qualityReportsReadyTimeReconnectsStallsAndFailure() async throws {
-        var events: [AnalyticsEvent] = []
-        let quality = CallQuality { events.append($0) }
-        quality.begin(.gemini)
-        quality.phase(.listening)
-        quality.phase(.reconnecting)
-        quality.phase(.listening)
-        quality.stalled()
-        quality.phase(.failed("Lost the connection to Gemini.", .connection))
-        quality.begin(.onDevice)
-        guard case let .voiceCallQuality(engine, readyMs, reconnects, stuck, failure) = try #require(events.first) else {
-            Issue.record("not a quality event")
-            return
-        }
-        #expect(engine == .gemini && readyMs != nil && reconnects == 1 && stuck == .speaking && failure == .connection)
-        quality.report()
-        #expect(events.count == 2, "one report per engine")
-    }
-
-    @Test func qualityCountsAPhaseStuckConnecting() async throws {
-        var events: [AnalyticsEvent] = []
-        var now = ContinuousClock.now
-        let quality = CallQuality(capture: { events.append($0) }, now: { now })
-        quality.begin(.openai)
-        now += CallQuality.stuckAfter
-        quality.report()
-        #expect(events == [.voiceCallQuality(.openai, readyMs: nil, reconnects: 0, stuck: .connecting, failure: .none)])
-    }
 }

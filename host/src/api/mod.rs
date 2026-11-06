@@ -11,10 +11,11 @@ mod host;
 mod http;
 mod marketplace;
 mod network;
+mod reach;
 mod remote;
 
 pub use events::{events_stream, term_events};
-pub use http::router;
+pub use http::{public_router, router};
 
 use crate::api::devices::{Caller, Forbidden};
 use crate::hub::Hub;
@@ -76,6 +77,11 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     }
     if method == "icons" {
         return Ok(serde_json::to_value(crate::icons::snapshot(&hub.store)?)?);
+    }
+    if method.starts_with("reach")
+        && let ControlFlow::Break(value) = reach::call(hub, method, b.clone()).await?
+    {
+        return Ok(value);
     }
     if method.contains("onnector")
         || method.starts_with("composio")

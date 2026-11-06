@@ -57,9 +57,11 @@ struct ComputersView: View {
                     }
                 }
             }
-            CardSection(footer: app.account.isSignedIn
-                        ? "Computers in your account need your OK on the computer before this iPhone can use them."
-                        : "Each bot runs on its own computer. Sign in to see the computers in your account.") {
+            CardSection(footer: app.account.isConfigured
+                        ? (app.account.isSignedIn
+                            ? "Computers in your account need your OK on the computer before this iPhone can use them."
+                            : "Pair another computer with its code to see its bots here.")
+                        : "Pair another computer with its code to see its bots here.") {
                 Button {
                     addingComputer = true
                 } label: {
@@ -73,7 +75,6 @@ struct ComputersView: View {
         }
         .refreshable { await accounts.refreshCloud() }
         .page("Computer management", icon: "gearshape")
-        .tracked(.screenViewed(.computers))
         .task { await accounts.refreshCloud() }
         .codyncSheet(isPresented: $addingComputer) {
             PairingView(inModal: true)
@@ -156,6 +157,7 @@ private struct ComputerRows: View {
     @State private var coloring = false
     @State private var voiceSettings = false
     @State private var networkSheet = false
+    @State private var reachSheet = false
 
     var body: some View {
         summary
@@ -172,6 +174,8 @@ private struct ComputerRows: View {
                 Button { networkSheet = true } label: { RowLabel("Network", image: .codyncNetwork, chevron: true) }
                     .buttonStyle(.plain)
             }
+            Button { reachSheet = true } label: { RowLabel("Reach from anywhere", systemImage: "network", chevron: true) }
+                .buttonStyle(.plain)
         }
         ComputerNotificationsRow(store: store)
         connection
@@ -219,6 +223,9 @@ private struct ComputerRows: View {
             if store.connection == .online, showsNetwork {
                 items.append(MenuItem("Network", image: .codyncNetwork) { networkSheet = true })
             }
+            if store.connection == .online {
+                items.append(MenuItem("Reach from anywhere", icon: "network") { reachSheet = true })
+            }
             if let revoke {
                 items.append(MenuItem("Revoke this iPhone's access", icon: "lock.slash", destructive: true, divider: true, action: revoke))
             }
@@ -229,6 +236,7 @@ private struct ComputerRows: View {
         }
         .codyncSheet(isPresented: $voiceSettings) { VoiceChatSettingsView().environment(store) }
         .codyncSheet(isPresented: $networkSheet) { NetworkSheet().environment(store) }
+        .codyncSheet(isPresented: $reachSheet) { ReachSheet().environment(store) }
         .codyncOverlay(isPresented: $coloring) { close in
             ZStack {
                 Color.black.opacity(0.35).ignoresSafeArea().onTapGesture(perform: close)
@@ -444,7 +452,7 @@ private struct ComputerNotificationsRow: View {
                         UIApplication.shared.open(URL(string: UIApplication.openNotificationSettingsURLString)!)
                     } else {
                         Task {
-                            allowed = await PushRegistrar.shared.requestAuthorization(from: .settings)
+                            allowed = await PushRegistrar.shared.requestAuthorization()
                         }
                     }
                 } label: {

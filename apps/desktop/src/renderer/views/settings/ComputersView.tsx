@@ -20,6 +20,7 @@ import { devicesLoseAccess } from '../../lib/account-copy'
 import { cloudStatusLine } from '../../lib/relay-copy'
 import { useTr } from '../../lib/use-language'
 import { errorText, liveClient, relativeDay, SectionHeader, statusText, thisMac } from './parts'
+import { ReachCard } from './ReachCard'
 import { RelayAddressRow, RelayTokenRow } from './RelayFields'
 import { useSSH } from './ssh-model'
 import { SSHConfigSuggestions } from './SSHConfigSuggestions'
@@ -70,7 +71,7 @@ export function ComputersView() {
           <SSHConfigSuggestions add={addSSH} />
         </div>
 
-        <div>
+        {account.isConfigured ? <div>
           <SectionHeader title="Other computers in your account">
             {account.isSignedIn ? <IconButton title="Refresh" icon="arrow.clockwise" onClick={() => void cloud.refresh()} /> : null}
           </SectionHeader>
@@ -82,7 +83,7 @@ export function ComputersView() {
           {others.map((computer) => (
             <AccountComputerRow key={computer.computerId} computer={computer} olderCopy={cloud.isOlderCopy(computer)} onRemove={() => setRemoving(computer)} />
           ))}
-        </div>
+        </div> : null}
       </VStack>
 
       <Sheet open={editing !== null} onClose={() => setEditing(null)} width={460}>
@@ -198,7 +199,7 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
             ? [
                 <Switch key="cloud" className="settings-appear" on={cloud.enabled} disabled={busy || !manageable || (asksAccount && !cloud.enabled && !account.isReady)} onChange={setReach}>
                   <span className="settings-stack">
-                    <Text>{tr(`Reach from anywhere`)}</Text>
+                    <Text>{tr(account.isConfigured ? `Reach from anywhere` : `Private relay`)}</Text>
                     <Text size="caption" tone={cloud.lastError ? 'attention' : 'secondary'}>{cloudLine}</Text>
                   </span>
                 </Switch>,
@@ -213,7 +214,7 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
                     <RelayTokenRow key="relay-token" tokenSet={cloud.tokenSet === true} disabled={busy || !manageable} save={(token) => void run(() => app.cloud.setRelayToken(store, token))} />
                   ) : null
                 ) : (
-                  accountLine
+                  account.isConfigured ? accountLine : null
                 ),
               ]
             : []),
@@ -256,6 +257,8 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
             : null,
         ]}
       </CardSection>
+
+      <ReachCard store={store} manageable={manageable} />
 
       {store === app.local ? (
         <ComputersUsedSection store={store} details={(computer) => <ManagedComputerCard store={computer} ssh nested />} />

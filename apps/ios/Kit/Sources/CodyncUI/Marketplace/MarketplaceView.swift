@@ -52,7 +52,6 @@ public struct MarketplaceView: View {
             }
         }
         .background(Palette.background)
-        .tracked(.screenViewed(.marketplace))
         .task {
             await model.refreshPlugins()
         }

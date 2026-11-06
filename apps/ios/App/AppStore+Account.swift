@@ -6,8 +6,7 @@ extension AppStore {
     /// Sign-in is required: computers paired while signed out move into the account the first time one is
     /// used here, before its stores and keys load. Builds without Clerk stay in the signed-out context.
     static func adoptSignedOutPairings(into storage: SharedStore.Context) {
-        guard let adoption = storage.adopt(from: SharedStore.Context(accountID: nil)), adoption.computers > 0 else { return }
-        Analytics.shared.capture(.signedOutPairingsMoved(computers: adoption.computers, keys: adoption.keys))
+        _ = storage.adopt(from: SharedStore.Context(accountID: nil))
     }
 
     /// Signing out: Clerk first, so a sign-out that fails changes nothing. This iPhone keeps the account's key,
@@ -15,8 +14,6 @@ extension AppStore {
     /// drop them now, the others when the account tells them (connections.md, accounts on a phone).
     func signOut() async {
         guard let userID = account.userID else { return }
-        // Sent first so it still counts toward the account.
-        Analytics.shared.capture(.signedOut)
         // The cloud call goes out after Clerk signed out, on a token taken now (it outlives the session).
         let cloud = await cloud?.pinningToken()
         leaving = true

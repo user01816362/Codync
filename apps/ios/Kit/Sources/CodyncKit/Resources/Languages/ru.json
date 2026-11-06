@@ -1,5 +1,4 @@
 {
-  "About usage analytics": "Аналитика использования",
   "Access": "Доступ",
   "Account": "Аккаунт",
   "Add Widget": "Добавить виджет",
@@ -264,7 +263,6 @@
   "Search": "Поиск",
   "Search Widgets": "Поиск виджетов",
   "Sending": "Отправка",
-  "Share usage analytics": "Делиться аналитикой использования",
   "Show Live Activities": "Показывать Live Activities",
   "Show in Dock": "Показывать в Dock",
   "Show in Dynamic Island": "Показывать в Dynamic Island",
@@ -793,7 +791,6 @@
   "GitHub sign-up needs additional account information. Your account is not signed in yet.": "Для регистрации через GitHub нужны дополнительные данные аккаунта. Вход в аккаунт ещё не выполнен.",
   "Sign in again to reach your account.": "Войдите снова, чтобы получить доступ к аккаунту.",
   "Codync account": "Аккаунт Codync",
-  "Usage analytics": "Аналитика использования",
   "Features you use": "Используемые функции",
   "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model.": "Открытие приложения и его экранов, настройка и подключение (и разрешены ли уведомления), создание или удаление бота, отправка сообщения (сколько вложений, но никогда не сами файлы), запуск рутины или голосового звонка, установка коннектора. К каждому событию добавляются версия приложения, платформа, агент и модель бота.",
   "Crashes and errors": "Сбои и ошибки",

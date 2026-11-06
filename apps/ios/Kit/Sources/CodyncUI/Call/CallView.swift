@@ -24,10 +24,8 @@ struct CallView: View {
     /// One line under the bar, e.g. why the call fell back to on-device voice.
     @State private var notice: String?
     @State private var settings = false
-    /// `voice_call_started` went out for this call.
-    @State private var reported = false
-    /// Each engine's `voice_call_quality`.
-    @State private var quality = CallQuality()
+    /// The call has been counted and announced to the computer.
+    @State private var started = false
     /// The bot's Live Activity showing the call.
     @State private var activity: CallActivity?
 
@@ -69,20 +67,15 @@ struct CallView: View {
             isSpeaking = false
             interrupt = nil
             model.endVoiceCall(callID)
-            quality.report()
             activity?.end()
         }
         .onChange(of: session?.phase) { _, phase in
-            if let phase {
-                quality.phase(phase)
-                activity?.phase(phase)
-            }
+            if let phase { activity?.phase(phase) }
             isSpeaking = phase == .speaking
             interrupt = phase == .speaking ? { session?.interrupt() } : nil
             // Counted once audio flows, so it names the engine the call ended up on.
-            if phase?.isActive == true, !reported, let session {
-                reported = true
-                Analytics.shared.capture(.voiceCallStarted(session.analyticsName))
+            if phase?.isActive == true, !started, session != nil {
+                started = true
                 model.callStarted(botId, call: call)
             }
             // A cloud engine that can't start or drops mid-call hands over to on-device voice.
@@ -134,8 +127,6 @@ struct CallView: View {
             engine = OnDeviceEngine { [model, botId, call] in model.send($0, to: botId, call: call) }
             Task { _ = try? await link.start("device") }
         }
-        quality.begin(engine.analyticsName)
-        (engine as? GeminiLiveEngine)?.onStall = { [quality] in quality.stalled() }
         engine.onActivityChanged = { [weak engine, model, callID] active in
             if active {
                 model.beginVoiceCall(callID, hear: { [weak engine, activity] cue in

@@ -20,6 +20,7 @@ mod network;
 mod network_cli;
 mod pair_cli;
 mod prompt;
+mod reach;
 mod remote;
 mod routines;
 mod screen;
@@ -533,7 +534,11 @@ async fn serve(bind: &str, port: u16) -> Result<()> {
     let identity = identity::Identity::load_or_create(&service::data_dir())?;
     tokio::task::spawn_blocking(backends::hydrate_path).await?;
     let hub = hub::Hub::new(store, host_id, identity, token, port);
+    reach::init(&hub.store);
     hub.start()?;
+    if let Err(error) = reach::start(hub.clone()).await {
+        tracing::warn!(%error, "couldn't start the Cloudflare Tunnel listener");
+    }
     network::start(&hub).await;
     analytics::host_started(&hub, service::started_by_service());
     let agent_checks = background::start(&hub);
@@ -548,6 +553,7 @@ async fn serve(bind: &str, port: u16) -> Result<()> {
         result = &mut server => result?,
         () = shutdown_signal() => {},
     }
+    reach::stop();
     hub.shutdown().await;
     background::stop_agent_checks(agent_checks).await;
     agent::acp::stop_all().await;

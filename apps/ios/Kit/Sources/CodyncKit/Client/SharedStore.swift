@@ -148,12 +148,9 @@ public enum SharedStore {
 // MARK: signed-out pairings move into the account
 
 public extension SharedStore.Context {
-    /// What `adopt(from:)` did with the signed-out context's pairings: how many computers came over, and whether
-    /// this iPhone's keys came with them (`moved`: this context was new, so they keep working) or they have to be
-    /// paired again (`rescan`: this context has its own key).
+    /// What `adopt(from:)` did with the signed-out context's pairings: how many computers came over.
     struct Adoption: Equatable, Sendable {
         public let computers: Int
-        public let keys: AnalyticsEvent.MovedKeys
     }
 
     /// Sign-in is required: the signed-out context's computers move into this account context, which
@@ -173,7 +170,7 @@ public extension SharedStore.Context {
             }
             for name in Self.names { defaults.set(local.defaults.object(forKey: local.key(name)), forKey: key(name)) }
             unmoved = moveMirrorCaches(from: local)
-            return Adoption(computers: moving.count, keys: .moved)
+            return Adoption(computers: moving.count)
         }
         return merge(moving)
     }
@@ -202,7 +199,7 @@ public extension SharedStore.Context {
     private func merge(_ moving: [Computer]) -> Adoption {
         let known = Set(computers.map(\.id))
         computers += moving.filter { !known.contains($0.id) }
-        return Adoption(computers: moving.count, keys: .rescan)
+        return Adoption(computers: moving.count)
     }
 }
 

@@ -148,7 +148,7 @@ function GeneralSettings() {
 
   return (
     <CardForm>
-      <CardSection title="Account" footer={account.errorMessage}>
+      {account.isConfigured ? <CardSection title="Account" footer={account.errorMessage}>
         <div className="settings-row">
           <Icon name="person.crop.circle" size={26} color="var(--secondary)" />
           <VStack grow className="settings-stack">
@@ -177,7 +177,7 @@ function GeneralSettings() {
             </>
           )}
         </div>
-      </CardSection>
+      </CardSection> : null}
       <CardSection title="Appearance">
         <ValueRow label="Theme">
           <ChoicePicker selection={appearance} options={[...APPEARANCES]} onChange={(value) => void window.codync.app.setAppearance(value).then(setAppearance)} />

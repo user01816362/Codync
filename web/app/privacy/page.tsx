@@ -13,6 +13,7 @@ export default function Privacy() {
 
         <Section title="Overview">
           Codync is an independent open-source project by leepokai (&quot;we&quot;, &quot;us&quot;). It lets you message the AI agents that run on your own computer. It is built so that your files, conversations and credentials stay on your devices.
+          <p className="mt-2">This policy describes the hosted Codync app. Builds from the local fork in this repository hide Codync account sign-in, disable host analytics, and remove iPhone usage analytics and crash reporting; the fork's other platform code and any third-party services you configure can behave differently.</p>
         </Section>
 
         <Section title="What stays on your devices">

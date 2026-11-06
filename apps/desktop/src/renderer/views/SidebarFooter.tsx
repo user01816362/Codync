@@ -23,6 +23,7 @@ export function SidebarFooter({ accountOpen, onAccount, onExtensions, onComputer
   onComputers: () => void
 }) {
   const tr = useTr()
+  const { isConfigured } = useAccount()
   const notice = useAccountNotice(onComputers)
   const footer = useRef<HTMLDivElement>(null)
   // The roster scrolls under the footer: its height (taller with the notice, wrapped or not) is the roster's bottom padding.
@@ -50,9 +51,9 @@ export function SidebarFooter({ accountOpen, onAccount, onExtensions, onComputer
       ) : null}
       <button
         className={`sidebar-account ${accountOpen ? 'active' : ''}`}
-        aria-label="Open account menu for Account"
+        aria-label={isConfigured ? 'Open account menu' : 'Open app menu'}
         aria-expanded={accountOpen}
-        title="Account menu"
+        title={isConfigured ? 'Account menu' : 'App menu'}
         onClick={onAccount}
       >
         <ProfileAvatar />

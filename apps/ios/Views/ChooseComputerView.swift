@@ -41,7 +41,6 @@ struct ChooseComputerView<Leading: View>: View {
             SkipSetupButton(action: skip)
         }
         .background(Palette.background)
-        .tracked(.onboardingStepViewed(.choose))
     }
 
     private var pairNewLabel: some View {

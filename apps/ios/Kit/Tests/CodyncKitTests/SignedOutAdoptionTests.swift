@@ -25,7 +25,7 @@ import Testing
         let movedCache = URL.cachesDirectory.appending(path: "codync-mirror-tests-\(account.id)-\(v.computer.id).json")
         try Data("stale".utf8).write(to: movedCache)
 
-        #expect(account.adopt(from: local) == .init(computers: 1, keys: .moved))
+        #expect(account.adopt(from: local) == .init(computers: 1))
         #expect(account.computers == [v.computer])
         #expect(account.composerDrafts[v.computer.id]?["b1"] == "draft")
         #expect(try Data(contentsOf: movedCache) == Data("unsent".utf8), "unsent messages come along, over a stale cache")
@@ -49,7 +49,7 @@ import Testing
         other.id = "other"
         local.computers = [v.computer, other]
 
-        #expect(account.adopt(from: local) == .init(computers: 2, keys: .rescan))
+        #expect(account.adopt(from: local) == .init(computers: 2))
         #expect(account.computers.map(\.id) == [v.computer.id, "other"])
         #expect(account.computers.first?.name == "Account copy", "the account's entry wins")
         #expect(try DeviceIdentity.load(context: account).publicKey == own.publicKey)
@@ -81,7 +81,7 @@ import Testing
             try? FileManager.default.removeItem(at: blocked)
         }
 
-        #expect(account.adopt(from: local) == .init(computers: 1, keys: .moved))
+        #expect(account.adopt(from: local) == .init(computers: 1))
         #expect(try Data(contentsOf: cache) == Data("unsent".utf8), "the only copy of those messages isn't deleted")
         #expect(local.computers.isEmpty && !DeviceIdentity.exists(context: local))
     }

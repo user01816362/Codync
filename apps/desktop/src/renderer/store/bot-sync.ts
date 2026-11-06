@@ -5,6 +5,7 @@ import { undoOnFailure } from '../lib/undo-on-failure'
 import { BotMirror, type Connection } from './bot-mirror'
 import { Artifacts } from './artifacts'
 import type { CallCue } from '@shared/calls'
+import type { ReachStatus } from '@shared/models'
 import { trNow } from '../lib/l10n.ts'
 
 const REFRESH_TIMEOUT = 20_000
@@ -158,6 +159,9 @@ export class BotSync extends BotMirror {
           try {
             this.cloud = await client.call<CloudStatus>('cloudStatus')
           } catch {}
+          try {
+            this.reach = await client.call<ReachStatus>('reachStatus')
+          } catch {}
           this.changed()
         }
         if (!alive()) return
@@ -224,6 +228,16 @@ export class BotSync extends BotMirror {
     this.hostVersion = next
   }
 
+  /** Reads the Cloudflare Tunnel and Tailscale state again (after an action or a `reach` event). */
+  async refreshReach() {
+    const client = this.client
+    if (!client) return
+    try {
+      this.reach = await client.call<ReachStatus>('reachStatus')
+      this.changed()
+    } catch {}
+  }
+
   private apply(event: HostEvent) {
     switch (event.type) {
       case 'icons':
@@ -282,6 +296,9 @@ export class BotSync extends BotMirror {
         break
       case 'cloud':
         this.cloud = event.cloud
+        break
+      case 'reach':
+        void this.refreshReach()
         break
       case 'network':
         this.network = event.network

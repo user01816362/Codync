@@ -1,5 +1,7 @@
 Codync keeps your work on your computer. The phone and desktop apps are windows onto the host running there. This page lists what stays on your devices, what passes through Codync's services and what they can see, and the usage analytics Codync collects. The [Privacy Policy](/privacy) is the formal statement.
 
+This repository's local fork differs from the hosted Codync app: its Codync account UI is hidden, host analytics are disabled, and the iPhone app does not send usage analytics or crash reports. The sections below describe the hosted app unless they say otherwise.
+
 ## What stays on your computer
 
 - **Bots, conversations, routines and memory** are kept by the host in `~/.codync` on your computer. Your phone keeps a cache so the app opens quickly.
@@ -20,7 +22,7 @@ If you point a computer at [a relay you run yourself](/docs/remote-access#your-o
 - that your computer is registered, with its name, platform, device type, Codync version and public keys;
 - when your computer and your devices connect, how often, and how much data passes;
 - messages you send from the iPhone while the computer is offline, which wait there, encrypted, for up to 24 hours until the computer picks them up;
-- your account's email address, the names and platforms of your signed-in devices, and which of them may use which computer. Sign-in itself is handled by Clerk, the sign-in service Codync uses. You can delete your account in the apps; see [Deleting your account](/docs/remote-access#deleting-your-account).
+- your account's email address, the names and platforms of your signed-in devices, and which of them may use which computer. Sign-in itself is handled by Clerk, the sign-in service Codync uses. You can delete your account in the apps; see [Deleting your account](/delete-account).
 
 The relay can't add a device to your computer. A new device needs either a pairing code shown on the computer or your approval there. The one exception is the setting **Skip the 6-digit check**, which lets any device signed in to your account in without that check.
 
@@ -73,15 +75,14 @@ Analytics are never sold, never used for ads and never used to track you across 
 
 ### Turning analytics off
 
-Each phone and each computer has its own switch, **Share usage analytics**. Turning it off stops sending right away and drops anything not sent yet.
+Each supported app and computer has its own **Share usage analytics** switch. Turning it off stops sending right away and drops anything not sent yet. The iPhone app in this fork has no analytics switch because its analytics and crash reporting have been removed.
 
-- **iPhone:** the **Settings** tab, **Share usage analytics**.
 - **Desktop app:** **Settings → General**, under **Privacy**. This switch belongs to the computer's host, so it also covers the terminal UI on that computer.
 - **Terminal UI:** press `^k` and choose **Share usage analytics**.
 - **Windows installer:** it asks whether to share usage analytics from the computer (not when Codync updates itself). **No** turns off the same switch the desktop app shows.
 - **Command line:** `codync-host analytics off` (`on` turns it back on).
 
-The info button next to the switch (**About usage analytics…** in the terminal UI) lists the same details. What you do from the phone on a computer, such as sending a message, is recorded by that computer. To stop all of it, turn the switch off on both.
+The info button next to the switch (**About usage analytics…** in the terminal UI) lists the same details. What you do from the phone on a computer, such as sending a message, is recorded by that computer. To stop all of it, turn the switch off on both. In this fork, host analytics are already disabled.
 
 ## Removing your data
 
@@ -96,6 +97,5 @@ whether to show its rating window. You can also choose **Rate on the App Store**
 **Settings** tab at any time. **Report an issue** opens a separate feedback link,
 regardless of whether you choose to rate the app.
 
-The timing history stays on your iPhone. If **Share usage analytics** is on, Codync records
-requests and taps on the rating link, with the number of messages sent. It does not send
-conversation content or know whether you rated it.
+The timing history stays on your iPhone. The iPhone app in this fork does not send analytics
+about rating requests or taps, and it does not know whether you rated the app.

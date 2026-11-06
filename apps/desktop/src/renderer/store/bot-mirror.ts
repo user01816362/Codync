@@ -8,6 +8,7 @@ import {
   type Entry,
   type Hello,
   type PairingRequest,
+  type ReachStatus,
   type ScreenState,
   type Usage,
   withoutRemoved,
@@ -85,6 +86,8 @@ export class BotMirror extends Observable {
   accessRequests: AccessRequest[] = []
   pairingRequests: PairingRequest[] = []
   cloud: CloudStatus | null = null
+  /** How to reach this computer without an account: Tailscale and a Cloudflare Tunnel. */
+  reach: ReachStatus | null = null
   /** This computer's network; null until known, and on hosts without `networkView`. */
   network: NetworkView | null = null
   /** A new network's recovery code until the user says they saved it: the host keeps it nowhere. */

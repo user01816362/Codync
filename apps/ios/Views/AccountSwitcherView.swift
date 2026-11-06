@@ -5,21 +5,23 @@ import SwiftUI
 struct AccountSwitcherButton: View {
     @Environment(AccountSession.self) private var account
 
-    var body: some View {
-        Button { account.showSwitcher = true } label: {
-            HStack(spacing: 4) {
-                if account.isBusy || !account.isReady {
-                    Spinner(size: 18).frame(width: 30, height: 30)
-                } else {
-                    AccountAvatar(url: account.avatarURL, email: account.email, size: 30)
+    @ViewBuilder var body: some View {
+        if account.isConfigured {
+            Button { account.showSwitcher = true } label: {
+                HStack(spacing: 4) {
+                    if account.isBusy || !account.isReady {
+                        Spinner(size: 18).frame(width: 30, height: 30)
+                    } else {
+                        AccountAvatar(url: account.avatarURL, email: account.email, size: 30)
+                    }
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.secondary)
                 }
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Palette.secondary)
             }
+            .accessibilityLabel("Switch account")
+            .accessibilityValue(account.email ?? "Local pairing")
         }
-        .accessibilityLabel("Switch account")
-        .accessibilityValue(account.email ?? "Local pairing")
     }
 }
 
@@ -92,7 +94,6 @@ struct AccountSwitcherView: View {
         }
         .animation(Motion.layout, value: account.userID)
         .animation(Motion.fade, value: account.errorMessage)
-        .tracked(.screenViewed(.account))
         .onChange(of: account.userID) { _, _ in withAnimation(Motion.layout) { addingAccount = false } }
         .codyncSheet(isPresented: $pairing) { PairingView(inModal: true) }
         .codyncDialog("Sign out of \(account.email ?? "this account")?", isPresented: $confirmSignOut,

@@ -224,7 +224,7 @@ struct WidgetGalleryView: View {
             UIApplication.shared.open(URL(string: UIApplication.openNotificationSettingsURLString)!)
         } else {
             Task {
-                _ = await PushRegistrar.shared.requestAuthorization(from: .widgets)
+                _ = await PushRegistrar.shared.requestAuthorization()
                 await checkNotifications()
             }
         }

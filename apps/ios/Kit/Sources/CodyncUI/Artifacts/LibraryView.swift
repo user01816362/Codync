@@ -36,7 +36,6 @@ struct LibraryView: View {
             }
         }
         .animation(Motion.reduced(Motion.fade, reduceMotion), value: loaded)
-        .tracked(.screenViewed(.library))
         .task(id: botId) {
             do {
                 files = try await model.loadLibrary(botId)

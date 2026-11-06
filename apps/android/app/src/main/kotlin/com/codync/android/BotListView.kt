@@ -420,14 +420,16 @@ internal fun messagePreview(text: String): String {
 
 /** The account capsule: who's signed in, opening the account sheet. */
 @Composable internal fun AccountSwitcherButton(state: AccountContext, open: () -> Unit) {
-    val (source, pressed) = rememberPress()
-    val email = state.account.current?.email
-    Row(Modifier.height(44.dp).glass(Capsule(), pressed = pressed)
-        .clickable(source, null, role = Role.Button, onClick = open)
-        .semantics { contentDescription = "Switch account"; stateDescription = email ?: "Local pairing" }
-        .padding(start = 7.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        AccountAvatar(state, 30.dp)
-        Symbol("chevron.down", size = 21.dp, tint = Palette.secondary)
+    if (state.account.configured) {
+        val (source, pressed) = rememberPress()
+        val email = state.account.current?.email
+        Row(Modifier.height(44.dp).glass(Capsule(), pressed = pressed)
+            .clickable(source, null, role = Role.Button, onClick = open)
+            .semantics { contentDescription = "Switch account"; stateDescription = email ?: "Local pairing" }
+            .padding(start = 7.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            AccountAvatar(state, 30.dp)
+            Symbol("chevron.down", size = 21.dp, tint = Palette.secondary)
+        }
     }
 }
 

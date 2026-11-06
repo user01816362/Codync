@@ -22,6 +22,21 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// What a Cloudflare Tunnel serves: only the end-to-end phone channel, so a public
+/// hostname never reaches this computer's local API, terminals or webhooks.
+pub fn public_router(hub: Arc<Hub>) -> Router {
+    Router::new()
+        .route("/channel", get(channel))
+        .route("/health", get(public_health))
+        .with_state(hub)
+}
+
+/// A deliberately small health response for the public tunnel listener. The main
+/// `/health` handler includes host identifiers and local update details.
+async fn public_health() -> Json<Value> {
+    Json(json!({"ok": true}))
+}
+
 pub fn router(hub: Arc<Hub>) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -196,14 +211,31 @@ struct ChannelQuery {
 async fn channel(
     State(hub): State<Arc<Hub>>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Query(q): Query<ChannelQuery>,
     ws: WebSocketUpgrade,
 ) -> Response {
     if q.v != Some(1) {
         return (StatusCode::UPGRADE_REQUIRED, Json(json!({"error": {"code": "upgradeRequired"}}))).into_response();
     }
+    let ip = client_ip(peer, &headers);
     ws.max_message_size(crate::remote::channel::MAX_WS_MESSAGE)
-        .on_upgrade(move |socket| crate::remote::channel::serve_direct(hub, socket, peer.ip()))
+        .on_upgrade(move |socket| crate::remote::channel::serve_direct(hub, socket, ip))
+}
+
+/// The address pairing attempts are counted from. Behind the Cloudflare Tunnel every
+/// socket is `127.0.0.1`, so Cloudflare's own header names the phone; a direct client
+/// on the LAN can't make us believe a different address.
+fn client_ip(peer: SocketAddr, headers: &HeaderMap) -> IpAddr {
+    if !is_loopback(peer.ip()) {
+        return peer.ip();
+    }
+    ["cf-connecting-ip", "x-forwarded-for"]
+        .iter()
+        .filter_map(|name| headers.get(*name).and_then(|value| value.to_str().ok()))
+        .flat_map(|value| value.split(','))
+        .find_map(|value| value.trim().parse::<IpAddr>().ok())
+        .unwrap_or(peer.ip())
 }
 
 async fn term_stream(
@@ -315,6 +347,16 @@ mod tests {
         assert!(local["updateRequested"].is_null(), "nobody asked this computer to update");
         assert!(local.get("binaryPath").is_some());
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_tunnel_phone_is_counted_at_its_cloudflare_address() {
+        let mut headers = HeaderMap::new();
+        headers.insert("cf-connecting-ip", "203.0.113.7".parse().expect("header"));
+        assert_eq!(client_ip("127.0.0.1:50000".parse().unwrap(), &headers).to_string(), "203.0.113.7");
+        // A direct client can't claim another address by sending the header itself.
+        assert_eq!(client_ip("192.168.1.20:50000".parse().unwrap(), &headers).to_string(), "192.168.1.20");
+        assert_eq!(client_ip("[::1]:50000".parse().unwrap(), &HeaderMap::new()).to_string(), "::1");
     }
 
     #[test]

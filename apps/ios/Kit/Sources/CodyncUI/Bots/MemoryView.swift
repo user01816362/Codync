@@ -42,7 +42,6 @@ struct MemoryCard: View {
                 else { Text(L10n.tr("Loading memory…")).foregroundStyle(Palette.secondary) }
             }
         }
-        .tracked(.screenViewed(.memory))
         // Memory changes anywhere move the bot's `memoryRev`: fetch again.
         .task(id: "\(botId)-\(bot?.memoryRev ?? 0)-\(bot?.sharedMemory ?? false)-\(bot?.harnessMemory ?? false)") {
             let store = memory ?? MemoryStore(botId: botId) { try await host.ready() }

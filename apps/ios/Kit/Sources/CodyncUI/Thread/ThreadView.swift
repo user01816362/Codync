@@ -380,7 +380,6 @@ struct IntroCard: View {
 extension ThreadView {
     public var body: some View {
         conversation
-            .tracked(.screenViewed(.chat))
     }
 
     private var working: Bool { bot?.isWorking(in: botId) == true && !model.isOffline }

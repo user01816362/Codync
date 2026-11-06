@@ -25,8 +25,6 @@ final class GeminiLiveEngine: VoiceEngine {
     }
     var provider: VoiceProvider? { .gemini }
     @ObservationIgnored var onActivityChanged: ((Bool) -> Void)?
-    /// Playback stopped reporting progress after the voice's turn, and the call went back to listening.
-    @ObservationIgnored var onStall: (() -> Void)?
 
     private let model: String
     private let voice: String
@@ -391,7 +389,6 @@ final class GeminiLiveEngine: VoiceEngine {
                 log.error("gemini playback stalled; back to listening")
                 self.playGeneration += 1
                 self.queued = 0
-                self.onStall?()
                 self.finishSpeaking()
                 return
             }

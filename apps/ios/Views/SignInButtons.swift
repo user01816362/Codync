@@ -25,7 +25,7 @@ struct SignInButtons: View {
 /// One provider's full-width button: its mark and line, a spinner while a sign-in runs (styled by the caller).
 private struct ProviderButton<Mark: View>: View {
     @Environment(AccountSession.self) private var account
-    let provider: AnalyticsEvent.SignInProvider
+    let provider: SignInProvider
     let title: String
     @ViewBuilder let mark: Mark
 

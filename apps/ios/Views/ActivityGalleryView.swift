@@ -37,7 +37,6 @@ struct ActivityGalleryView: View {
                     // Recorded from the switch itself: both galleries share the setting and stay alive.
                     Toggle(isOn: Binding(get: { enabled }, set: { on in
                         enabled = on
-                        Analytics.shared.capture(.settingChanged(.liveActivities, on: on))
                     })) {
                         Text(L10n.tr(island ? "Show in Dynamic Island" : "Show Live Activities"))
                     }

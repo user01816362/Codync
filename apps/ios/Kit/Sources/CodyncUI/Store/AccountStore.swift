@@ -287,7 +287,6 @@ public final class AccountStore {
                     return
                 }
                 guard !self.retired, !Task.isCancelled else { return }
-                Analytics.shared.capture(.accessRequested)
                 self.setPending(id, ticket)
                 await self.awaitApproval(ticket, target: target, cloud: cloud)
             } onCancel: {
@@ -358,7 +357,6 @@ public final class AccountStore {
         guard let ticket = pendingAccess[id] else { return }
         accessPolls.removeValue(forKey: id)?.cancel()
         setPending(id, nil)
-        Analytics.shared.capture(.accessRequestFailed(.cancelled))
         do {
             try await cloud?.cancelAccess(ticket.requestId)
         } catch {
@@ -388,24 +386,17 @@ public final class AccountStore {
                 }
                 save(computer)
                 open(computer)
-                Analytics.shared.capture(.computerPaired(via: .account, computer: computer.id))
                 await refreshCloud()
                 return
             case .denied, .expired, .cancelled:
                 setPending(ticket.computerId, nil)
-                let reason: AnalyticsEvent.AccessFailure = switch status.status {
-                case .denied: .denied
-                case .expired: .expired
-                default: .cancelled
-                }
-                Analytics.shared.capture(.accessRequestFailed(reason))
-                lastError = switch reason {
+                lastError = switch status.status {
                 case .denied: "\(target.name) declined the request."
                 case .expired: "The request expired. Ask again."
-                case .cancelled: "The request was withdrawn: \(target.name) or this iPhone was removed from your account."
+                default: "The request was withdrawn: \(target.name) or this iPhone was removed from your account."
                 }
                 // Withdrawn by the account: the list shows what's left of it.
-                if reason == .cancelled { await refreshCloud() }
+                if status.status == .cancelled { await refreshCloud() }
                 return
             }
         }

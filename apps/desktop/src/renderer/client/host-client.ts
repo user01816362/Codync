@@ -81,6 +81,8 @@ export type HostEvent =
   | { type: 'accessRequests'; requests: AccessRequest[] }
   | { type: 'pairingRequests'; requests: PairingRequest[] }
   | { type: 'cloud'; cloud: CloudStatus }
+  /** Tailscale or the Cloudflare Tunnel changed on this computer. */
+  | { type: 'reach' }
   /** This computer's network changed (members, roles, presence, offered bots) or cloud assistants were switched. */
   | { type: 'network'; network: NetworkView }
   /** For the voice of a call in this app (only the computer's own apps receive this computer's calls' cues). */
@@ -137,6 +139,8 @@ export function parseEvent(line: string): HostEvent | null {
       return { type, requests: (raw.requests as PairingRequest[]) ?? [] }
     case 'cloud':
       return raw.cloud ? { type, cloud: raw.cloud as CloudStatus } : null
+    case 'reach':
+      return { type }
     case 'network':
       return raw.network ? { type, network: raw.network as NetworkView } : null
     case 'call': {

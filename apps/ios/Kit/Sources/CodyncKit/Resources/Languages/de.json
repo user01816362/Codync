@@ -1,5 +1,4 @@
 {
-  "About usage analytics": "Über Nutzungsanalysen",
   "Access": "Zugang",
   "Account": "Konto",
   "Add Widget": "Widget hinzufügen",
@@ -264,7 +263,6 @@
   "Search": "Suchen",
   "Search Widgets": "Widgets suchen",
   "Sending": "Wird gesendet",
-  "Share usage analytics": "Nutzungsanalysen teilen",
   "Show Live Activities": "Live-Aktivitäten anzeigen",
   "Show in Dock": "Im Dock anzeigen",
   "Show in Dynamic Island": "In der Dynamic Island anzeigen",
@@ -793,7 +791,6 @@
   "GitHub sign-up needs additional account information. Your account is not signed in yet.": "Die GitHub-Registrierung benötigt zusätzliche Kontodaten. Dein Konto ist noch nicht angemeldet.",
   "Sign in again to reach your account.": "Melde dich erneut an, um auf dein Konto zuzugreifen.",
   "Codync account": "Codync-Konto",
-  "Usage analytics": "Nutzungsanalyse",
   "Features you use": "Verwendete Funktionen",
   "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model.": "Öffnen der App und ihrer Ansichten, Einrichtung und Kopplung (einschließlich erlaubter Mitteilungen), Erstellen oder Löschen eines Bots, Senden einer Nachricht (Anzahl der Anhänge, nie die Dateien), Ausführen einer Routine oder eines Sprachanrufs, Installieren eines Konnektors. Dazu gehören App-Version, Plattform sowie Agent und Modell des Bots.",
   "Crashes and errors": "Abstürze und Fehler",

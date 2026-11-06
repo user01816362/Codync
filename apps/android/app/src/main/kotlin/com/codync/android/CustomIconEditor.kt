@@ -20,6 +20,7 @@ import com.codync.android.design.*
     var needsSignIn by remember { mutableStateOf(false) }
     val accounts = LocalAccounts.current
     val account = accounts?.state?.collectAsState()?.value
+    if (account?.account?.configured == false) return
     val requireAccount: (() -> Unit) -> Unit = { action -> if (account?.account?.userId != null) action() else needsSignIn = true }
     var url by remember(target) { mutableStateOf("") }
     var showURL by remember(target) { mutableStateOf(false) }

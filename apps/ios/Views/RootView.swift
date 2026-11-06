@@ -38,7 +38,7 @@ struct RootView: View {
         .onChange(of: accounts.computers.isEmpty, initial: true) { _, empty in
             // Reaching a computer (paired, or approved through the account) or explicitly skipping completes
             // setup. Keep this device-level milestone across account changes and unpairing.
-            if !empty { completeOnboarding(via: accounts.approvedAccess.isEmpty ? .paired : .account) }
+            if !empty { completeOnboarding() }
         }
         .codyncDialog("Something went wrong", isPresented: errorShown, message: errorMessage, cancel: "OK", inPlace: true) { [] }
         .codyncOverlay(isPresented: Binding(get: { screenTarget.wrappedValue != nil }, set: { if !$0 { screenTarget.wrappedValue = nil } })) { close in
@@ -75,12 +75,12 @@ struct RootView: View {
                 .transition(.opacity)
         } else if !pairingNew && !askableComputers.isEmpty {
             ChooseComputerView(computers: askableComputers, ask: { asking = $0 },
-                               pairNew: { animateSetup { pairingNew = true } }, skip: { completeOnboarding(via: .skipped) }) {
+                               pairNew: { animateSetup { pairingNew = true } }, skip: { completeOnboarding() }) {
                 AccountSwitcherButton()
             }
             .transition(.move(edge: .leading).combined(with: .opacity))
         } else {
-            PairingView(onSkip: { completeOnboarding(via: .skipped) }, onContinue: { pairingNew = true }) {
+            PairingView(onSkip: { completeOnboarding() }, onContinue: { pairingNew = true }) {
                 if !askableComputers.isEmpty {
                     BackButton { animateSetup { pairingNew = false } }
                 } else if account.isSignedIn {
@@ -116,18 +116,9 @@ struct RootView: View {
             }
         }
         .tint(Palette.text)
-        .tracked(.screenViewed(screen))
         // Opening a bot (notification, widget, link) always lands on the Bots tab.
         .onChange(of: accounts.selection) { _, ref in
             if ref != nil { app.tab = .bots }
-        }
-    }
-
-    private var screen: AnalyticsEvent.Screen {
-        switch app.tab {
-        case .bots: .bots
-        case .state: .state
-        case .settings: .settings
         }
     }
 
@@ -147,10 +138,9 @@ struct RootView: View {
     }
 
     /// Once per setup (Start over begins a new one): the first computer reached, or Skip.
-    private func completeOnboarding(via: AnalyticsEvent.OnboardingVia) {
+    private func completeOnboarding() {
         guard !onboardingCompleted else { return }
         onboardingCompleted = true
-        Analytics.shared.capture(.onboardingCompleted(via: via))
     }
 
     // MARK: one place for every computer's errors and screen requests
@@ -298,7 +288,6 @@ private struct UsageSheet: View {
             }
         }
         .background(Palette.background)
-        .tracked(.screenViewed(.usage))
     }
 }
 

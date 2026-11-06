@@ -6,7 +6,7 @@ private let reviewNow = Date(timeIntervalSince1970: 1_800_000_000)
 
 @MainActor
 private func tracker(_ suite: String) -> ReviewInvitation {
-    ReviewInvitation(defaults: UserDefaults(suiteName: suite)!, capture: { _ in })
+    ReviewInvitation(defaults: UserDefaults(suiteName: suite)!)
 }
 
 @Test func reviewBecomesEligibleAtTheFifthPrompt() {
@@ -108,13 +108,11 @@ private func tracker(_ suite: String) -> ReviewInvitation {
 }
 
 @MainActor
-@Test func reviewRequestPersistsBeforeCallingStoreKitAndRespectsAnalyticsOptOut() throws {
+@Test func reviewRequestPersistsBeforeCallingStoreKit() throws {
     let suite = UUID().uuidString
     let defaults = UserDefaults(suiteName: suite)!
     defer { defaults.removePersistentDomain(forName: suite) }
-    defaults.set(false, forKey: Analytics.enabledKey)
-    let analytics = Analytics(defaults: defaults, upload: { _ in true })
-    let invitation = ReviewInvitation(defaults: defaults, capture: { analytics.capture($0) })
+    let invitation = ReviewInvitation(defaults: defaults)
     for _ in 1...5 { invitation.sent(version: "2.29.0", now: reviewNow) }
     let token = try #require(invitation.opportunity)
     #expect(invitation.request(token, version: "2.29.0", now: reviewNow))
@@ -122,7 +120,6 @@ private func tracker(_ suite: String) -> ReviewInvitation {
     let history = try JSONDecoder().decode(ReviewHistory.self, from: #require(defaults.data(forKey: ReviewInvitation.storageKey)))
     #expect(history.requests.count == 1)
     #expect(!history.eligible(at: reviewNow, version: "2.30.0"))
-    #expect(analytics.pending.isEmpty)
     invitation.sent(version: "2.29.0", now: reviewNow)
     #expect(invitation.opportunity == nil)
 }
@@ -155,10 +152,4 @@ private func tracker(_ suite: String) -> ReviewInvitation {
     let invitation = tracker(suite)
     for _ in 1...5 { invitation.sent(version: "2.29.0", now: reviewNow) }
     #expect(invitation.opportunity == nil)
-}
-
-@Test func reviewAnalyticsContainsOnlyCountsAndFixedNames() {
-    #expect(AnalyticsEvent.reviewRequested(prompts: 5).name == "review_requested")
-    #expect(AnalyticsEvent.reviewRequested(prompts: 5).properties == ["prompts": .int(5), "policy": .string("v2")])
-    #expect(AnalyticsEvent.reviewLinkOpened.properties == ["source": .string("settings")])
 }

@@ -9,7 +9,10 @@ account and without the hosted Codync cloud.
 |---|---|
 | Host pairing | A **direct** (LAN, Tailscale, in-person) pairing is let in without a cloud-signed device certificate. A relay link still has to prove its account. |
 | Host telemetry | Off, always. The settings switch and `codync-host analytics on` cannot turn it back on. |
+| Codync account UI | Hidden in iPhone, Android and desktop apps when this fork has no Codync cloud configuration. Pair computers directly with a QR code. |
+| iPhone analytics | Usage analytics and crash reporting have been removed from the iPhone app. |
 | Host cloud | No built-in cloud address. The computer is local-only unless `CODYNC_CLOUD_URL` (or an address saved in Settings) names one. |
+| Remote access | Wi-Fi, Tailscale and a named Cloudflare Tunnel are available without a Codync account. Cloudflare exposes only the phone channel and a minimal health check. |
 | App configs | `apps/shared/Config/{main,dev}.plist` ship an empty Clerk key and cloud URL, so every client takes its existing signed-out path. |
 | iPhone / Android | Pairing omits the certificate when the build has no cloud, instead of failing with "Connect to the internet to pair". |
 | CI | `.github/workflows/fork-build.yml` builds an unsigned Apple Silicon macOS app on every push to `main`; the standalone `.github/workflows/ios-ipa.yml` builds an unsigned iPhone IPA. |

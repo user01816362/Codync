@@ -22,7 +22,6 @@ struct WelcomeView: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .background(Palette.background)
-        .tracked(.onboardingStepViewed(.welcome))
         .task {
             if reduceMotion { beat = 4; return }
             for next in 1...4 {
@@ -179,7 +178,6 @@ struct DemoButton: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Palette.text)
         }
-        .trackedLinks(.demo)
     }
 }
 

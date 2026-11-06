@@ -1,5 +1,4 @@
 {
-  "About usage analytics": "关于用量分析",
   "Access": "访问",
   "Account": "账户",
   "Add Widget": "添加小组件",
@@ -264,7 +263,6 @@
   "Search": "搜索",
   "Search Widgets": "搜索小组件",
   "Sending": "正在发送",
-  "Share usage analytics": "共享用量分析",
   "Show Live Activities": "显示实时活动",
   "Show in Dock": "在程序坞中显示",
   "Show in Dynamic Island": "在灵动岛中显示",
@@ -793,7 +791,6 @@
   "GitHub sign-up needs additional account information. Your account is not signed in yet.": "GitHub 注册还需要补充账户信息。账户还没有登录。",
   "Sign in again to reach your account.": "重新登录后才能使用账户。",
   "Codync account": "Codync 账户",
-  "Usage analytics": "用量分析",
   "Features you use": "你使用的功能",
   "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model.": "打开应用和各个页面、设置和配对（以及你是否允许通知）、创建或删除 Bot、发送消息（附件有几个，不包括文件本身）、运行例行任务或语音通话、安装连接器。每条都会带上应用版本、平台，以及 Bot 的 agent 和模型。",
   "Crashes and errors": "崩溃和错误",

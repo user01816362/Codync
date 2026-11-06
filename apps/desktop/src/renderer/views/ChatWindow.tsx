@@ -10,6 +10,7 @@ import { Text } from '../components/Text'
 import { useModels } from '../lib/observable'
 import { prefs, stepTextSize, usePref, DEFAULT_TEXT_SIZE } from '../lib/prefs'
 import { useApp, StoreContext } from '../store/context'
+import { useAccount } from '../store/account'
 import { analytics } from '../store/analytics'
 import { refKey, sameRef, parseRef } from '../store/app-model'
 import type { BotStore } from '../store/bot-store'
@@ -58,6 +59,7 @@ import { useTr } from '../lib/use-language'
 export function ChatWindow() {
   const tr = useTr()
   const app = useApp()
+  const account = useAccount()
   const welcome = useWelcomeGate()
   const [accessSetup, setAccessSetup] = usePref(prefs.computerAccessSetup)
   const [showAccess, setShowAccess] = useState(false)
@@ -417,7 +419,7 @@ function ChatSplitView() {
             <IconButton title="Extensions" icon="square.grid.2x2" size={36} onClick={openMarketplace} />
             <UpdateBadge size={32} />
             <RailAccountNotice onComputers={() => setSettings('computers')} />
-            <button className={`rail-profile ${showAccount ? 'open' : ''}`} aria-label="Open account menu for Account" title="Account" onClick={() => setShowAccount((s) => !s)}>
+            <button className={`rail-profile ${showAccount ? 'open' : ''}`} aria-label={account.isConfigured ? 'Open account menu' : 'Open app menu'} title={account.isConfigured ? 'Account' : 'App menu'} onClick={() => setShowAccount((s) => !s)}>
               <ProfileAvatar />
             </button>
           </div>

@@ -60,6 +60,7 @@ import kotlinx.serialization.json.put
     var coloring by remember { mutableStateOf<String?>(null) }
     var voice by remember { mutableStateOf<String?>(null) }
     var network by remember { mutableStateOf<String?>(null) }
+    var reach by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(app.contextId) { accounts.refreshCloud() }
     Column(Modifier.fillMaxSize().background(Palette.background)) {
         PageHeader("Computer management", icon = "gearshape")
@@ -71,7 +72,7 @@ import kotlinx.serialization.json.put
                 val inAccount = app.cloudComputers.firstOrNull { it.computerId == id }
                 CardSection {
                     computerRows(state, store, inAccount != null, app.isStale(state, states), app.access[id]?.code,
-                        ComputerActions({ extensions(id) }, store::openScreen, voice = { voice = id }, network = { network = id }, color = { coloring = id },
+                        ComputerActions({ extensions(id) }, store::openScreen, voice = { voice = id }, network = { network = id }, reach = { reach = id }, color = { coloring = id },
                             ask = inAccount?.let { c -> { ask(c) } }, revoke = inAccount?.takeIf { it.isGranted }?.let { c -> { confirmRevoke = c } }) {
                             confirmForget = state
                         })
@@ -89,8 +90,8 @@ import kotlinx.serialization.json.put
             if (hidden.isNotEmpty()) CardSection("Hidden bots") {
                 for ((state, bot) in hidden) row { accounts.store(state.computer.id)?.let { HiddenBotRow(state, it, bot) } }
             }
-            CardSection(footer = if (signedIn) "Computers in your account need your OK on the computer before this phone can use them."
-                else "Each bot runs on its own computer. Sign in to see the computers in your account.") {
+            CardSection(footer = if (app.account.configured && signedIn) "Computers in your account need your OK on the computer before this phone can use them."
+                else "Pair another computer with its code to see its bots here.") {
                 row {
                     Row(Modifier.fillMaxWidth().plainButton(action = pair), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -107,6 +108,8 @@ import kotlinx.serialization.json.put
     CodyncSheet(networkState?.network?.let { networkState to it }, { network = null }) { (state, view) ->
         accounts.store(state.computer.id)?.let { NetworkSheet(view, it::refreshNetwork) }
     }
+    val reachState = states.firstOrNull { it.computer.id == reach }
+    CodyncSheet(reachState, { reach = null }) { state -> accounts.store(state.computer.id)?.let { ReachSheet(it) } }
     SwatchPanel(coloring != null, states.firstOrNull { it.computer.id == coloring }?.computer?.color, { coloring = null }) {
         accounts.store(coloring)?.setColor(it)
     }
@@ -122,8 +125,8 @@ import kotlinx.serialization.json.put
 }
 
 /** What the paired computer's row and its menu open; `revoke` is set when this phone's account access can be revoked. */
-private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit, val voice: () -> Unit, val network: () -> Unit, val color: () -> Unit,
-    val ask: (() -> Unit)?, val revoke: (() -> Unit)?, val remove: () -> Unit)
+private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit, val voice: () -> Unit, val network: () -> Unit, val reach: () -> Unit,
+    val color: () -> Unit, val ask: (() -> Unit)?, val revoke: (() -> Unit)?, val remove: () -> Unit)
 
 /**
  * The paired computer as the rows of its card: its connection and whether it's in the account, then
@@ -138,6 +141,7 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
         row { RowLabel("Voice chat", "waveform", chevron = true, modifier = Modifier.plainButton(action = actions.voice)) }
         if (state.screen != null) row { RowLabel("Screen", "display", chevron = true, modifier = Modifier.plainButton(action = actions.screen)) }
         if (state.network?.shown == true) row { RowLabel("Network", NETWORK_ICON, chevron = true, modifier = Modifier.plainButton(action = actions.network)) }
+        row { RowLabel("Reach from anywhere", "network", chevron = true, modifier = Modifier.plainButton(action = actions.reach)) }
     }
     if (BuildConfig.PUSH_CONFIGURED) row {
         ComputerNotificationsRow(state.computer.notifications, store::notifications)
@@ -164,6 +168,7 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
             if (online) MenuItem("Voice chat", icon = "waveform", action = actions.voice) else null,
             if (online && state.screen != null) MenuItem("Screen", icon = "display", action = actions.screen) else null,
             if (online && state.network?.shown == true) MenuItem("Network", icon = NETWORK_ICON, action = actions.network) else null,
+            if (online) MenuItem("Reach from anywhere", icon = "network", action = actions.reach) else null,
             actions.revoke?.let { MenuItem("Revoke this phone's access", icon = "lock.slash", destructive = true, divider = true, action = it) },
             if (!inAccount) MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove) else null,
         )

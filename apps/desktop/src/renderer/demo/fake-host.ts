@@ -177,6 +177,11 @@ export class FakeHost {
         return { requests: [] }
       case 'cloudStatus':
         return { enabled: false }
+      case 'reachStatus':
+        return {
+          tailscale: { installed: false, running: false, download: 'https://tailscale.com/download' },
+          cloudflare: { installed: false, loggedIn: false, configured: false, enabled: false, running: false, loginPending: false, download: 'https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/' },
+        }
       case 'usage':
         return story.usage(Date.now())
       case 'history':

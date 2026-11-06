@@ -1,6 +1,7 @@
 import AuthenticationServices
 import ClerkKit
 import CodyncKit
+import CodyncUI
 import Foundation
 import Observation
 
@@ -127,10 +128,9 @@ final class AccountSession {
         var errorDescription: String? { "Sign in again to reach your account." }
     }
 
-    func signIn(provider: AnalyticsEvent.SignInProvider) async {
+    func signIn(provider: SignInProvider) async {
         guard !isBusy else { return }
         guard let clerk else { return }
-        Analytics.shared.capture(.signInStarted(provider))
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
@@ -159,12 +159,10 @@ final class AccountSession {
                     errorMessage = "\(name) sign-up needs additional account information. Your account is not signed in yet."
                 }
             }
-            Analytics.shared.capture(errorMessage == nil ? .signedIn(provider) : .signInFailed(provider, reason: .verification))
         } catch where Self.isCancellation(error) {
-            Analytics.shared.capture(.signInFailed(provider, reason: .cancelled))
+            // The user closed the sign-in sheet.
         } catch {
             errorMessage = "Couldn't sign in. Check your connection and try again."
-            Analytics.shared.capture(.signInFailed(provider, reason: .error))
         }
     }
 

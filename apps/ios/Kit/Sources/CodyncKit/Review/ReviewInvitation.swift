@@ -11,17 +11,14 @@ public final class ReviewInvitation {
     static let offKey = "reviewInvitationOff"
     private static let log = Logger(subsystem: "com.pokai.Codync", category: "ReviewInvitation")
     private let defaults: UserDefaults
-    private let capture: @MainActor (AnalyticsEvent) -> Void
     private var history: ReviewHistory
     public private(set) var opportunity: UUID?
     private var opportunityDate = Date.distantPast
     /// With no view there to ask (a background shortcut), the token waits in memory: coming back to the app later must not ask.
     private static let opportunityLifetime: TimeInterval = 5
 
-    init(defaults: UserDefaults = .standard,
-         capture: @escaping @MainActor (AnalyticsEvent) -> Void = { Analytics.shared.capture($0) }) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.capture = capture
         if let data = defaults.data(forKey: Self.storageKey) {
             do { history = try JSONDecoder().decode(ReviewHistory.self, from: data) }
             catch {
@@ -48,7 +45,6 @@ public final class ReviewInvitation {
         guard now.timeIntervalSince(opportunityDate) <= Self.opportunityLifetime else { return false }
         history.recordRequest(at: now, version: version)
         save()
-        capture(.reviewRequested(prompts: history.prompts))
         return true
     }
 

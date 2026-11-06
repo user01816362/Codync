@@ -1,17 +1,21 @@
 //! The addresses phones dial this host at, sent in the pairing link and every `hello`.
 
-use serde_json::Value;
-use std::process::Command;
 use std::sync::LazyLock;
 
 /// The most addresses sent, best first: a phone keeps at most this many, and a longer list is cut to it.
 const MAX_ADDRESSES: usize = 16;
 
-/// Addresses the phone can try, best first: the ones set in `CODYNC_EXTERNAL_URL`, Tailscale, then LAN.
+/// Addresses the phone can try, best first: the ones set in `CODYNC_EXTERNAL_URL`, a
+/// Cloudflare Tunnel, Tailscale, then LAN.
 pub fn addresses(port: u16) -> Vec<String> {
     // Read once: every hello asks, and a bad entry warns once.
     static EXTERNAL: LazyLock<Vec<String>> =
         LazyLock::new(|| external_urls(&std::env::var("CODYNC_EXTERNAL_URL").unwrap_or_default()));
+    let tailscale_status = crate::reach::tailscale::status();
+    let tailscale_dns = tailscale_status
+        .dns_name
+        .filter(|name| !name.is_empty())
+        .map(|name| format!("http://{name}:{port}"));
     let mut tailscale = vec![];
     let mut lan = vec![];
     for iface in if_addrs::get_if_addrs().unwrap_or_default() {
@@ -28,21 +32,23 @@ pub fn addresses(port: u16) -> Vec<String> {
             }
         }
     }
-    if let Ok(out) = Command::new("tailscale").args(["status", "--json"]).output()
-        && let Ok(v) = serde_json::from_slice::<Value>(&out.stdout)
-        && let Some(dns) = v["Self"]["DNSName"].as_str()
-    {
-        let dns = dns.trim_end_matches('.');
-        if !dns.is_empty() {
-            tailscale.insert(0, format!("http://{dns}:{port}"));
-        }
+    if let Some(ip) = tailscale_status.ipv4 {
+        tailscale.push(format!("http://{ip}:{port}"));
     }
     tailscale.sort();
     tailscale.dedup();
     lan.sort_by_key(|ip| (lan_rank(*ip), *ip));
     lan.dedup();
     let lan = lan.into_iter().map(|ip| format!("http://{ip}:{port}"));
-    EXTERNAL.iter().cloned().chain(tailscale).chain(lan).take(MAX_ADDRESSES).collect()
+    EXTERNAL
+        .iter()
+        .cloned()
+        .chain(crate::reach::public_url())
+        .chain(tailscale_dns)
+        .chain(tailscale)
+        .chain(lan)
+        .take(MAX_ADDRESSES)
+        .collect()
 }
 
 /// Home networks first, then office ones, so the cap drops the private ranges container and VM networks favor.

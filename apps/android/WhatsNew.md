@@ -7,6 +7,13 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.40.0
+### zh-Hant
+- 在「隨時隨地連線」設定中設定 Tailscale 或 Cloudflare Tunnel，不必登入 Codync 帳號；掃描 QR Code 配對即可。
+
+### en-US
+- Set up Tailscale or a named Cloudflare Tunnel in Reach from anywhere. No Codync account is needed; pair by scanning the QR code.
+
 ## 2.39.1
 ### zh-Hant
 - 推理強度滑桿新增漸層點陣，讓不同強度更容易辨識。

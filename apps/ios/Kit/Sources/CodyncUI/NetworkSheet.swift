@@ -62,7 +62,6 @@ public struct NetworkSheet: View {
         .background(Palette.background)
         // Presence as of now: the host asks the others when stale, and its event updates this.
         .task { await store.refreshNetwork() }
-        .tracked(.screenViewed(.network))
     }
 }
 

@@ -21,7 +21,7 @@ enum VoicePhase: Equatable {
     var holdsCall: Bool { isActive || self == .reconnecting || self == .interrupted }
 }
 
-/// Why a call's engine gave up, for analytics (`voice_call_quality`).
+/// Why a call's engine gave up, used to describe the recovery choice.
 enum VoiceFailureKind: String, Sendable {
     case microphone, connection, provider
 }
@@ -73,16 +73,6 @@ extension VoiceEngine {
     func progress(_ text: String) {}
 
     func resume() {}
-
-    /// The engine's name in analytics.
-    var analyticsName: AnalyticsEvent.VoiceEngine {
-        if self is CloudSpeechEngine { return .cloud }
-        return switch provider {
-        case .openAI: .openai
-        case .gemini: .gemini
-        case nil: .onDevice
-        }
-    }
 }
 
 struct VoiceError: LocalizedError {

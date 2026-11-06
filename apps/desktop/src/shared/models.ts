@@ -617,6 +617,38 @@ export interface CloudStatus {
   joinsAccountOnEnable?: boolean | null
 }
 
+/** Tailscale on a computer, as its host sees it (`reachStatus`). */
+export interface TailscaleReach {
+  installed: boolean
+  running: boolean
+  canOpen: boolean
+  dnsName?: string | null
+  ipv4?: string | null
+  download: string
+}
+
+/** A named Cloudflare Tunnel on a computer (`reachStatus`). */
+export interface CloudflareReach {
+  installed: boolean
+  loggedIn: boolean
+  configured: boolean
+  enabled: boolean
+  tunnel?: string | null
+  hostname?: string | null
+  url?: string | null
+  running: boolean
+  loginPending: boolean
+  loginUrl?: string | null
+  lastError?: string | null
+  download: string
+}
+
+/** Reaching a computer without a Codync account. */
+export interface ReachStatus {
+  tailscale: TailscaleReach
+  cloudflare: CloudflareReach
+}
+
 export interface ClaimSignature {
   computerId: string
   signKey: string

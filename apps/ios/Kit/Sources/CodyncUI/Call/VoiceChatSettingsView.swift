@@ -52,7 +52,6 @@ public struct VoiceChatSettingsView: View {
             }
         }
         .background(Palette.background)
-        .tracked(.screenViewed(.voiceSettings))
     }
 
     /// Dictation on another provider than calls still needs that provider's key and speech-to-text model.

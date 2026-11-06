@@ -15,8 +15,8 @@ struct CustomIconEditor: View {
     @FocusState private var urlFocused: Bool
 
     private var icon: CustomIcon? { store.icons[target] }
-    var body: some View {
-        if store.hello?.icons != nil { content }
+    @ViewBuilder var body: some View {
+        if store.hello?.icons != nil, account?.configured != false { content }
     }
 
     private var content: some View {

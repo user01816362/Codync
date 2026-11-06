@@ -54,8 +54,6 @@ struct PairingView<Leading: View>: View {
             }
         }
         .background(Palette.background)
-        // First run, each page is an onboarding step; afterwards, the whole sheet is one screen.
-        .tracked(inModal ? .screenViewed(.pairing) : .onboardingStepViewed(step == .install ? .install : .scan))
     }
 
     private func go(_ next: Step) {
@@ -130,7 +128,7 @@ private struct InstallPage: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Hint("Open the website on your computer to download Codync")
                         Button {
-                            copyToClipboard(Self.websiteLink, records: .installLink, copied: $linkCopied)
+                            copyToClipboard(Self.websiteLink, copied: $linkCopied)
                         } label: {
                             Label(L10n.tr(linkCopied ? "Copied" : "Copy website link"), systemImage: linkCopied ? "checkmark" : "doc.on.doc")
                                 .font(.headline)
@@ -152,14 +150,14 @@ private struct InstallPage: View {
                         // Copied here, pasted on the computer (Universal Clipboard or a message to yourself).
                         if os == .mac {
                             Hint("Install with Homebrew")
-                            CommandBlock("brew install --cask leepokai/codync/codync", records: .installCommand)
+                            CommandBlock("brew install --cask leepokai/codync/codync")
                             Hint("or download the Mac app")
-                            CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg", records: .installCommand)
+                            CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg")
                         } else {
                             Hint("Run the installer")
-                            CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install", records: .installCommand)
+                            CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install")
                             Hint("or install with Homebrew")
-                            CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install", records: .installCommand)
+                            CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install")
                         }
                         Text(L10n.tr(os == .mac
                              ? "Open Codync and it sets up the host on its own."
@@ -196,10 +194,9 @@ private struct Hint: View {
     }
 }
 
-/// Copies `text`, counts as opening `records`, and says so through `copied` for a moment.
-@MainActor private func copyToClipboard(_ text: String, records: AnalyticsEvent.Link?, copied: Binding<Bool>) {
+/// Copies `text` and says so through `copied` for a moment.
+@MainActor private func copyToClipboard(_ text: String, copied: Binding<Bool>) {
     UIPasteboard.general.string = text
-    if let records { Analytics.shared.capture(.linkOpened(records)) }
     withAnimation(Motion.morph) { copied.wrappedValue = true }
     Task {
         try? await Task.sleep(for: .seconds(1.5))
@@ -207,15 +204,13 @@ private struct Hint: View {
     }
 }
 
-/// A terminal command or link with a copy button; copying it counts as opening `records`.
+/// A terminal command or link with a copy button.
 private struct CommandBlock: View {
     let command: String
-    let records: AnalyticsEvent.Link?
     @State private var copied = false
 
-    init(_ command: String, records: AnalyticsEvent.Link? = nil) {
+    init(_ command: String) {
         self.command = command
-        self.records = records
     }
 
     var body: some View {
@@ -228,7 +223,7 @@ private struct CommandBlock: View {
                 .padding(.vertical, 6)
                 .contentTransition(.opacity)
             IconButton(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
-                copyToClipboard(command, records: records, copied: $copied)
+                copyToClipboard(command, copied: $copied)
             }
             .contentTransition(.symbolEffect(.replace))
         }
@@ -310,7 +305,6 @@ private struct ScanPage: View {
                         Label(L10n.tr("Tailscale is on: Codync connects over it directly."), systemImage: "checkmark.circle.fill")
                     } else {
                         Button {
-                            Analytics.shared.capture(.linkOpened(.tailscale))
                             openURL(Tailscale.downloadURL)
                         } label: {
                             Label(L10n.tr("Use Tailscale? Direct and faster away from home."), systemImage: "arrow.up.right")
@@ -386,7 +380,7 @@ private struct ScanPage: View {
             defer { pairing = false }
             do {
                 let p = try await app.pairing(from: text.trimmingCharacters(in: .whitespacesAndNewlines))
-                _ = try await app.pair(p, via: .qr)
+                _ = try await app.pair(p)
                 pasted = ""
                 paired()
             } catch {
@@ -397,10 +391,18 @@ private struct ScanPage: View {
 
     private func show(_ error: Error) {
         attempt += 1
-        let reason = AnalyticsEvent.PairingFailure(error)
         withAnimation(Motion.reduced(Motion.layout, reduceMotion)) {
             self.error = error.localizedDescription
-            unreachable = reason == .unreachable || reason == .timeout
+            unreachable = Self.isUnreachable(error)
+        }
+    }
+
+    /// The phone couldn't reach the computer (not a refusal from it or the cloud).
+    private static func isUnreachable(_ error: Error) -> Bool {
+        switch error {
+        case HostError.unreachable, HostError.computerOffline: true
+        case let url as URLError: url.code == .timedOut
+        default: false
         }
     }
 }
