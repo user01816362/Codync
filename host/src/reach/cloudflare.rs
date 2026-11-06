@@ -188,10 +188,8 @@ pub fn login() -> Result<(), String> {
     }
     std::thread::spawn(move || {
         let exit = child.wait();
-        if exit.as_ref().is_ok_and(|status| status.success()) {
-            if let Some(cert) = origin_cert() {
-                secure_file(&cert);
-            }
+        if exit.as_ref().is_ok_and(std::process::ExitStatus::success) && let Some(cert) = origin_cert() {
+            secure_file(&cert);
         }
         let mut runtime = RUNTIME.locked();
         runtime.login_pending = false;
@@ -423,12 +421,11 @@ fn create_tunnel(binary: &Path, cert: &Path) -> Result<(String, String, String),
         Ok((name, uuid, raw))
     })();
     match fs::remove_file(&creds) {
-        Ok(()) => {}
         Err(error) if result.is_ok() => return Err(format!("Couldn't remove temporary tunnel credentials: {error}")),
         Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
-            tracing::warn!(path = %creds.display(), %error, "couldn't remove temporary Cloudflare credentials")
+            tracing::warn!(path = %creds.display(), %error, "couldn't remove temporary Cloudflare credentials");
         }
-        Err(_) => {}
+        Ok(()) | Err(_) => {}
     }
     result
 }
