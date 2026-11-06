@@ -250,7 +250,9 @@ impl App {
                 }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.data["files"].is_array()) => {
-                if let Some(e) = picked { self.open_file_preview(&e.id, &e.data); }
+                if let Some(e) = picked {
+                    self.open_file_preview(&e.id, &e.data);
+                }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(super::Entry::unfolds) => {
                 if let Some(e) = picked

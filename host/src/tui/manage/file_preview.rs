@@ -38,7 +38,12 @@ impl App {
         let id = uuid::Uuid::new_v4().to_string();
         self.client.preview_file(entry.to_owned(), file.clone(), id.clone(), self.tx.clone());
         self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
-            id, name: file.name, content: None, scroll: 0, max_scroll: Cell::default(), page: Cell::default(),
+            id,
+            name: file.name,
+            content: None,
+            scroll: 0,
+            max_scroll: Cell::default(),
+            page: Cell::default(),
         }));
     }
 
@@ -65,7 +70,10 @@ mod tests {
     #[test]
     fn only_small_text_files_are_previewable() {
         let mut file = crate::chat::files::SharedFile {
-            id: "id".into(), name: "README.MD".into(), size: 10, sha256: "a".repeat(64),
+            id: "id".into(),
+            name: "README.MD".into(),
+            size: 10,
+            sha256: "a".repeat(64),
         };
         assert!(supported(&file));
         file.name = "image.png".into();

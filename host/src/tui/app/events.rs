@@ -42,7 +42,9 @@ impl App {
             Msg::Reply(after, r) => self.on_reply(after, r),
             Msg::FilePreview { id, result } => {
                 for overlay in &mut self.overlays {
-                    if let super::Overlay::FilePreview(view) = overlay && view.id == id {
+                    if let Overlay::FilePreview(view) = overlay
+                        && view.id == id
+                    {
                         view.content = Some(result.clone());
                     }
                 }

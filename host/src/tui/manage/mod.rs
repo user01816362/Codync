@@ -25,8 +25,8 @@ mod skill;
 mod when;
 
 pub use analytics::AnalyticsSheet;
-pub use file_preview::FilePreviewSheet;
 pub use fields::{handoff_fields, section_fields};
+pub use file_preview::FilePreviewSheet;
 pub use gear::{Gear, GearRow};
 pub use icons::icon_fields;
 pub use library::{ArtifactTitles, LibraryItem};

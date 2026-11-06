@@ -68,8 +68,11 @@ impl Client {
 
 async fn preview(client: &Client, entry: &str, file: &SharedFile) -> Result<String> {
     crate::chat::files::name(&file.name)?;
-    ensure!(file.size <= 1024 * 1024 && file.sha256.len() == 64 && file.sha256.bytes().all(|b| b.is_ascii_hexdigit()), "invalid file metadata");
-    let mut bytes = Vec::with_capacity(file.size as usize);
+    ensure!(
+        file.size <= 1024 * 1024 && file.sha256.len() == 64 && file.sha256.bytes().all(|b| b.is_ascii_hexdigit()),
+        "invalid file metadata"
+    );
+    let mut bytes = Vec::with_capacity(usize::try_from(file.size)?);
     let mut offset = 0;
     loop {
         let result = client.call("readFile", &json!({"entryId": entry, "fileId": file.id, "offset": offset})).await;
@@ -78,7 +81,9 @@ async fn preview(client: &Client, entry: &str, file: &SharedFile) -> Result<Stri
         let chunk = decode_chunk(&response, file.size, offset)?;
         offset += chunk.len() as u64;
         bytes.extend_from_slice(&chunk);
-        if offset == file.size { break; }
+        if offset == file.size {
+            break;
+        }
     }
     ensure!(crate::chat::files::digest_hex(&Sha256::digest(&bytes)) == file.sha256, "file integrity check failed");
     ensure!(!bytes.contains(&0), "file is not text");

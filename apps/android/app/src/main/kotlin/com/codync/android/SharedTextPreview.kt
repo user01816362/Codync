@@ -34,6 +34,7 @@ import java.security.MessageDigest
             require(file.showsAsText)
             val cached = store.sharedImage(entryId, file)
             text = withContext(Dispatchers.IO) {
+                require(cached.length() == file.size && cached.length() <= 1024 * 1024)
                 val bytes = cached.readBytes()
                 require(bytes.size.toLong() == file.size && bytes.size <= 1024 * 1024)
                 val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
