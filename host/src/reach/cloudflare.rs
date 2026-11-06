@@ -188,7 +188,9 @@ pub fn login() -> Result<(), String> {
     }
     std::thread::spawn(move || {
         let exit = child.wait();
-        if exit.as_ref().is_ok_and(std::process::ExitStatus::success) && let Some(cert) = origin_cert() {
+        if exit.as_ref().is_ok_and(std::process::ExitStatus::success)
+            && let Some(cert) = origin_cert()
+        {
             secure_file(&cert);
         }
         let mut runtime = RUNTIME.locked();
