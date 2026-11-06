@@ -45,12 +45,12 @@ data class Entry(
     val isChat: Boolean get() = kind in listOf("user", "permission") ||
         kind == "notice" && "memory" !in data && "memoryFile" !in data && "compaction" !in data &&
             (data["handoff"] as? JsonObject)?.text("status") != "kept" ||
-        kind == "agent" && data["final"]?.jsonPrimitive?.booleanOrNull == true
+        kind == "agent" && (data["final"]?.jsonPrimitive?.booleanOrNull == true || data["streaming"]?.jsonPrimitive?.booleanOrNull == true)
     /** A step the working indicator unfolds: thinking, narration, a tool call or a plan; never the bot's bookkeeping,
      *  nor a call the host didn't flag (one older than 2.25.0 flags none). */
     val isWorkingStep: Boolean get() = when (kind) {
         "thought" -> text.isNotBlank()
-        "agent" -> data["final"]?.jsonPrimitive?.booleanOrNull != true && !isPass(text)
+        "agent" -> data["final"]?.jsonPrimitive?.booleanOrNull != true && data["streaming"]?.jsonPrimitive?.booleanOrNull != true && !isPass(text)
         "tool" -> data["bookkeeping"]?.jsonPrimitive?.booleanOrNull == false
         "plan" -> true
         else -> false
@@ -115,6 +115,7 @@ private data class EntryFields(
 
 @Serializable data class Attachment(val id: String, val name: String, val size: Long) {
     val isImage: Boolean get() = isImageName(name)
+    val showsAsText: Boolean get() = canPreviewText(name, size)
 }
 
 private fun isImageName(name: String) = name.substringAfterLast('.', "").lowercase() in listOf("png", "jpg", "jpeg", "heic", "gif", "webp", "tiff", "bmp")
@@ -124,7 +125,7 @@ private fun isImageName(name: String) = name.substringAfterLast('.', "").lowerca
     /** An image small enough to show in the chat (the phone fetches all of it). */
     val showsAsImage: Boolean get() = isImageName(name) && size <= 20L * 1024 * 1024
 
-    val showsAsText: Boolean get() = size in 0..(1024L * 1024) && name.substringAfterLast('.', "").lowercase() in TEXT_PREVIEW_EXTENSIONS
+    val showsAsText: Boolean get() = canPreviewText(name, size)
 
     /** Before any of it is read: a name that can't leave its folder and a hash to check. */
     fun validate() {
@@ -135,6 +136,7 @@ private fun isImageName(name: String) = name.substringAfterLast('.', "").lowerca
 }
 
 private val TEXT_PREVIEW_EXTENSIONS = "md markdown txt log json jsonl yaml yml toml xml csv tsv html css js jsx ts tsx py rs go swift kt kts java c h cpp hpp sh bash zsh sql diff patch".split(' ').toSet()
+private fun canPreviewText(name: String, size: Long) = size in 0..(1024L * 1024) && name.substringAfterLast('.', "").lowercase() in TEXT_PREVIEW_EXTENSIONS
 
 /** Unicode control and format characters, which a file name may not contain. */
 private val CONTROLS = setOf(Character.CONTROL, Character.FORMAT)

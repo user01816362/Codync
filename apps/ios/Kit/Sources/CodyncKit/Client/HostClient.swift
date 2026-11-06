@@ -298,16 +298,19 @@ public extension HostClient {
     }
 
     /// A sent file, fetched back in chunks.
-    func readUpload(botId: String, id: String) async throws -> Data {
+    func readUpload(botId: String, id: String, expectedSize: Int64? = nil) async throws -> Data {
         struct Body: Encodable { var botId, uploadId: String; var offset: Int }
         struct Res: Decodable { var data: String; var size: Int }
         var out = Data()
         repeat {
             let res: Res = try await call("readUpload", Body(botId: botId, uploadId: id, offset: out.count), timeout: 60)
+            if let expectedSize, Int64(res.size) != expectedSize { throw FileDownloadError.invalidMetadata }
             guard let chunk = Data(base64Encoded: res.data), !chunk.isEmpty else { break }
+            if let expectedSize, Int64(out.count + chunk.count) > expectedSize { throw FileDownloadError.invalidMetadata }
             out.append(chunk)
             if out.count >= res.size { break }
         } while true
+        if let expectedSize, Int64(out.count) != expectedSize { throw FileDownloadError.invalidMetadata }
         return out
     }
 

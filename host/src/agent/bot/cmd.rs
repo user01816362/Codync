@@ -42,6 +42,12 @@ pub enum Cmd {
         text: String,
         reply: tokio::sync::oneshot::Sender<Result<()>>,
     },
+    /// Explicitly user-facing message chunks; ACP narration is never promoted implicitly.
+    StreamMessage {
+        action: String,
+        text: String,
+        reply: tokio::sync::oneshot::Sender<Result<()>>,
+    },
     /// `react` from the bot's `chat` MCP server: an emoji on the message the turn answers.
     React {
         emoji: String,

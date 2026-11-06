@@ -40,6 +40,9 @@ impl Actor {
             Cmd::SendToUser { text, reply } => {
                 let _ = reply.send(self.send_to_user(text));
             }
+            Cmd::StreamMessage { action, text, reply } => {
+                let _ = reply.send(self.stream_message(&action, &text));
+            }
             Cmd::React { emoji, to, reply } => {
                 let _ = reply.send(self.react(&emoji, to.as_deref()));
             }

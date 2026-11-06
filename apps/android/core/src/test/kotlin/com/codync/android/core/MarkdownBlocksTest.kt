@@ -18,6 +18,13 @@ class MarkdownBlocksTest {
             Block.Code("val x = 1", "kotlin"), Block.Paragraph("text\nmore")), blocks)
     }
 
+    @Test fun `escaped table pipes stay in their cells including code spans`() {
+        assertEquals(listOf(Block.Table(listOf("f|oo", "second"), listOf(listOf("b `|` az", "b **|** im")))),
+            MarkdownBlocks.parse("| f\\|oo | second |\n| --- | --- |\n| b `\\|` az | b **\\|** im |"))
+        assertEquals(listOf(Block.Table(listOf("A", "B"), listOf(listOf("x\\\\", "y")))),
+            MarkdownBlocks.parse("| A | B |\n| --- | --- |\n| x\\\\|y |"))
+    }
+
     @Test fun `nested and incomplete code fences preserve content`() {
         assertEquals(listOf(Block.Code("```js\nx\n```", "md"), Block.Paragraph("after")),
             MarkdownBlocks.parse("````md\n```js\nx\n```\n````\nafter"))

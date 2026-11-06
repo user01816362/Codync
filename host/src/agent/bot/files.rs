@@ -15,7 +15,8 @@ type Reply = oneshot::Sender<Result<()>>;
 pub(super) struct Completed {
     epoch: u64,
     cancelled: Arc<AtomicBool>,
-    reply: Reply,
+    reply: Option<Reply>,
+    image_entry: Option<String>,
     result: Result<Snapshot>,
 }
 
@@ -23,13 +24,14 @@ pub(super) struct FileShares {
     epoch: u64,
     pub summary: Option<String>,
     pending: Vec<Arc<AtomicBool>>,
+    images: Vec<Arc<AtomicBool>>,
     pub tx: mpsc::UnboundedSender<Completed>,
     pub rx: mpsc::UnboundedReceiver<Completed>,
 }
 impl Default for FileShares {
     fn default() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
-        Self { epoch: 0, summary: None, pending: Vec::new(), tx, rx }
+        Self { epoch: 0, summary: None, pending: Vec::new(), images: Vec::new(), tx, rx }
     }
 }
 impl FileShares {
@@ -38,6 +40,11 @@ impl FileShares {
         for flag in self.pending.drain(..) {
             flag.store(true, Ordering::Release);
         }
+        self.images.clear();
+    }
+
+    pub fn images_pending(&self) -> bool {
+        !self.images.is_empty()
     }
 }
 impl Drop for FileShares {
@@ -74,7 +81,41 @@ impl Actor {
                 tokio::task::spawn_blocking(move || files::snapshot(&root, &cwd, &source, name.as_deref(), &flag))
                     .await;
             let result = result.map_err(anyhow::Error::from).and_then(std::convert::identity);
-            let _ = tx.send(Completed { epoch, cancelled, reply, result });
+            let _ = tx.send(Completed { epoch, cancelled, reply: Some(reply), image_entry: None, result });
+        });
+    }
+
+    /// ACP sends image content directly, with no tool response that can wait for the disk copy.
+    pub(super) fn begin_image(&mut self, content: &Value) {
+        if self.can_send_file().is_err() {
+            return;
+        }
+        let (Some(mime), Some(data)) = (content["mimeType"].as_str(), content["data"].as_str()) else { return };
+        // Check before cloning the agent's payload onto a blocking worker.
+        const MAX_ENCODED: usize = (20 * 1024 * 1024_usize).div_ceil(3) * 4;
+        if data.len() > MAX_ENCODED || self.files.pending.len() >= 4 {
+            tracing::warn!(bot = %self.cfg.id, "agent image exceeds the size or pending-share limit");
+            return;
+        }
+        // Reserve the message's chronological position before later ACP chunks can arrive. The empty nonfinal
+        // entry is hidden until the verified snapshot is ready, and stays hidden on cancellation or failure.
+        self.close_seg();
+        let Some(entry) = self.add(EntryKind::Agent, self.turn.unwrap_or(0), json!({"text": "", "final": false})) else {
+            return;
+        };
+        let image_entry = entry.id;
+        let cancelled = Arc::new(AtomicBool::new(false));
+        self.files.pending.push(cancelled.clone());
+        self.files.images.push(cancelled.clone());
+        let epoch = self.files.epoch;
+        let root = files::root(&self.cfg.id);
+        let (mime, data) = (mime.to_owned(), data.to_owned());
+        let tx = self.files.tx.clone();
+        tokio::spawn(async move {
+            let flag = cancelled.clone();
+            let result = tokio::task::spawn_blocking(move || files::snapshot_image(&root, &mime, &data, &flag)).await;
+            let result = result.map_err(anyhow::Error::from).and_then(std::convert::identity);
+            let _ = tx.send(Completed { epoch, cancelled, reply: None, image_entry: Some(image_entry), result });
         });
     }
 
@@ -100,25 +141,65 @@ impl Actor {
 
     pub(super) fn finish_file(&mut self, completed: Completed) {
         self.files.pending.retain(|flag| !Arc::ptr_eq(flag, &completed.cancelled));
+        self.files.images.retain(|flag| !Arc::ptr_eq(flag, &completed.cancelled));
         let result = (|| {
             ensure!(
                 completed.epoch == self.files.epoch
                     && !completed.cancelled.load(Ordering::Acquire)
-                    && !completed.reply.is_closed(),
+                    && completed.reply.as_ref().is_none_or(|reply| !reply.is_closed()),
                 "file sharing cancelled"
             );
             let turn = self.can_send_file()?;
             ensure!(self.hub.store.bot(&self.cfg.id)?.is_some_and(|bot| !bot.deleted), "bot was deleted");
             let mut snapshot = completed.result?;
             let text = format!("{} ({} bytes)", snapshot.meta.name, snapshot.meta.size);
-            self.close_seg();
-            self.add(EntryKind::Agent, turn, json!({"text": text, "final": true, "files": [snapshot.meta]}))
-                .ok_or_else(|| anyhow!("couldn't save the file message"))?;
+            if let Some(entry_id) = &completed.image_entry {
+                let mut entry = self.hub.store.entry(entry_id).ok_or_else(|| anyhow!("image message was removed"))?;
+                entry.data["text"] = text.clone().into();
+                entry.data["final"] = true.into();
+                entry.data["files"] = json!([snapshot.meta]);
+                self.hub.set_entry(entry_id, &entry.data).ok_or_else(|| anyhow!("couldn't save the image message"))?;
+            } else {
+                self.close_seg();
+                self.add(EntryKind::Agent, turn, json!({"text": text, "final": true, "files": [snapshot.meta]}))
+                    .ok_or_else(|| anyhow!("couldn't save the file message"))?;
+            }
             snapshot.commit();
             self.files.summary = Some(text);
             self.set_activity("Working…");
             Ok(())
         })();
-        let _ = completed.reply.send(result);
+        if let Some(reply) = completed.reply {
+            let _ = reply.send(result);
+        } else if let Err(error) = result {
+            tracing::warn!(bot = %self.cfg.id, error = %error, "couldn't publish agent image");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancelling_a_turn_invalidates_old_images_without_cancelling_new_ones() {
+        let mut shares = FileShares::default();
+        let old = Arc::new(AtomicBool::new(false));
+        shares.pending.push(old.clone());
+        shares.images.push(old.clone());
+        let old_epoch = shares.epoch;
+        assert!(shares.images_pending());
+        shares.cancel();
+        assert!(old.load(Ordering::Acquire));
+        assert!(!shares.images_pending());
+        assert_ne!(old_epoch, shares.epoch);
+
+        let new = Arc::new(AtomicBool::new(false));
+        shares.pending.push(new.clone());
+        shares.images.push(new.clone());
+        shares.pending.retain(|flag| !Arc::ptr_eq(flag, &old));
+        shares.images.retain(|flag| !Arc::ptr_eq(flag, &old));
+        assert!(shares.images_pending());
+        assert!(!new.load(Ordering::Acquire));
     }
 }

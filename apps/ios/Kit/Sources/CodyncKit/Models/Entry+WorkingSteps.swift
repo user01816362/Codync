@@ -8,7 +8,7 @@ public extension Entry {
     var isWorkingStep: Bool {
         switch kind {
         case "thought": !(data.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case "agent": data.final != true && !Self.isPass(data.text ?? "")
+        case "agent": data.final != true && data.streaming != true && !Self.isPass(data.text ?? "")
         case "tool": data.bookkeeping == false
         case "plan": true
         default: false

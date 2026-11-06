@@ -92,10 +92,24 @@ object MarkdownBlocks {
 
     private fun isTableRule(line: String) = '-' in line && line.all { it in "|-: " }
 
+    // GFM consumes a backslash protecting a table pipe even inside a code span.
     private fun cells(line: String): List<String> {
-        var row = line
-        if (row.startsWith("|")) row = row.drop(1)
-        if (row.endsWith("|")) row = row.dropLast(1)
-        return row.split("|").map(String::trim)
+        val out = mutableListOf<String>()
+        val cell = StringBuilder()
+        var i = if (line.startsWith('|')) 1 else 0
+        var endedWithDelimiter = false
+        while (i < line.length) {
+            val c = line[i]
+            val next = line.getOrNull(i + 1)
+            when {
+                c == '\\' && next == '|' -> { cell.append('|'); i++; endedWithDelimiter = false }
+                c == '\\' && next == '\\' -> { cell.append("\\\\"); i++; endedWithDelimiter = false }
+                c == '|' -> { out += cell.toString().trim(); cell.clear(); endedWithDelimiter = true }
+                else -> { cell.append(c); endedWithDelimiter = false }
+            }
+            i++
+        }
+        if (!endedWithDelimiter || out.isEmpty()) out += cell.toString().trim()
+        return out
     }
 }

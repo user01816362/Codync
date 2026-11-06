@@ -23,6 +23,7 @@ mod compaction;
 mod fallback;
 mod fast_mode;
 mod files;
+mod stream;
 mod launch;
 mod lifecycle;
 mod modes;
@@ -115,6 +116,8 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         queue: VecDeque::new(),
         steers_in_flight: HashMap::new(),
         held_done: None,
+        image_done: None,
+        stream: None,
         active_request: None,
         reply_hops: None,
         reply_collaboration: None,
@@ -296,6 +299,9 @@ struct Actor {
     steers_in_flight: HashMap<String, steer::InFlight>,
     /// How the running turn ended, while the agent still owes an answer to a steer (`turn_ended`).
     held_done: Option<Done>,
+    /// A completed prompt waits briefly for direct ACP image snapshots to finish.
+    image_done: Option<(Done, Instant)>,
+    stream: Option<stream::ActiveStream>,
     active_request: Option<crate::chat::team::BotRequest>,
     /// During a turn that takes bot replies: the hops of their chain (see `chat::team::BotReply`).
     reply_hops: Option<u8>,
@@ -361,6 +367,17 @@ impl Actor {
                 inc => self.on_incoming(Some(inc)).await,
             }
         }
+        if self.files.images_pending()
+            && !self.stop_requested
+            && done.as_ref().is_ok_and(|value| value["stopReason"] != "cancelled")
+        {
+            self.image_done = Some((done, Instant::now() + Duration::from_secs(15)));
+            return;
+        }
+        self.finish_drained_turn(done, done_tx).await;
+    }
+
+    async fn finish_drained_turn(&mut self, done: Done, done_tx: &mpsc::UnboundedSender<Done>) {
         if let Err(error) = &done
             && self.fall_back(error, done_tx).await
         {
@@ -377,8 +394,23 @@ impl Actor {
         self.next_in_queue(done_tx).await;
     }
 
+    async fn finish_pending_images(&mut self, done_tx: &mpsc::UnboundedSender<Done>) {
+        let Some((_, deadline)) = &self.image_done else { return };
+        let expired = Instant::now() >= *deadline;
+        if self.files.images_pending() && !self.stop_requested && !expired {
+            return;
+        }
+        if expired || self.stop_requested {
+            self.files.cancel();
+        }
+        if let Some((done, _)) = self.image_done.take() {
+            self.finish_drained_turn(done, done_tx).await;
+        }
+    }
+
     /// `interrupted`: the previous host process stopped a turn in the bot's chat; resume it first.
     async fn run(mut self, mut rx: mpsc::UnboundedReceiver<Cmd>, interrupted: Option<Lane>) {
+        self.recover_streams();
         let (done_tx, mut done_rx) = mpsc::unbounded_channel::<Done>();
         let mut flush_tick = tokio::time::interval(Duration::from_millis(300));
         if let Some(run) = self.hub.routines.recovery(&self.cfg.id) {
@@ -394,10 +426,14 @@ impl Actor {
                     let Some(cmd) = cmd else { break };
                     if !self.on_cmd(cmd, &done_tx).await { break }
                 }
-                Some(file) = self.files.rx.recv() => self.finish_file(file),
+                Some(file) = self.files.rx.recv() => {
+                    self.finish_file(file);
+                    self.finish_pending_images(&done_tx).await;
+                },
                 inc = recv_incoming(&mut self.conn) => self.on_incoming(inc).await,
                 Some(done) = done_rx.recv() => self.turn_ended(done, &done_tx).await,
                 _ = flush_tick.tick() => {
+                    self.finish_pending_images(&done_tx).await;
                     self.flush(false);
                     self.expire_abandoned().await;
                     if self.routine_completion.is_some() && self.retry_routine_completion() {

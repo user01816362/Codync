@@ -254,6 +254,17 @@ impl App {
                     self.open_file_preview(&e.id, &e.data);
                 }
             }
+            KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.data["attachments"].is_array()) => {
+                if let Some(e) = picked {
+                    self.open_upload_preview(&id, &e.data);
+                }
+            }
+            KeyCode::Char('o') if picked.as_ref().is_some_and(|e| Self::workspace_link(e.text()).is_some()) => {
+                if let Some(e) = picked && let Some(path) = Self::workspace_link(e.text()) {
+                    let bot = e.data["author"].as_str().unwrap_or(&id);
+                    self.open_workspace_preview(bot, path);
+                }
+            }
             KeyCode::Char('o') if picked.as_ref().is_some_and(super::Entry::unfolds) => {
                 if let Some(e) = picked
                     && !self.unfolded.remove(&e.id)

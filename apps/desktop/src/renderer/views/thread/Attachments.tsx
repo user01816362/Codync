@@ -6,6 +6,8 @@ import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStoreRef } from '../../store/context'
 import './attachments.css'
+import { canPreview } from '../../../shared/text-preview'
+import { useFilePreview } from './FilePreview'
 
 /** The symbol for a file by its extension. */
 export function attachmentSymbol(name: string) {
@@ -33,6 +35,7 @@ export function byteCount(bytes: number) {
 /** Files sent with a message: images as pictures (click for full size), other files as cards. */
 export function AttachmentList({ attachments, botId }: { attachments: Attachment[]; botId: string }) {
   const [viewing, setViewing] = useState<Attachment | null>(null)
+  const openPreview = useFilePreview()
   return (
     <VStack align="flex-end" gap={4}>
       {attachments.map((file) =>
@@ -44,7 +47,7 @@ export function AttachmentList({ attachments, botId }: { attachments: Attachment
           <HStack key={file.id} gap={8} className="attachment-file">
             <Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />
             <VStack gap={1} shrink>
-              <Text size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text>
+              {openPreview && canPreview(file) ? <button className="file-preview-name" onClick={() => openPreview({ botId, file })}><Text as="span" size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text></button> : <Text size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text>}
               <Text size="caption2" tone="tertiary">{byteCount(file.size)}</Text>
             </VStack>
           </HStack>

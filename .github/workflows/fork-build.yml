@@ -67,6 +67,9 @@ jobs:
           cargo fmt --all --check
           cargo clippy --workspace --all-targets -- -D warnings
           cargo test --bin codync-host
+          cargo test --test files_e2e -- --test-threads=1
+          cargo test --test e2e explicitly_streamed_message_updates_one_entry_and_finishes -- --test-threads=1
+          cargo test --test e2e unfinished_stream_is_cleared_after_host_restart -- --test-threads=1
 
       - name: Native pieces
         env:

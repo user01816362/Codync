@@ -2,6 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { draftOf, isChat, isReplyable, normalizeBot, quoteOf, type Entry } from './models.ts'
 
+test('explicit streaming is visible but cannot yet be quoted', () => {
+  const entry = { id: 's', botId: 'b', kind: 'agent', rev: 1, turn: 1, createdAt: 0, data: { text: 'Hello', final: false, streaming: true } } as Entry
+  assert.equal(isChat(entry), true)
+  assert.equal(isReplyable(entry), false)
+  entry.data.streaming = false
+  assert.equal(isChat(entry), false)
+})
+
 test('a bot keeps its Fast mode through the settings draft', () => {
   const bot = normalizeBot({ id: 'b', backend: 'codex', fastMode: true })
   assert.equal(bot.fastMode, true)

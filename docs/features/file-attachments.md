@@ -26,7 +26,10 @@ Files travel in both directions: users attach inputs, and bots explicitly share 
   for Resend until the app quits.
 - Chat: images show as pictures (tap for full size), other files as cards. Other devices fetch a
   sent file with `readUpload {botId, uploadId, offset}` (384 KiB chunks) and cache it; the sender
-  caches its own copy at upload.
+  caches its own copy at upload. Text and Markdown attachments up to 1 MiB open in the desktop
+  side panel or a phone sheet; they must be valid UTF-8 without NUL characters. Uploads carry
+  a size but no content digest, unlike bot-shared snapshots. In the terminal, select the message
+  and press `o` to preview its first supported attachment.
 - Desktop opens an image in a large panel that fits the window; a large image shrinks to fit
   below the header without cropping, even when the window is resized, and a small one keeps its
   own size. Sent and bot-shared images use the same viewer.

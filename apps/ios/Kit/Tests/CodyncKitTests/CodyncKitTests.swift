@@ -2,6 +2,14 @@ import Foundation
 import Testing
 @testable import CodyncKit
 
+@Test func explicitStreamIsChatButNotReplyable() throws {
+    let json = #"{"id":"s","seq":1,"botId":"b","rev":1,"turn":1,"kind":"agent","createdAt":0,"updatedAt":0,"data":{"text":"Hello","final":false,"streaming":true}}"#
+    let entry = try JSONDecoder().decode(Entry.self, from: Data(json.utf8))
+    #expect(entry.isChat)
+    #expect(!entry.isWorkingStep)
+    #expect(!entry.isReplyable)
+}
+
 @Test func parsesHostEvents() throws {
     let url = try #require(Bundle.module.url(forResource: "events", withExtension: "txt", subdirectory: "Fixtures"))
     let lines = try String(contentsOf: url, encoding: .utf8).split(separator: "\n")

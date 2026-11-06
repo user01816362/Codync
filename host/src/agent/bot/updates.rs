@@ -46,6 +46,7 @@ impl Actor {
                 } else if method == "session/update"
                     && params["sessionId"].as_str() == self.turn_session.as_deref()
                     && self.turn.is_some()
+                    && self.image_done.is_none()
                 {
                     self.on_update(&params["update"]);
                 }
@@ -73,6 +74,10 @@ impl Actor {
         let turn = self.turn.unwrap_or(0);
         match u["sessionUpdate"].as_str().unwrap_or_default() {
             "agent_message_chunk" => {
+                if u["content"]["type"] == "image" {
+                    self.begin_image(&u["content"]);
+                    return;
+                }
                 let t = acp::content_text(&u["content"]);
                 self.append(SegKind::Text, &t);
                 self.set_activity("Writing a reply…");
@@ -297,6 +302,7 @@ impl Actor {
     /// A `send_message`: the user's next bubble, in the turn's lane, right away. Only in the
     /// bot's own chat; a room, a bot request or a routine reads the turn's reply.
     pub(super) fn send_to_user(&mut self, text: String) -> anyhow::Result<()> {
+        self.settle_stream(false);
         let Some(turn) = self.turn else { return self.send_between_turns(&text) };
         // A background result can't be told from this turn's own send (no session in the call): it may try again later.
         if self.active_request.is_some() {
@@ -329,6 +335,7 @@ impl Actor {
 
     /// `react`: the emoji goes on the user's message this turn answers, or in a room on a message the bot was shown.
     pub(super) fn react(&mut self, emoji: &str, to: Option<&str>) -> anyhow::Result<()> {
+        self.settle_stream(false);
         if self.turn.is_none() {
             anyhow::bail!("no turn is running");
         }

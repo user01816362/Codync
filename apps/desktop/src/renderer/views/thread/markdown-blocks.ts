@@ -11,11 +11,32 @@ export type Block =
   | { kind: 'rule' }
 
 const isTableRule = (line: string) => line.includes('-') && [...line].every((c) => '|-: '.includes(c))
+// GFM consumes a backslash protecting a table pipe even inside a code span.
 const cells = (line: string) => {
-  let row = line
-  if (row.startsWith('|')) row = row.slice(1)
-  if (row.endsWith('|')) row = row.slice(0, -1)
-  return row.split('|').map((c) => c.trim())
+  const out: string[] = []
+  let cell = ''
+  let endedWithDelimiter = false
+  for (let i = line.startsWith('|') ? 1 : 0; i < line.length; i++) {
+    const c = line[i]!
+    if (c === '\\' && line[i + 1] === '|') {
+      cell += '|'
+      i++
+      endedWithDelimiter = false
+    } else if (c === '\\' && line[i + 1] === '\\') {
+      cell += '\\\\'
+      i++
+      endedWithDelimiter = false
+    } else if (c === '|') {
+      out.push(cell.trim())
+      cell = ''
+      endedWithDelimiter = true
+    } else {
+      cell += c
+      endedWithDelimiter = false
+    }
+  }
+  if (!endedWithDelimiter || !out.length) out.push(cell.trim())
+  return out
 }
 
 export function parseMarkdown(source: string): Block[] {

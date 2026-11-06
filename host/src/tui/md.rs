@@ -115,6 +115,37 @@ fn push_cells(line: &mut Vec<Span<'static>>, cells: &[(char, Style)]) {
     }
 }
 
+/// Code must wrap without dropping spaces or truncating source text.
+fn code_lines(code: &str, room: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    let mut cells = 0;
+    for c in code.chars() {
+        let w = c.width().unwrap_or(0);
+        if cells + w > room && !line.is_empty() {
+            lines.push(std::mem::take(&mut line));
+            cells = 0;
+        }
+        line.push(c);
+        cells += w;
+    }
+    lines.push(line);
+    lines
+}
+
+fn link_label(chars: &[char]) -> String {
+    let mut label = String::new();
+    let mut iter = chars.iter().copied().peekable();
+    while let Some(c) = iter.next() {
+        if c == '\\' && iter.peek().is_some_and(char::is_ascii_punctuation) {
+            label.push(iter.next().unwrap_or(c));
+        } else {
+            label.push(c);
+        }
+    }
+    label
+}
+
 /// Inline Markdown: `code`, **bold**, *italic* / _italic_, [text](url).
 pub fn inline(text: &str, base: Style) -> Vec<Span<'static>> {
     let t = theme();
@@ -140,6 +171,11 @@ pub fn inline(text: &str, base: Style) -> Vec<Span<'static>> {
     };
     while i < chars.len() {
         let c = chars[i];
+        if c == '\\' && chars.get(i + 1).is_some_and(char::is_ascii_punctuation) {
+            run.push(chars[i + 1]);
+            i += 2;
+            continue;
+        }
         if c == '`'
             && let Some(len) = chars[i + 1..].iter().position(|&x| x == '`')
         {
@@ -166,12 +202,14 @@ pub fn inline(text: &str, base: Style) -> Vec<Span<'static>> {
             continue;
         }
         if c == '['
-            && let Some(close) = chars[i..].iter().position(|&x| x == ']').map(|p| p + i)
+            && let Some(close) = (i + 1..chars.len()).find(|&j| {
+                chars[j] == ']' && chars[i + 1..j].iter().rev().take_while(|&&c| c == '\\').count() % 2 == 0
+            })
             && chars.get(close + 1) == Some(&'(')
             && let Some(end) = chars[close..].iter().position(|&x| x == ')').map(|p| p + close)
         {
             flush(&mut run, &mut out, style(bold, italic));
-            let label: String = chars[i + 1..close].iter().collect();
+            let label = link_label(&chars[i + 1..close]);
             out.push(Span::styled(label, style(bold, italic).add_modifier(Modifier::UNDERLINED)));
             i = end + 1;
             continue;
@@ -210,12 +248,13 @@ pub fn render(text: &str, width: usize, indent: usize) -> Vec<Line<'static>> {
             let spaces = raw.bytes().take_while(|b| *b == b' ' || *b == b'\t').count();
             let code = raw[spaces.min(fence_indent)..].replace('\t', "    ");
             let room = width.saturating_sub(indent + 2).max(1);
-            let body = if self::width(&code) > room { truncate(&code, room) } else { code };
-            let fill = room.saturating_sub(self::width(&body));
-            out.push(Line::from(vec![
-                pad.clone(),
-                Span::styled(format!(" {body}{} ", " ".repeat(fill)), t.code_block),
-            ]));
+            for body in code_lines(&code, room) {
+                let fill = room.saturating_sub(self::width(&body));
+                out.push(Line::from(vec![
+                    pad.clone(),
+                    Span::styled(format!(" {body}{} ", " ".repeat(fill)), t.code_block),
+                ]));
+            }
             continue;
         }
         if trimmed.is_empty() {
@@ -297,6 +336,14 @@ mod tests {
     }
 
     #[test]
+    fn inline_escaped_punctuation_stays_literal() {
+        let spans = inline(r"a \* b \[x\] \\ c", Style::default());
+        assert_eq!(spans.iter().map(|s| s.content.as_ref()).collect::<String>(), "a * b [x] \\ c");
+        let spans = inline(r"[A \[source\]](https://example.com)", Style::default());
+        assert_eq!(spans.iter().map(|s| s.content.as_ref()).collect::<String>(), "A [source]");
+    }
+
+    #[test]
     fn fenced_code_preserves_nested_fences_and_indentation() {
         let lines = render("    ````md\n    ```js\n    x\n    ```\n    ````\nafter", 30, 0);
         let content = text(&lines);
@@ -307,6 +354,14 @@ mod tests {
         let tilde = text(&render("~~~python\nx\n```\n~~~", 30, 0));
         assert_eq!(tilde.len(), 2);
         assert_eq!(tilde[1].trim(), "```");
+    }
+
+    #[test]
+    fn long_code_wraps_without_losing_source_or_indentation() {
+        assert_eq!(code_lines("  let x = 123456;", 5).concat(), "  let x = 123456;");
+        assert_eq!(code_lines("你好a", 2), ["你", "好", "a"]);
+        let lines = text(&render("```\nabcdefgh\n```", 6, 0));
+        assert_eq!(lines, [" abcd ", " efgh "]);
     }
 
     #[test]

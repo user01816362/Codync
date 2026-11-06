@@ -310,6 +310,7 @@ export interface EntryData {
   retry?: boolean
   text?: string
   final?: boolean
+  streaming?: boolean
   /** user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired */
   status?: string
   /** user: taken back from the queue before it went out (`unqueue`); no view reads it (`withoutRemoved`). */
@@ -397,7 +398,7 @@ export function isChat(e: Entry): boolean {
       // conversation going, and a kept handoff changed nothing.
       return !e.data.memory && !e.data.memoryFile && !e.data.compaction && e.data.handoff?.status !== 'kept'
     case 'agent':
-      return e.data.final === true
+      return e.data.final === true || e.data.streaming === true
     default:
       return false
   }

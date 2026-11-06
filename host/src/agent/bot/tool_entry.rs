@@ -78,9 +78,11 @@ fn calls(title: &str, renamed: &Renamed, server: &str, tool: &str) -> bool {
         || codex.starts_with(&format!("{name}.{tool}"))
 }
 
-/// Composing the bot's message: the `chat` MCP server's `send_message`.
+/// Composing the bot's message or structured report through the `chat` MCP server.
 fn sends_message(title: &str, renamed: &Renamed) -> bool {
     calls(title, renamed, "chat", "send_message")
+        || calls(title, renamed, "chat", "send_report")
+        || calls(title, renamed, "chat", "stream_message")
 }
 
 /// Keeping the bot's memory: a call of the `memory` MCP server, or one that names a file in a memory folder the
@@ -145,6 +147,8 @@ mod tests {
         let note = files::folder(Some("b")).join("trip.md").display().to_string();
         for data in [
             json!({"title": "mcp__chat__send_message"}),
+            json!({"title": "mcp__chat__send_report"}),
+            json!({"title": "mcp.chat.send_report"}),
             json!({"title": "chat.send_message"}),
             json!({"title": "mcp__memory__edit_memory"}),
             json!({"title": "memory.search_memory"}),

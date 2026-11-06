@@ -37,14 +37,16 @@ import kotlinx.coroutines.withContext
 /** Files sent with a message, on the sender's side (iOS `AttachmentList`): images as pictures (tap for full size), other files as cards. */
 @Composable internal fun AttachmentList(attachments: List<Attachment>, botId: String, state: AppState, store: AppStore) {
     var viewing by remember { mutableStateOf<Attachment?>(null) }
+    var viewingText by remember { mutableStateOf<Attachment?>(null) }
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (file in attachments) {
             if (file.isImage) AttachmentImage(file, botId, 720, state, store, Modifier.sizeIn(maxWidth = 220.dp, maxHeight = 280.dp)
                 .clip(RoundedRectangle(16.dp)).plainButton { viewing = file }.semantics { contentDescription = file.name })
-            else AttachmentCard(file)
+            else AttachmentCard(file, if (file.showsAsText) Modifier.plainButton { viewingText = file } else Modifier)
         }
     }
     AttachmentImageSheet(viewing, botId, state, store) { viewing = null }
+    CodyncSheet(viewingText, { viewingText = null }) { file -> AttachmentTextPreview(file, botId, store) }
 }
 
 /** A sent image full size, in a sheet while `file` is set. */
@@ -67,8 +69,8 @@ import kotlinx.coroutines.withContext
     }
 }
 
-@Composable private fun AttachmentCard(file: Attachment) {
-    Row(Modifier.clip(RoundedRectangle(16.dp)).background(Palette.bubbleUser).semantics(mergeDescendants = true) { }
+@Composable private fun AttachmentCard(file: Attachment, modifier: Modifier = Modifier) {
+    Row(modifier.clip(RoundedRectangle(16.dp)).background(Palette.bubbleUser).semantics(mergeDescendants = true) { }
         .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Symbol(AttachmentIcon.symbol(file.name), size = 19.dp, tint = Palette.secondary)
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {

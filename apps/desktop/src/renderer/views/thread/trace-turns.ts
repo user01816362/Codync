@@ -25,7 +25,7 @@ function isWorkingStep(e: Entry): boolean {
     case 'thought':
       return !!e.data.text?.trim()
     case 'agent':
-      return !e.data.final && !isPass(e.data.text)
+      return !e.data.final && !e.data.streaming && !isPass(e.data.text)
     case 'tool':
       return e.data.bookkeeping === false
     case 'plan':

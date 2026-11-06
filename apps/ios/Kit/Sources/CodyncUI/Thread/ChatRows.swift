@@ -237,6 +237,7 @@ struct AgentBubble: View {
     var reply: (() -> Void)?
     var openArtifact: ((ArtifactRef) -> Void)?
     @Environment(BotStore.self) private var model
+    @State private var workspace: WorkspacePreviewTarget?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -247,6 +248,14 @@ struct AgentBubble: View {
                     ForEach(files) { file in FileDownloadCard(entry: entry, file: file) }
                 } else {
                     MarkdownText(entry.data.text ?? "").equatable()
+                        .environment(\.openURL, OpenURLAction { url in
+                            if let path = workspaceLink(url) {
+                                workspace = WorkspacePreviewTarget(path: path)
+                                return .handled
+                            }
+                            if ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") { return .systemAction }
+                            return .discarded
+                        })
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -263,6 +272,7 @@ struct AgentBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.trailing, 40)
+        .codyncSheet(item: $workspace) { target in WorkspaceTextPreview(botId: entry.data.author ?? entry.botId, path: target.path) }
     }
 }
 

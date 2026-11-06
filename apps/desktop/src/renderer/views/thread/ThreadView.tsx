@@ -16,7 +16,8 @@ import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
 import type { VersionPick } from './message-versions'
 import { BotConversationView, BotMessageRow } from './BotConversation'
 import { SidechatIndicator, SidechatView } from './Sidechat'
-import { FilePreview, PreviewContext, type PreviewFile } from './FilePreview'
+import { FilePreview, PreviewContext, previewKey, type PreviewFile } from './FilePreview'
+import { WorkspacePreviewContext } from './WorkspacePreviewContext'
 import { CallConversationView, CallLineRow } from '../call/CallRows'
 import { hidingCalls } from '@shared/calls'
 import { ChatRow, TimeSeparator } from './ChatRows'
@@ -193,6 +194,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   )
 
   return (
+    <WorkspacePreviewContext.Provider value={(path) => openFilePreview({ botId, path })}>
     <PreviewContext.Provider value={openFilePreview}>
     <div className="thread-view" ref={root}>
       <div className="conversation">
@@ -256,11 +258,11 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
         max={width.current - 380}
         onResize={(w) => setDetailsWidth(panelWidth(w))}
       >
-        {preview ? <FilePreview key={preview.file.id} preview={preview} close={() => setPreview(null)} /> : showSidechat ? <SidechatView botId={botId} close={() => setShowSidechat(false)} /> : details}
+        {preview ? <FilePreview key={previewKey(preview)} preview={preview} close={() => setPreview(null)} /> : showSidechat ? <SidechatView botId={botId} close={() => setShowSidechat(false)} /> : details}
       </ChatSidePanel>
 
       <Sheet open={!wide && preview !== null} onClose={() => setPreview(null)} width={620} height={560}>
-        {preview ? <FilePreview key={preview.file.id} preview={preview} close={() => setPreview(null)} /> : null}
+        {preview ? <FilePreview key={previewKey(preview)} preview={preview} close={() => setPreview(null)} /> : null}
       </Sheet>
       <Sheet open={!wide && showSidechat} onClose={() => setShowSidechat(false)} width={620} height={560}>
         <SidechatView botId={botId} close={() => setShowSidechat(false)} />
@@ -288,6 +290,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
       </FormSheet>
     </div>
     </PreviewContext.Provider>
+    </WorkspacePreviewContext.Provider>
   )
 })
 

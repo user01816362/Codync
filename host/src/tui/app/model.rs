@@ -179,7 +179,7 @@ impl Entry {
     pub fn is_working_step(&self) -> bool {
         match self.kind {
             Kind::Thought => !self.text().trim().is_empty(),
-            Kind::Agent => !self.is_final() && !crate::chat::group::is_pass(self.text()),
+            Kind::Agent => !self.is_final() && self.data["streaming"] != true && !crate::chat::group::is_pass(self.text()),
             Kind::Tool => self.data["bookkeeping"] == false,
             Kind::Plan => true,
             _ => false,
@@ -220,7 +220,7 @@ impl Entry {
 
     /// What the chat shows as a message: the user's, and each turn's final reply.
     pub fn is_message(&self) -> bool {
-        self.kind == Kind::User || self.is_final() || self.data["connectionRequest"].is_object()
+        self.kind == Kind::User || self.is_final() || (self.kind == Kind::Agent && self.data["streaming"] == true) || self.data["connectionRequest"].is_object()
     }
 
     /// An artifact card's artifact id (`docs/features/artifacts.md`): `o` opens it, `f` saves it.

@@ -10,4 +10,5 @@ test('previews bounded text files, not images, extensionless names or oversized 
   assert.equal(canPreview(file('photo.png')), false)
   assert.equal(canPreview(file('big.txt', 1024 * 1024 + 1)), false)
   assert.equal(canPreview(file('bad.txt', -1)), false)
+  assert.equal(canPreview({ id: 'upload', name: 'notes.md', size: 12 }), true)
 })

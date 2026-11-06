@@ -13,6 +13,7 @@ mod marketplace;
 mod network;
 mod reach;
 mod remote;
+mod workspace_preview;
 
 pub use events::{events_stream, term_events};
 pub use http::{public_router, router};
@@ -97,6 +98,9 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     }
     if method == "readFile" {
         return files::read(hub, &b).await;
+    }
+    if method == "previewWorkspaceFile" {
+        return workspace_preview::read(hub, &b).await;
     }
     // Each method group answers its own methods and hands the body back otherwise.
     let b = match host::call(hub, caller, method, b).await? {

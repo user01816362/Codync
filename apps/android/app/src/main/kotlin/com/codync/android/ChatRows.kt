@@ -307,6 +307,7 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     val focus = LocalFocusManager.current
     val files = entry.files
     val artifact = entry.artifact
+    var workspacePath by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxWidth().padding(end = 40.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         // An artifact card or a message with files is that: the text is only the computer's fallback.
         if (artifact != null) ArtifactCardView(artifact, entry.botId, state, store, Modifier.contextActions(reactions = reactionPick(entry, store),
@@ -317,7 +318,10 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
         } else if (entry.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
             .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { AgentText(entry.text, selectable = true) }) {
                 messageMenu(context, entry, reply, null, openTrace)
-            }) { AgentText(entry.text, selectable = false) }
+            }) { AgentText(entry.text, selectable = false) { workspacePath = it } }
+    }
+    CodyncSheet(workspacePath, { workspacePath = null }) { path ->
+        WorkspaceTextPreview(entry.data["author"]?.jsonPrimitive?.contentOrNull ?: entry.botId, path, store)
     }
 }
 
@@ -325,8 +329,8 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
  * A reply. Holding it opens its menu over a lifted copy, as on iOS, so only that copy is `selectable`:
  * text selection takes the same long press.
  */
-@Composable private fun AgentText(text: String, selectable: Boolean) {
-    Box(Modifier.background(Palette.bubbleAgent).padding(horizontal = 16.dp, vertical = 10.dp)) { MarkdownText(text, selectable) }
+@Composable private fun AgentText(text: String, selectable: Boolean, openFile: ((String) -> Unit)? = null) {
+    Box(Modifier.background(Palette.bubbleAgent).padding(horizontal = 16.dp, vertical = 10.dp)) { MarkdownText(text, selectable, openFile = openFile) }
 }
 
 /** A message's reactions: the user's (tapping one takes it back), then the bots', each emoji with the avatars of the

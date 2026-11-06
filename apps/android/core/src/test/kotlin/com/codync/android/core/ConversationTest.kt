@@ -87,6 +87,14 @@ class ConversationTest {
         assertFalse(Entry("n", 1, "b", rev = 1, kind = "notice", data = buildJsonObject { put("status", "queued") }).isQueued)
     }
 
+    @Test fun `an explicitly streamed message is visible but not replyable`() {
+        val data = buildJsonObject { put("text", "Hello"); put("final", false); put("streaming", true) }
+        val entry = Entry("s", 1, "b", rev = 1, kind = "agent", data = data)
+        assertTrue(entry.isChat)
+        assertFalse(entry.isWorkingStep)
+        assertFalse(entry.isReplyable)
+    }
+
     @Test fun `malformed known events fail before a checkpoint while unknown events are ignored`() {
         assertFails<IllegalArgumentException> { MirrorEvent.decode(buildJsonObject { put("type", "entry"); put("entry", buildJsonObject { put("id", "broken") }) }) }
         assertEquals(MirrorEvent.Ignored, MirrorEvent.decode(buildJsonObject { put("type", "future"); put("rev", 999) }))

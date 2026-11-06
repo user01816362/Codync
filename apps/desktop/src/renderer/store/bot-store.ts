@@ -160,13 +160,20 @@ export class BotStore extends BotSync {
   }
 
   /** A sent file's bytes: cached after the first fetch (sent files never change). */
-  attachmentData(fileId: string, botId: string): Promise<Uint8Array | null> {
-    return this.cachedFile(fileId, (client) => client.readUpload(botId, fileId))
+  attachmentData(fileId: string, botId: string, expectedSize?: number): Promise<Uint8Array | null> {
+    return this.cachedFile(fileId, (client) => client.readUpload(botId, fileId, expectedSize))
   }
 
   /** A file a bot shared, read whole and checked: cached after the first fetch (shared files never change). */
   sharedFileData(file: SharedFile, entryId: string): Promise<Uint8Array | null> {
     return this.cachedFile(file.id, (client) => readSharedFile(file, (offset) => client.readFile(entryId, file.id, offset)))
+  }
+
+  /** A live workspace file, requested only when the user opens its path. */
+  previewWorkspaceFile(botId: string, path: string): Promise<{ name: string; text: string }> {
+    const client = this.live
+    if (!client) return Promise.reject(new Error('Computer is offline'))
+    return client.call('previewWorkspaceFile', { botId, path })
   }
 
   private async cachedFile(id: string, fetch: (client: HostClient) => Promise<Uint8Array>): Promise<Uint8Array | null> {

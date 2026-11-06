@@ -21,6 +21,7 @@ pub mod profile;
 pub mod prompt;
 pub mod reactions;
 pub mod replies;
+mod rich_report;
 pub mod skills;
 pub mod team;
 pub mod uploads;

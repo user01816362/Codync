@@ -14,7 +14,13 @@ it has no pointer tooltip or link-opening action.
 
 Fenced code blocks show their language and a copy action in the graphical clients. The copied content excludes the fences and their opening indentation. Backtick and tilde fences support longer enclosing fences, including unfinished blocks. The terminal renders the same fences and copies the selected message using its existing action.
 
-## Messages are sent, not streamed
+## Structured reports
+
+The chat MCP tool `send_report` accepts a version 1 report with text, comparison, timeline and data sections, plus an optional list of sources and explicit one-based source references per section. The host validates size, kinds, source indexes and HTTP(S) URLs, escapes content as plain text, and sends one regular Markdown message. Existing clients and saved history therefore show the report without a new client protocol. Source titles and addresses are supplied by the agent; Codync does not independently verify their claims or fetch the sources. The sections render as text and lists, not interactive charts, forms or a native component registry.
+
+## Messages and explicit streaming
+
+Agents can explicitly stream a user-facing message with the `stream_message` tool: `start` with text, sequential `append` calls, then `finish` or `cancel`. The host bounds the total text to 32 KiB and 512 chunks. Updated clients display the changing message; older clients see it once complete. A cancelled or stopped draft is removed from the chat but stays in the trace, and stale drafts from a host restart are cleared from live chat. The agent's ordinary ACP narration is still trace-only; it is not assumed to be a final answer. `send_message` replaces an open draft rather than leaving a duplicate.
 
 - Every bot gets the built-in `chat` MCP server (`codync-host mcp chat`,
   `host/src/chat/outbox.rs`) with `send_message {text}` and `send_file {path, name?}`. In the bot's own chat, each call is one chat bubble, added to the turn's lane at once as an `agent` entry with
@@ -51,8 +57,7 @@ Fenced code blocks show their language and a copy action in the graphical client
   "Message from Egan". Its text lives only in the bot conversation sheet it opens; follow-ups
   are normal bubbles. Consecutive exchanges with the same peer in the main chat (either
   direction, trace entries ignored) collapse into one "3 messages with Owen" row ([bot collaboration](bot-collaboration.md#notice-data)).
-- Clients never stream text into a bubble: the chat shows user messages, `final` agent entries,
-  permission cards and notices (`isChat`). Nothing pops in and out while a turn runs.
+- The chat shows user messages, final agent entries, explicitly streamed agent entries, permission cards and notices (`isChat`). Other agent narration stays in the trace.
 
 ## Bot reactions
 

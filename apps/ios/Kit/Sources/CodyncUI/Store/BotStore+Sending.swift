@@ -248,10 +248,12 @@ extension BotStore {
     }
 
     /// A sent file's bytes: on disk after the first fetch (sent files never change).
-    public func attachmentData(_ file: Attachment, bot botId: String) async -> Data? {
+    public func attachmentData(_ file: Attachment, bot botId: String, bounded: Bool = false) async -> Data? {
         guard let url = Self.attachmentCache(file.id) else { return nil }
-        if let data = try? Data(contentsOf: url) { return data }
-        guard let client = live, let data = try? await client.readUpload(botId: botId, id: file.id) else { return nil }
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+           (!bounded || (attributes[.size] as? NSNumber)?.int64Value == file.size),
+           let data = try? Data(contentsOf: url) { return data }
+        guard let client = live, let data = try? await client.readUpload(botId: botId, id: file.id, expectedSize: bounded ? file.size : nil) else { return nil }
         Self.cacheAttachment(file.id, data)
         return data
     }

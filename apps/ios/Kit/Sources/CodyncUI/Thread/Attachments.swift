@@ -94,6 +94,7 @@ struct AttachmentList: View {
     let attachments: [Attachment]
     let botId: String
     @State private var viewing: Attachment?
+    @State private var textFile: Attachment?
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -107,11 +108,14 @@ struct AttachmentList: View {
                         .accessibilityLabel(file.name)
                         .accessibilityAddTraits(.isButton)
                 } else {
-                    card(file)
+                    if SharedFile.canPreview(name: file.name, size: file.size) {
+                        Button { Motion.animate { textFile = file } } label: { card(file) }.buttonStyle(.plain)
+                    } else { card(file) }
                 }
             }
         }
         .codyncSheet(item: $viewing) { AttachmentViewer(file: $0, botId: botId) }
+        .codyncSheet(item: $textFile) { SharedTextPreview(attachment: $0, botId: botId) }
     }
 
     private func card(_ file: Attachment) -> some View {

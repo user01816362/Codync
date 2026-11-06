@@ -42,7 +42,7 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
         switch kind {
         case "user", "permission": true
         case "notice": data.memory == nil && data.memoryFile == nil && data.compaction == nil && data.handoff?.status != "kept"
-        case "agent": data.final == true
+        case "agent": data.final == true || data.streaming == true
         default: false
         }
     }

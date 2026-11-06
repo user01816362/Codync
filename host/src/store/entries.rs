@@ -110,6 +110,15 @@ impl Store {
         logged("entry", row.optional()).flatten()
     }
 
+    /// Streams left open by a previous host process, so they can be removed from live chat on restart.
+    pub fn unfinished_streams(&self, bot_id: &str) -> Result<Vec<Entry>> {
+        let c = self.db.locked();
+        let mut st = c.prepare(&format!(
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = 'agent' AND json_extract(data, '$.streaming') = 1"
+        ))?;
+        Ok(st.query_map([bot_id], row_entry)?.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn find_by_nonce(&self, bot_id: &str, nonce: &str) -> Option<Entry> {
         let c = self.db.locked();
         let row = c.query_row(

@@ -42,7 +42,7 @@ fn turn_info(entries: &[&Entry]) -> HashMap<i64, TurnInfo> {
                     }
                 }
             }
-            Kind::Agent if e.is_final() => ti.last_message = Some(e.id.clone()),
+            Kind::Agent if e.is_message() => ti.last_message = Some(e.id.clone()),
             _ => {}
         }
     }
@@ -180,7 +180,7 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
             reactions(out, app, e);
             out.messages.push((e.id.clone(), from, out.lines.len()));
         }
-        Kind::Agent if e.is_final() => {
+        Kind::Agent if e.is_message() => {
             gap(out);
             let from = out.lines.len();
             let (name, color) = match author {

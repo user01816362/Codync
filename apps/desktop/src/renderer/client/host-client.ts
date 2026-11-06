@@ -234,12 +234,14 @@ export class HostClient {
     } while (offset < data.length)
   }
 
-  async readUpload(botId: string, uploadId: string) {
+  async readUpload(botId: string, uploadId: string, expectedSize?: number) {
     const parts: Uint8Array[] = []
     let size = 0
     for (;;) {
       const res = await this.call<{ data: string; size: number }>('readUpload', { botId, uploadId, offset: size }, 60_000)
+      if (expectedSize !== undefined && res.size !== expectedSize) throw new Error('File size changed')
       const chunk = fromBase64(res.data)
+      if (expectedSize !== undefined && (size + chunk.length > expectedSize || (!chunk.length && size !== expectedSize))) throw new Error('Invalid file chunk')
       if (!chunk.length) break
       parts.push(chunk)
       size += chunk.length

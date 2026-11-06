@@ -94,4 +94,6 @@ private func metadata(_ data: Data, name: String = "file.bin") -> SharedFile {
     #expect(!file("md", 5).showsAsText)
     #expect(!file("photo.png", 5).showsAsText)
     #expect(!file("big.txt", 1024 * 1024 + 1).showsAsText)
+    #expect(SharedFile.canPreview(name: "notes.md", size: 12))
+    #expect(!SharedFile.canPreview(name: "notes.md", size: 1024 * 1024 + 1))
 }

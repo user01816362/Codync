@@ -16,6 +16,8 @@ import { QUICK_REACTIONS, type BotStore } from '../../store/bot-store'
 import { AttachmentList } from './Attachments'
 import { callLength, relativeTime } from './chat-items'
 import { MarkdownText } from './Markdown'
+import { WorkspacePreviewContext } from './WorkspacePreviewContext'
+import { useFilePreview } from './FilePreview'
 import { PermissionCard } from './PermissionCard'
 import { ConnectionRequestCard } from '../marketplace/ConnectionRequestCard'
 import { AgentSwitchNotice, HandoffNotice } from './HandoffNotice'
@@ -200,6 +202,7 @@ function UserStatus({ entry, hovering }: { entry: Entry; hovering: boolean }) {
 
 export function AgentBubble({ entry, openTrace, reply, openArtifact }: { entry: Entry; openTrace: () => void; reply?: () => void; openArtifact?: (artifactId: string) => void }) {
   const store = useStore()
+  const openPreview = useFilePreview()
   const [hovering, setHovering] = useState(false)
   const copy = () => entry.data.text && window.codync.app.copy(entry.data.text)
   return (
@@ -219,7 +222,9 @@ export function AgentBubble({ entry, openTrace, reply, openArtifact }: { entry: 
           ) : entry.data.files?.length ? (
             <div className="file-message-cards">{entry.data.files.map((file) => <FileDownloadCard key={file.id} entry={entry} file={file} />)}</div>
           ) : (
-            <MarkdownText text={entry.data.text ?? ''} />
+            <WorkspacePreviewContext.Provider value={openPreview ? (path) => openPreview({ botId: entry.data.author ?? entry.botId, path }) : null}>
+              <MarkdownText text={entry.data.text ?? ''} />
+            </WorkspacePreviewContext.Provider>
           )}
         </Bubble>
         <MessageActions className="trailing" visible={hovering} reactions={reactionPick(store, entry)} reply={reply} trace={openTrace} copy={copy} />

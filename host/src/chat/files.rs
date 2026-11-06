@@ -1,6 +1,7 @@
 //! Immutable snapshots explicitly published by a bot, independent of its workspace.
 use crate::chat::uploads::MAX_FILE;
 use anyhow::{Context as _, Result, ensure};
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::fs::{File, OpenOptions};
@@ -116,6 +117,50 @@ pub fn snapshot(
     ensure!(!cancelled.load(Ordering::Acquire), "file sharing cancelled");
     std::fs::rename(&partial, &final_path)?;
     owned.path = final_path;
+    owned.meta.sha256 = digest;
+    Ok(owned)
+}
+
+/// Persist an ACP image as an ordinary immutable shared file. Run on a blocking worker.
+/// Only formats the clients can identify by extension are accepted; never fetch the optional URI.
+pub fn snapshot_image(root: &Path, mime: &str, encoded: &str, cancelled: &AtomicBool) -> Result<Snapshot> {
+    const LIMIT: usize = 20 * 1024 * 1024;
+    let extension = match mime {
+        "image/png" => "png",
+        "image/jpeg" => "jpg",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        _ => anyhow::bail!("unsupported image type"),
+    };
+    ensure!(!cancelled.load(Ordering::Acquire), "file sharing cancelled");
+    ensure!(encoded.len() <= LIMIT.div_ceil(3) * 4, "image exceeds 20 MiB");
+    let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).context("invalid image data")?;
+    ensure!(!bytes.is_empty() && bytes.len() <= LIMIT, "invalid image size");
+    let valid = match extension {
+        "png" => bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
+        "jpg" => bytes.starts_with(b"\xff\xd8\xff"),
+        "gif" => bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a"),
+        "webp" => bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP"),
+        _ => false,
+    };
+    ensure!(valid, "image data does not match its type");
+    std::fs::create_dir_all(root).context("creating the shared file folder")?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let final_path = path(root, &id)?;
+    let partial = final_path.with_extension("partial");
+    let mut owned = Snapshot {
+        meta: SharedFile { id, name: format!("Image.{extension}"), size: 0, sha256: String::new() },
+        path: partial.clone(),
+        committed: false,
+    };
+    let mut output = OpenOptions::new().write(true).create_new(true).open(&partial)?;
+    let (size, digest) = copy(&mut std::io::Cursor::new(bytes), &mut output, cancelled)?;
+    output.sync_all()?;
+    drop(output);
+    ensure!(!cancelled.load(Ordering::Acquire), "file sharing cancelled");
+    std::fs::rename(&partial, &final_path)?;
+    owned.path = final_path;
+    owned.meta.size = size;
     owned.meta.sha256 = digest;
     Ok(owned)
 }

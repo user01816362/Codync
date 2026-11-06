@@ -17,14 +17,14 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 
 ## 2.39.1
 ### zh-Hant
-- 開啟 bot 分享的 Markdown 和程式碼檔案，直接在對話中預覽。
+- 開啟 bot 分享或你傳送的 Markdown 和程式碼檔案，直接在對話中預覽。
 - 程式碼區塊現在可以直接複製，並顯示程式語言。
 - 開啟協作活動，查看 bot 之間的請求、回覆和進度。
 - 現在會在你從這支 iPhone 送出第五則訊息後，邀請你到 App Store 評分，一年最多兩次。
 - 推理強度滑桿新增漸層點陣，讓不同強度更容易辨識。
 
 ### en-US
-- Preview Markdown and code files shared by bots in your conversation.
+- Preview Markdown and code files shared by bots or sent by you in your conversation.
 - Copy code blocks directly and see their language.
 - Open collaboration activity to see requests, replies and progress between bots.
 - Codync now invites you to rate it on the App Store after your fifth message from this iPhone, at most twice a year.

@@ -48,6 +48,29 @@ impl Drop for Partial {
 }
 
 impl Client {
+    /// Open a user-selected workspace path without executing its contents.
+    pub fn preview_workspace(&self, bot: String, path: String, id: String, tx: UnboundedSender<Msg>) {
+        let client = self.clone();
+        tokio::spawn(async move {
+            let result = async {
+                let response = client.call("previewWorkspaceFile", &json!({"botId": bot, "path": path}))
+                    .await.map_err(|e| anyhow!(e))?;
+                let text = response["text"].as_str().ok_or_else(|| anyhow!("invalid preview"))?;
+                ensure!(text.len() <= 1024 * 1024, "file is too large");
+                Ok(text.chars().filter(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t')).collect())
+            }.await.map_err(|error: anyhow::Error| format!("{error:#}"));
+            let _ = tx.send(Msg::FilePreview { id, result });
+        });
+    }
+
+    /// Fetch a bounded user-uploaded file without exposing terminal control sequences.
+    pub fn preview_upload(&self, bot: String, upload: String, size: u64, id: String, tx: UnboundedSender<Msg>) {
+        let client = self.clone();
+        tokio::spawn(async move {
+            let result = preview_upload(&client, &bot, &upload, size).await.map_err(|error| format!("{error:#}"));
+            let _ = tx.send(Msg::FilePreview { id, result });
+        });
+    }
     /// Fetches a small snapshot for a read-only viewer, checking every chunk and its digest.
     pub fn preview_file(&self, entry: String, file: SharedFile, id: String, tx: UnboundedSender<Msg>) {
         let client = self.clone();
@@ -64,6 +87,23 @@ impl Client {
             Ok(format!("Saved {}", path.display()))
         })
     }
+}
+
+async fn preview_upload(client: &Client, bot: &str, upload: &str, size: u64) -> Result<String> {
+    ensure!(size <= 1024 * 1024, "file is too large");
+    let mut bytes = Vec::with_capacity(usize::try_from(size)?);
+    let mut offset = 0;
+    loop {
+        let response = client.call("readUpload", &json!({"botId": bot, "uploadId": upload, "offset": offset}))
+            .await.map_err(|e| anyhow!(e))?;
+        ensure!(response["size"].as_u64() == Some(size), "file size changed");
+        let chunk = decode_chunk(&response, size, offset)?;
+        offset += chunk.len() as u64;
+        bytes.extend_from_slice(&chunk);
+        if offset == size { break; }
+    }
+    ensure!(!bytes.contains(&0), "file is not text");
+    Ok(String::from_utf8(bytes)?.chars().filter(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t')).collect())
 }
 
 async fn preview(client: &Client, entry: &str, file: &SharedFile) -> Result<String> {
@@ -129,6 +169,7 @@ async fn save(client: &Client, entry: &str, meta: &SharedFile, id: &str, tx: &Un
 
 /// One `readFile` or `readArtifact` chunk of a `size`-byte file: exactly the bytes from `offset` on.
 pub(super) fn decode_chunk(response: &Value, size: u64, offset: u64) -> Result<Vec<u8>> {
+    ensure!(offset <= size, "invalid file offset");
     let encoded = response["data"].as_str().ok_or_else(|| anyhow!("invalid chunk"))?;
     ensure!(encoded.len() <= CHUNK_SIZE / 3 * 4, "chunk too large");
     let data = base64::engine::general_purpose::STANDARD.decode(encoded)?;
@@ -137,6 +178,20 @@ pub(super) fn decode_chunk(response: &Value, size: u64, offset: u64) -> Result<V
         "download truncated or changed; press f to retry"
     );
     Ok(data)
+}
+
+#[cfg(test)]
+mod preview_chunk_tests {
+    use super::*;
+
+    #[test]
+    fn empty_and_malformed_chunks_are_checked() {
+        assert_eq!(decode_chunk(&json!({"data": ""}), 0, 0).unwrap(), Vec::<u8>::new());
+        assert!(decode_chunk(&json!({"data": ""}), 1, 0).is_err());
+        assert!(decode_chunk(&json!({"data": "not base64"}), 1, 0).is_err());
+        assert!(decode_chunk(&json!({"data": "YWI="}), 1, 0).is_err());
+        assert!(decode_chunk(&json!({"data": ""}), 0, 1).is_err());
+    }
 }
 
 pub(super) fn downloads() -> Result<PathBuf> {

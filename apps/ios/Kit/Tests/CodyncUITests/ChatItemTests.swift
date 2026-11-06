@@ -169,3 +169,12 @@ import Testing
     #expect(MarkdownBlocks.parse("    ```python\n    print(1)\n    ```") == [.code("print(1)", language: "python")])
     #expect(MarkdownBlocks.parse("```js\nx") == [.code("x", language: "js")])
 }
+
+@Test func markdownTableEscapedPipesStayInTheirCells() {
+    #expect(MarkdownBlocks.parse("| f\\|oo | second |\n| --- | --- |\n| b `\\|` az | b **\\|** im |") == [
+        .table(header: ["f|oo", "second"], rows: [["b `|` az", "b **|** im"]])
+    ])
+    #expect(MarkdownBlocks.parse("| A | B |\n| --- | --- |\n| x\\\\|y |") == [
+        .table(header: ["A", "B"], rows: [["x\\\\", "y"]])
+    ])
+}

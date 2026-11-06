@@ -19,6 +19,10 @@ public struct SharedFile: Codable, Hashable, Sendable, Identifiable {
 
     /// A small text file can be opened without handing its contents to another app.
     public var showsAsText: Bool {
+        Self.canPreview(name: name, size: size)
+    }
+
+    public static func canPreview(name: String, size: Int64) -> Bool {
         let extensions = Set("md markdown txt log json jsonl yaml yml toml xml csv tsv html css js jsx ts tsx py rs go swift kt kts java c h cpp hpp sh bash zsh sql diff patch".split(separator: " "))
         let suffix = name.lowercased().split(separator: ".").last ?? ""
         return name.contains(".") && size >= 0 && size <= 1024 * 1024 && extensions.contains(suffix)

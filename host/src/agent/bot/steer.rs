@@ -38,6 +38,7 @@ impl Actor {
     /// host's, nor a compaction, nor one the user already stopped.
     fn answers_user_in(&self, lane: &Lane) -> bool {
         self.turn.is_some()
+            && self.image_done.is_none()
             && !self.stop_requested
             && self.lane == *lane
             && self.compacting.is_none()

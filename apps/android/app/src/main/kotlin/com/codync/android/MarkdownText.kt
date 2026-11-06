@@ -63,30 +63,30 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
  * bold, italic, code, strikethrough and links. Images show as their text: a reply never makes
  * the phone fetch an address.
  */
-@Composable fun MarkdownText(source: String, selectable: Boolean = true, color: Color = Palette.text) {
+@Composable fun MarkdownText(source: String, selectable: Boolean = true, color: Color = Palette.text, openFile: ((String) -> Unit)? = null) {
     val blocks = remember(source) { MarkdownBlocks.parse(source) }
     val content: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { for (block in blocks) MarkdownBlock(block, color) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { for (block in blocks) MarkdownBlock(block, color, openFile) }
     }
     if (selectable) SelectionContainer(content = content) else content()
 }
 
-@Composable private fun MarkdownBlock(block: Block, ink: Color) {
+@Composable private fun MarkdownBlock(block: Block, ink: Color, openFile: ((String) -> Unit)?) {
     val code = Palette.text.copy(alpha = 0.08f)
     when (block) {
-        is Block.Paragraph -> Text(inline(block.text, code), style = Type.body, color = ink)
-        is Block.Heading -> Text(inline(block.text, code), style = when (block.level) {
+        is Block.Paragraph -> Text(inline(block.text, code, openFile), style = Type.body, color = ink)
+        is Block.Heading -> Text(inline(block.text, code, openFile), style = when (block.level) {
             1 -> Type.title3.bold; 2 -> Type.headline; else -> Type.subheadline.bold
         }, color = ink)
         is Block.Bullet -> Row(Modifier.padding(start = 16.dp * block.depth), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(block.marker, style = Type.body.monospacedDigit, color = Palette.secondary)
-            Text(inline(block.text, code), style = Type.body, color = ink)
+            Text(inline(block.text, code, openFile), style = Type.body, color = ink)
         }
         Block.Rule -> Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(1.dp).background(Palette.border))
-        is Block.Table -> MarkdownTable(block, code, ink)
+        is Block.Table -> MarkdownTable(block, code, ink, openFile)
         is Block.Quote -> Row(Modifier.height(IntrinsicSize.Min)) {
             Box(Modifier.width(3.dp).fillMaxHeight().background(Palette.border))
-            Text(inline(block.text, code), Modifier.padding(start = 10.dp), style = Type.body, color = Palette.secondary)
+            Text(inline(block.text, code, openFile), Modifier.padding(start = 10.dp), style = Type.body, color = Palette.secondary)
         }
         is Block.Code -> {
             val clipboard = LocalContext.current.getSystemService(ClipboardManager::class.java)
@@ -107,7 +107,7 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
 }
 
 /** A table: a bold header and hairlines between rows, scrolling sideways when wide. */
-@Composable private fun MarkdownTable(table: Block.Table, code: Color, ink: Color) {
+@Composable private fun MarkdownTable(table: Block.Table, code: Color, ink: Color, openFile: ((String) -> Unit)?) {
     val columns = maxOf(table.header.size, table.rows.maxOfOrNull { it.size } ?: 0)
     val rows = listOf(table.header) + table.rows
     Box(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 2.dp)) {
@@ -115,7 +115,7 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
             for (column in 0 until columns) Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 for ((index, row) in rows.withIndex()) {
                     if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Palette.border))
-                    Text(inline(row.getOrElse(column) { "" }, code), Modifier.heightIn(min = 22.dp),
+                    Text(inline(row.getOrElse(column) { "" }, code, openFile), Modifier.heightIn(min = 22.dp),
                         style = if (index == 0) Type.body.semibold else Type.body, color = ink, softWrap = false)
                 }
             }
@@ -126,7 +126,7 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
 private val inlineParser = Parser.builder().extensions(listOf(StrikethroughExtension.create())).build()
 
 /** Inline Markdown: links underlined (the theme is monochrome), inline code on a soft tint. */
-internal fun inline(source: String, codeTint: Color): AnnotatedString {
+internal fun inline(source: String, codeTint: Color, openFile: ((String) -> Unit)? = null): AnnotatedString {
     // Inline only: indentation would otherwise read as a code block.
     val document = inlineParser.parse(source.lines().joinToString("\n") { it.trimStart() })
     return buildAnnotatedString {
@@ -140,7 +140,10 @@ internal fun inline(source: String, codeTint: Color): AnnotatedString {
             }
             if (style != null) pushStyle(style)
             val link = (node as? Link)?.destination?.takeIf { it.startsWith("https://") || it.startsWith("http://") || it.startsWith("mailto:") }
-            if (link != null) pushLink(LinkAnnotation.Url(link, TextLinkStyles(SpanStyle(textDecoration = TextDecoration.Underline))))
+            val path = if (openFile != null && node is Link) workspaceLink(node.destination) else null
+            val styleLink = TextLinkStyles(SpanStyle(textDecoration = TextDecoration.Underline))
+            if (link != null) pushLink(LinkAnnotation.Url(link, styleLink))
+            else if (path != null && openFile != null) pushLink(LinkAnnotation.Clickable(path, styleLink) { openFile(path) })
             when (node) {
                 is org.commonmark.node.Text -> append(node.literal)
                 is Code -> append(node.literal)
@@ -151,7 +154,7 @@ internal fun inline(source: String, codeTint: Color): AnnotatedString {
                 is Image -> children(node).forEach(::visit)
                 else -> children(node).forEach(::visit)
             }
-            if (link != null) pop()
+            if (link != null || path != null) pop()
             if (style != null) pop()
         }
         // Paragraphs of a multi-line block keep their line breaks.

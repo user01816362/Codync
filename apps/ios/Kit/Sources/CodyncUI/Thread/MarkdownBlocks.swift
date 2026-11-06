@@ -108,10 +108,35 @@ enum MarkdownBlocks {
         line.contains("-") && line.allSatisfy { "|-: ".contains($0) }
     }
 
+    // GFM consumes a backslash protecting a table pipe even inside a code span.
     private static func cells(_ line: String) -> [String] {
-        var row = line
-        if row.hasPrefix("|") { row.removeFirst() }
-        if row.hasSuffix("|") { row.removeLast() }
-        return row.split(separator: "|", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+        let chars = Array(line)
+        var cells: [String] = []
+        var cell = ""
+        var i = chars.first == "|" ? 1 : 0
+        var endedWithDelimiter = false
+        while i < chars.count {
+            let c = chars[i]
+            let next = i + 1 < chars.count ? chars[i + 1] : nil
+            if c == "\\", next == "|" {
+                cell.append("|")
+                i += 1
+                endedWithDelimiter = false
+            } else if c == "\\", next == "\\" {
+                cell.append(contentsOf: "\\\\")
+                i += 1
+                endedWithDelimiter = false
+            } else if c == "|" {
+                cells.append(cell.trimmingCharacters(in: .whitespaces))
+                cell = ""
+                endedWithDelimiter = true
+            } else {
+                cell.append(c)
+                endedWithDelimiter = false
+            }
+            i += 1
+        }
+        if !endedWithDelimiter || cells.isEmpty { cells.append(cell.trimmingCharacters(in: .whitespaces)) }
+        return cells
     }
 }

@@ -20,6 +20,15 @@ test('a pipe line without its rule stays text', () => {
   assert.deepEqual(parseMarkdown('| not a table'), [{ kind: 'paragraph', text: '| not a table' }])
 })
 
+test('escaped table pipes stay in their cells, including code spans', () => {
+  assert.deepEqual(parseMarkdown('| f\\|oo | second |\n| --- | --- |\n| b `\\|` az | b **\\|** im |'), [
+    { kind: 'table', header: ['f|oo', 'second'], rows: [['b `|` az', 'b **|** im']] },
+  ])
+  assert.deepEqual(parseMarkdown('| A | B |\n| --- | --- |\n| x\\\\|y |'), [
+    { kind: 'table', header: ['A', 'B'], rows: [['x\\\\', 'y']] },
+  ])
+})
+
 
 test('nested and incomplete code fences keep their content', () => {
   assert.deepEqual(parseMarkdown('````md\n```js\nx\n```\n````\nafter'), [

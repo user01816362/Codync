@@ -12,5 +12,7 @@ class TextPreviewTest {
         assertFalse(file("md").showsAsText)
         assertFalse(file("photo.png").showsAsText)
         assertFalse(file("big.txt", 1024 * 1024 + 1).showsAsText)
+        assertTrue(Attachment("id", "notes.md", 12).showsAsText)
+        assertFalse(Attachment("id", "notes.md", 1024 * 1024 + 1).showsAsText)
     }
 }
