@@ -889,6 +889,7 @@
   "Dreaming": "記憶の整理",
   "{name}'s own memory": "{name}自身の記憶",
   "About {name}'s own memory": "{name}独自の記憶について",
+  "Share usage analytics": "使用状況の分析を共有",
   "Shared": "共有",
   "{name} keeps notes apart from Codync's memory, and Codync can't turn them off for one bot.": "{name} は Codync の記憶とは別にメモを残します。Codync はボットごとにオフにできません。",
   "Shared by every bot": "すべてのボットで共有",

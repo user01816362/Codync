@@ -889,6 +889,7 @@
   "Dreaming": "Gedächtnispflege",
   "{name}'s own memory": "Eigenes Gedächtnis von {name}",
   "About {name}'s own memory": "Über das eigene Gedächtnis von {name}",
+  "Share usage analytics": "Nutzungsanalysen teilen",
   "Shared": "Geteilt",
   "{name} keeps notes apart from Codync's memory, and Codync can't turn them off for one bot.": "{name} führt Notizen getrennt von Codyncs Gedächtnis, und Codync kann sie nicht für einen einzelnen Bot ausschalten.",
   "Shared by every bot": "Von allen Bots geteilt",

@@ -889,6 +889,7 @@
   "Dreaming": "기억 정리",
   "{name}'s own memory": "{name} 자체 기억",
   "About {name}'s own memory": "{name} 자체 기억 정보",
+  "Share usage analytics": "사용량 분석 공유",
   "Shared": "공유",
   "{name} keeps notes apart from Codync's memory, and Codync can't turn them off for one bot.": "{name}은(는) Codync 기억과 별도로 메모를 남기며, Codync는 봇 하나에 대해서만 끌 수 없습니다.",
   "Shared by every bot": "모든 봇이 공유",

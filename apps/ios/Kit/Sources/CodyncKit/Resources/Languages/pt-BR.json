@@ -889,6 +889,7 @@
   "Dreaming": "Sonhos",
   "{name}'s own memory": "Memória própria de {name}",
   "About {name}'s own memory": "Sobre a memória própria de {name}",
+  "Share usage analytics": "Compartilhar análise de uso",
   "Shared": "Compartilhada",
   "{name} keeps notes apart from Codync's memory, and Codync can't turn them off for one bot.": "{name} mantém anotações separadas da memória do Codync, e o Codync não pode desativá-las para um único bot.",
   "Shared by every bot": "Compartilhada por todos os bots",

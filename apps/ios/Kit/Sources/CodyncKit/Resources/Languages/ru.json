@@ -889,6 +889,7 @@
   "Dreaming": "Упорядочивание памяти",
   "{name}'s own memory": "Собственная память {name}",
   "About {name}'s own memory": "О собственной памяти {name}",
+  "Share usage analytics": "Делиться аналитикой использования",
   "Shared": "Общая",
   "{name} keeps notes apart from Codync's memory, and Codync can't turn them off for one bot.": "{name} ведёт заметки отдельно от памяти Codync, и Codync не может отключить их для одного бота.",
   "Shared by every bot": "Общая для всех ботов",
