@@ -59,7 +59,6 @@ import { useTr } from '../lib/use-language'
 export function ChatWindow() {
   const tr = useTr()
   const app = useApp()
-  const account = useAccount()
   const welcome = useWelcomeGate()
   const [accessSetup, setAccessSetup] = usePref(prefs.computerAccessSetup)
   const [showAccess, setShowAccess] = useState(false)
@@ -197,6 +196,7 @@ interface CreateTarget {
 function ChatSplitView() {
   const tr = useTr()
   const app = useApp()
+  const account = useAccount()
   const ssh = useSSH()
   const connecting = ssh.state.profiles.some((p) => isSSHConnecting(ssh.status(p.id))) || [...app.stores.values()].some((s) => s.shownConnection.kind === 'connecting')
   const [compact, setCompact] = usePref(prefs.sidebarCompact)
