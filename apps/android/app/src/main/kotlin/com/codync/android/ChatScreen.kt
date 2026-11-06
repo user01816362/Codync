@@ -82,6 +82,7 @@ import com.kyant.shapes.Capsule
     var viewing by remember(bot.id) { mutableStateOf<OpenArtifact?>(null) }
     // The bot whose conversation with this one is open.
     var peer by remember(bot.id) { mutableStateOf<String?>(null) }
+    var sidechat by remember(bot.id) { mutableStateOf(false) }
     /** The voice call whose conversation is open (its line's entry id). */
     var callLine by remember(bot.id) { mutableStateOf<String?>(null) }
     var micDenied by remember { mutableStateOf(false) }
@@ -129,6 +130,7 @@ import com.kyant.shapes.Capsule
         // Measured with the keyboard and navigation bar under it, so the last message clears them too.
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { composerHeight = it.height }
             .imePadding().navigationBarsPadding()) {
+            SidechatIndicator(bot, state) { sidechat = true }
             // Nothing sent now could be read on the other side.
             val mismatch = state.mismatch
             if (mismatch != null) UpdateNeededCard(state, mismatch, store::requestHostUpdate, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
@@ -161,6 +163,7 @@ import com.kyant.shapes.Capsule
     ArtifactLayer(viewing) { open ->
         state.bots.firstOrNull { it.id == open.botId }?.let { owner -> ArtifactViewer(open, owner, state, store) { viewing = null } }
     }
+    CodyncSheet(sidechat, { sidechat = false }) { SidechatView(bot, state, store) }
     CodyncSheet(peer, { peer = null }) { BotConversationView(bot, it, state, store) }
     CodyncSheet(callLine, { callLine = null }) { CallConversationView(bot.id, it, state, store) }
     CodyncSheet(app, { app = null; setupEntry = null }) { ComposioConnectSheet(it, state, store, setupEntry) { store.refreshPlugins() } }

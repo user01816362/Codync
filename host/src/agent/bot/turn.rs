@@ -123,7 +123,13 @@ impl Actor {
         } else {
             crate::chat::team::Turn::Chat(self.reply_hops.unwrap_or(0))
         };
-        self.hub.team.start_turn(&self.cfg.id, team_turn);
+        let collaboration = if self.active_request.is_some() {
+            None
+        } else {
+            Some(self.reply_collaboration.clone().or_else(|| entry_ids.last().cloned())
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()))
+        };
+        self.hub.team.start_turn_with_collaboration(&self.cfg.id, team_turn, collaboration);
         self.exit_tail = None;
         self.seg = Seg::None;
         self.tools.clear();
@@ -353,6 +359,7 @@ impl Actor {
         });
         self.turn = None;
         self.reply_hops = None;
+        self.reply_collaboration = None;
         // A call's opening is heard on the call: no alert.
         let opening = std::mem::take(&mut self.active_prompt);
         if self.routine_completion.is_none() {

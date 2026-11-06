@@ -142,7 +142,7 @@ pub fn conversation(chat: &str, fetched: &[Entry], live: Option<&BTreeMap<i64, E
             by_id.insert(x.id.clone(), x);
         }
     }
-    let mut all: Vec<Exchange> = by_id.into_values().filter(|x| x.peer() == peer).collect();
+    let mut all: Vec<Exchange> = by_id.into_values().filter(|x| peer.is_empty() || x.peer() == peer).collect();
     all.sort_by_key(|x| x.seq);
     all
 }

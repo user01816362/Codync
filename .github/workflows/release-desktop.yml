@@ -32,7 +32,7 @@ jobs:
       run:
         working-directory: apps/desktop
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Package on this run?
         id: scope
         env:
@@ -54,9 +54,9 @@ jobs:
           else
             echo package=false >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci
@@ -77,10 +77,10 @@ jobs:
     if: needs.check.outputs.package == 'true' && !inputs.windows_only && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       - name: Install Rust (host/rust-toolchain.toml)
@@ -163,7 +163,7 @@ jobs:
           "$RUNNER_TEMP/update-verification/bin/python" packaging/updates/verify-appcast.py \
             build/appcast.xml apps/desktop/dist/mac-universal/Codync.app apps/desktop/dist/codync-macos.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: "!startsWith(github.ref, 'refs/tags/')"
         with:
           name: codync-macos
@@ -207,10 +207,10 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           architecture: ${{ matrix.arch }}
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
@@ -261,7 +261,7 @@ jobs:
           curl -sf http://127.0.0.1:19333/health | grep -q computerId
           TOKEN=$(cat "$RUNNER_TEMP/codync/token")
           curl -sf -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:19333/api/refreshBackends
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codync-windows-${{ matrix.arch }}
           if-no-files-found: error
@@ -286,20 +286,20 @@ jobs:
       run:
         working-directory: apps/desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: codync-windows-*
           path: apps/desktop/dist
       # Both architectures share latest.yml. Publish it only after both installers are uploaded.
       - run: node tools/windows-update-feed.mjs dist/codync-windows-x64/latest.yml dist/codync-windows-arm64/latest.yml dist/latest.yml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: "!startsWith(github.ref, 'refs/tags/')"
         with:
           name: codync-windows-update-feed
@@ -321,10 +321,10 @@ jobs:
           - { os: ubuntu-24.04-arm, arch: arm64, name: linux-arm64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       # The Linux app uses the installed codync-host (codync-host-linux-*.tar.gz, host.yml).
@@ -343,7 +343,7 @@ jobs:
             sed -i "s|$f|$to|g" latest-linux*.yml
           done
           for f in codync-${{ matrix.name }}.*; do shasum -a 256 "$f" > "$f.sha256"; done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: "!startsWith(github.ref, 'refs/tags/')"
         with:
           name: codync-${{ matrix.name }}

@@ -63,6 +63,8 @@ data class AppState(
     val rosterLoaded: Boolean = false,
     val mirrorRevision: Long = 0,
     val entries: List<Entry> = emptyList(),
+    val chatClearGenerations: Map<String, Long> = emptyMap(),
+    val collaborationUpdates: Map<String, List<Entry>> = emptyMap(),
     val pending: List<PendingSend> = emptyList(),
     val drafts: Map<String, ComposerDraft> = emptyMap(),
     val uploadProgress: Map<String, Int> = emptyMap(),

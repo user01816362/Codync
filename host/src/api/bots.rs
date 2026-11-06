@@ -79,6 +79,9 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         "botConversation" => {
             json!({"entries": hub.store.bot_conversation(str_arg(&b, "botId")?, str_arg(&b, "peerId")?, 200)?})
         }
+        "botExchanges" => {
+            json!({"entries": hub.store.bot_exchanges(str_arg(&b, "botId")?, 200)?})
+        }
         "createBot" => {
             let mut b = b;
             // Only a bot's `create_bot` records who made one.

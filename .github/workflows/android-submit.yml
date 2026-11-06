@@ -36,7 +36,7 @@ jobs:
     outputs:
       ship: ${{ steps.check.outputs.ship }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.REF }}
           fetch-depth: 0
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.REF }}
           fetch-depth: 0
@@ -89,7 +89,7 @@ jobs:
           gh pr list --state merged --limit 200 --json body,mergeCommit > "$RUNNER_TEMP/prs.json"
           PRS="$RUNNER_TEMP/prs.json" python3 tools/play-submit.py upload "${VERSION#v}" \
             apps/android/app/build/outputs/bundle/release/app-release.aab
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codync-android-${{ env.VERSION }}
           path: |

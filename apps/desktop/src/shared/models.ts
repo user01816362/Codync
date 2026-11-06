@@ -297,6 +297,7 @@ export interface EntryData {
   addFallback?: boolean
   heading?: string
   delegationId?: string
+  collaborationId?: string
   sourceBotId?: string
   targetBotId?: string
   connectionRequest?: ConnectionRequest

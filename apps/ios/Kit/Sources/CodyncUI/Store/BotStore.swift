@@ -65,6 +65,9 @@ public final class BotStore {
     public internal(set) var hostUpdate: HostUpdate?
     public internal(set) var bots: [String: Bot] = [:]
     public internal(set) var entries: [String: [Entry]] = [:]
+    /// Changes whenever a chat is cleared, so open historical views discard their snapshots.
+    public internal(set) var chatClearGenerations: [String: Int] = [:]
+    var collaborationUpdates: [String: [Entry]] = [:]
     public internal(set) var usage: Usage
     /// The computer's remote screen (`nil`: the host predates it).
     public internal(set) var screen: ScreenState?

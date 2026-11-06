@@ -24,7 +24,7 @@ jobs:
        github.event.workflow_run.head_branch == 'main')
     runs-on: xcode-27
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -54,7 +54,7 @@ jobs:
           unzip -l build/codync-ios-unsigned.ipa | head
           cat build/codync-ios-unsigned.ipa.sha256
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codync-ios-arm64-unsigned
           path: |
@@ -70,9 +70,11 @@ jobs:
         run: |
           VERSION="$(node -p "require('./apps/desktop/package.json').version")"
           TAG="v$VERSION"
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          git fetch --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG" || true
+          TAG_COMMIT="$(git rev-list -n 1 "$TAG" 2>/dev/null || true)"
+          if [ "$TAG_COMMIT" = "$(git rev-parse HEAD)" ] && gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" \
               apps/build/codync-ios-unsigned.ipa apps/build/codync-ios-unsigned.ipa.sha256 --clobber
           else
-            echo "No $TAG release yet; the IPA stays in the workflow artifact."
+            echo "No matching $TAG release for this commit; the IPA stays in the workflow artifact."
           fi

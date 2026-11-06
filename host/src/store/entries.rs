@@ -299,6 +299,19 @@ impl Store {
         Ok(rows)
     }
 
+    /// The newest structured bot exchanges in a chat, oldest first.
+    pub fn bot_exchanges(&self, bot_id: &str, limit: i64) -> Result<Vec<Entry>> {
+        let c = self.db.locked();
+        let mut st = c.prepare(&format!(
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = 'notice' AND {NOT_REMOVED}
+               AND json_type(data, '$.botMessage') = 'object'
+             ORDER BY seq DESC LIMIT ?2"
+        ))?;
+        let mut rows: Vec<Entry> = st.query_map(params![bot_id, limit], row_entry)?.collect::<rusqlite::Result<_>>()?;
+        rows.reverse();
+        Ok(rows)
+    }
+
     /// Messages in `bot_id`'s chat after `after_seq`, oldest first: the
     /// user's, final replies and voice calls' transcripts. Dreaming reads these.
     pub fn conversation_since(&self, bot_id: &str, after_seq: i64, limit: i64) -> Result<Vec<Entry>> {
@@ -510,6 +523,10 @@ mod tests {
             .map(|e| e.data["text"].as_str().unwrap().to_owned())
             .collect();
         assert_eq!(texts, ["first", "second"]);
+        let all: Vec<_> = s.bot_exchanges("a", 10).unwrap().into_iter()
+            .map(|e| e.data["text"].as_str().unwrap().to_owned()).collect();
+        assert_eq!(all, ["first", "other peer", "second"]);
+        assert_eq!(s.bot_exchanges("a", 1).unwrap()[0].data["text"], "second");
         assert_eq!(s.entry(&old.id).unwrap().data, old_data, "existing notice is untouched");
         assert_eq!(s.bot_conversation("a", "b", 1).unwrap().len(), 1, "limit keeps the newest");
     }

@@ -9,6 +9,20 @@ use super::super::app::{App, Exchange, Overlay};
 use super::{BotChatSheet, Reply, ctrl};
 
 impl App {
+    /// Shows collaboration history without changing the bots' work.
+    pub(in crate::tui) fn open_sidechat(&mut self) {
+        let Some(bot) = self.selected.clone() else { return };
+        self.sheet("botExchanges", json!({"botId": bot}), Reply::BotChat { bot: bot.clone(), peer: String::new() });
+        self.overlays.push(Overlay::BotChat(BotChatSheet {
+            bot,
+            peer: String::new(),
+            fetched: None,
+            scroll: 0,
+            max_scroll: Cell::default(),
+            page: Cell::default(),
+        }));
+    }
+
     /// Opens the conversation a bot-message row in the selected chat stands for.
     pub(in crate::tui) fn open_bot_chat(&mut self, entry: &str) {
         let Some(chat) = self.selected.clone() else { return };

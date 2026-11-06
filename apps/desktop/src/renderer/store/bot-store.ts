@@ -393,6 +393,8 @@ export class BotStore extends BotSync {
   /** Empties the chat: its messages go and the bot starts a new conversation. Its memory and files stay. */
   clearChat(bot: Bot) {
     this.entries.delete(bot.id)
+    this.collaborationUpdates.delete(bot.id)
+    this.chatClearGenerations.set(bot.id, (this.chatClearGenerations.get(bot.id) ?? 0) + 1)
     this.changed()
     this.scheduleSave()
     this.perform((c) => c.clearChat(bot.id), true)
@@ -434,6 +436,10 @@ export class BotStore extends BotSync {
   /** The history between a bot and one peer. Never upserted: old notices would break `loadOlder`'s paging. */
   async botConversation(botId: string, peerId: string): Promise<Entry[]> {
     return (await this.ready()).botConversation(botId, peerId)
+  }
+
+  async botExchanges(botId: string): Promise<Entry[]> {
+    return (await this.ready()).botExchanges(botId)
   }
 
   /** What `backend` already has in the user's home, not the Codync skills and connectors a bot passes on. */

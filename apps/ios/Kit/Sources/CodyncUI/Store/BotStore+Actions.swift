@@ -119,6 +119,8 @@ extension BotStore {
     /// Empties the chat: its messages go and the bot starts a new conversation. Its memory and files stay.
     public func clearChat(_ bot: Bot) {
         entries[bot.id] = nil
+        collaborationUpdates[bot.id] = nil
+        chatClearGenerations[bot.id, default: 0] += 1
         saveCache()
         perform(replay: true) { try await $0.clearChat(bot.id) }
     }
@@ -384,6 +386,10 @@ extension BotStore {
     /// mirror would break `loadOlder`, which pages from the oldest loaded `seq`.
     public func botConversation(_ botId: String, peer: String) async throws -> [Entry] {
         try await ready().botConversation(botId: botId, peerId: peer)
+    }
+
+    public func botExchanges(_ botId: String) async throws -> [Entry] {
+        try await ready().botExchanges(botId: botId)
     }
 
     public func save(_ draft: BotDraft) async throws -> Bot {

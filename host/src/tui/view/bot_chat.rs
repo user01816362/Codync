@@ -34,12 +34,16 @@ pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet
     let exchanges = conversation(&c.bot, c.fetched.as_deref().unwrap_or_default(), app.entries.get(&c.bot), &c.peer);
     let peer = (c.peer.as_str(), exchanges.iter().find_map(|x| x.peer_name.as_deref()));
     let mut pill = vec![Span::raw(" ")];
-    for (i, id) in [&c.bot, &c.peer].into_iter().enumerate() {
-        let (name, color) = name_and_color(app, id, peer);
-        if i == 1 {
-            pill.push(Span::styled(" ⇄ ", t.dim));
+    if c.peer.is_empty() {
+        pill.push(Span::styled("Collaboration activity", t.text));
+    } else {
+        for (i, id) in [&c.bot, &c.peer].into_iter().enumerate() {
+            let (name, color) = name_and_color(app, id, peer);
+            if i == 1 {
+                pill.push(Span::styled(" ⇄ ", t.dim));
+            }
+            pill.extend([person(app, id), Span::raw(" "), Span::styled(name, name_style(&color))]);
         }
-        pill.extend([person(app, id), Span::raw(" "), Span::styled(name, name_style(&color))]);
     }
     put_line(buf, inner.x, inner.y, inner.width, &Line::from(pill));
     hline(buf, inner.x, inner.y + 1, inner.width, t.dim.patch(t.panel));
@@ -79,7 +83,8 @@ fn body_lines(app: &App, c: &BotChatSheet, exchanges: &[Exchange], peer: Peer, w
             ConversationRow::Message { author, text, shows_author } => {
                 if shows_author {
                     out.push(Line::default());
-                    let (name, color) = name_and_color(app, &author, peer);
+                    let fallback = exchanges.iter().find(|x| x.peer() == author.as_str()).and_then(|x| x.peer_name.as_deref());
+                    let (name, color) = name_and_color(app, &author, if c.peer.is_empty() { (author.as_str(), fallback) } else { peer });
                     out.push(Line::from(vec![
                         Span::raw(" "),
                         person(app, &author),
@@ -95,7 +100,8 @@ fn body_lines(app: &App, c: &BotChatSheet, exchanges: &[Exchange], peer: Peer, w
                     let detail = if detail.is_empty() { "Didn't complete.".to_owned() } else { detail };
                     out.extend(md::wrap(&[Span::styled(detail, t.red)], width, &[Span::raw(" ")], &[Span::raw(" ")]));
                 } else {
-                    let (name, _) = name_and_color(app, &awaiting, peer);
+                    let fallback = exchanges.iter().find(|x| x.peer() == awaiting.as_str()).and_then(|x| x.peer_name.as_deref());
+                    let (name, _) = name_and_color(app, &awaiting, if c.peer.is_empty() { (awaiting.as_str(), fallback) } else { peer });
                     out.push(Line::from(Span::styled(format!(" Waiting for {name}…"), t.dim)));
                 }
             }

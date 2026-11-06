@@ -31,7 +31,7 @@ jobs:
       run:
         working-directory: apps/android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -45,7 +45,7 @@ jobs:
       # PRs run the tests, compile and lint. The minified release build (R8) runs once a change lands on
       # dev or main, before a tag ships it.
       - run: ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug ${{ github.event_name != 'pull_request' && ':app:assembleRelease' || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codync-android-debug
           path: apps/android/app/build/outputs/apk/debug/*.apk

@@ -16,6 +16,7 @@ public struct ThreadView: View {
     /// A sent message being edited in the composer; sending asks the bot again.
     @State var editingMessage: Entry?
     @State var botChat: BotChatTarget?
+    @State private var showSidechat = false
     @State var openArtifact: ArtifactTarget?
     @State var openCall: Entry?
     @State var editingGroup = false
@@ -39,6 +40,7 @@ public struct ThreadView: View {
         .background(Palette.background)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
+                SidechatIndicator(botId: botId) { showSidechat = true }
                 if let mismatch = model.mismatch {
                     // Nothing sent now could be read on the other side.
                     UpdateNeededCard(store: model, mismatch: mismatch)
@@ -78,6 +80,7 @@ public struct ThreadView: View {
             .codyncSheet(isPresented: $showTrace) {
                 TraceView(botId: botId)
             }
+            .codyncSheet(isPresented: $showSidechat) { SidechatView(botId: botId) }
             .codyncSheet(item: $botChat) { BotConversationView(botId: botId, peerId: $0.id) }
             .codyncSheet(item: $openArtifact) { ArtifactView(target: $0) }
             .codyncSheet(item: $openCall) { CallConversationView(line: $0) }

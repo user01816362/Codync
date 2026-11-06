@@ -175,6 +175,17 @@ private suspend fun AppStore.consumeEvents(active: EncryptedChannel, cursor: Lon
                 next = if (batch.size < 64) source.tryReceive().getOrNull() else null
             }
             withContext(Dispatchers.IO) { requireNotNull(database).apply(batch) }
+            for (changed in batch.filterIsInstance<MirrorEvent.EntryChanged>()) {
+                val entry = changed.entry
+                if (entry.data["botMessage"] != null) mutableState.update { current ->
+                    val entries = current.collaborationUpdates[entry.botId].orEmpty().filterNot { it.id == entry.id } + entry
+                    current.copy(collaborationUpdates = current.collaborationUpdates + (entry.botId to entries.takeLast(200)))
+                }
+            }
+            for (cleared in batch.filterIsInstance<MirrorEvent.ChatCleared>()) {
+                mutableState.update { it.copy(collaborationUpdates = it.collaborationUpdates - cleared.botId, chatClearGenerations = it.chatClearGenerations +
+                    (cleared.botId to ((it.chatClearGenerations[cleared.botId] ?: 0) + 1))) }
+            }
             refresh()
             receiveArtifacts(batch)
             receiveNetwork(batch)

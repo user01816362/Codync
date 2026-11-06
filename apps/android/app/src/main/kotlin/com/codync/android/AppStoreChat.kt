@@ -102,6 +102,7 @@ fun AppStore.clearChat(bot: Bot) = action("clear:" + bot.id) {
     active.call("clearChat", body("botId" to bot.id))
     // The event says so too; dropping them now takes the screen straight there.
     withContext(Dispatchers.IO) { requireNotNull(database).clearChat(bot.id) }
+    mutableState.update { it.copy(collaborationUpdates = it.collaborationUpdates - bot.id, chatClearGenerations = it.chatClearGenerations + (bot.id to ((it.chatClearGenerations[bot.id] ?: 0) + 1))) }
     refresh()
 }
 

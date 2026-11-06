@@ -20,8 +20,8 @@ account and without the hosted Codync cloud.
 ## Download and run the macOS app
 
 1. Open **Releases** and download `codync-macos.zip` (or `codync-macos.dmg`) from the newest
-   `vX.Y.Z` release. Every push to `main` publishes one; a build without a version bump replaces
-   that version's assets.
+   `vX.Y.Z` release. When the version already exists, newer builds are available in the
+   corresponding GitHub Actions run artifacts; the published release is preserved.
 2. Unzip it, then move `Codync.app` to `/Applications`.
 3. The app is ad-hoc signed, not notarized. Clear the download quarantine once:
 
@@ -37,7 +37,8 @@ Requires an Apple Silicon Mac (arm64 only).
 ## Download the unsigned iPhone IPA
 
 The standalone **iOS IPA (unsigned)** workflow runs after the macOS fork build succeeds and
-publishes `codync-ios-unsigned.ipa` and its `.sha256` on the newest `vX.Y.Z` release. It can also
+attaches `codync-ios-unsigned.ipa` and its `.sha256` only to a release for that exact commit.
+Otherwise download them from the workflow artifacts. It can also
 be dispatched by hand from the Actions tab. It is built with `CODE_SIGNING_ALLOWED=NO`: no Apple
 account, provisioning profile, Xcode Cloud or App Store Connect is used.
 

@@ -238,6 +238,10 @@ impl Actor {
                         }
                     }
                     self.reply_hops = replies.iter().map(crate::chat::team::BotReply::hops).max();
+                    let first = replies.first().and_then(crate::chat::team::BotReply::collaboration_id);
+                    self.reply_collaboration = first
+                        .filter(|id| replies.iter().all(|reply| reply.collaboration_id() == Some(*id)))
+                        .map(str::to_owned);
                     let prompt = crate::chat::team::reply_prompt(&replies);
                     if let Err(e) = self.start_turn(main.clone(), &[], &prompt, false, done_tx).await {
                         self.start_error(e, done_tx).await;
@@ -327,6 +331,7 @@ impl Actor {
         self.relay.carried = None;
         self.turn = None;
         self.reply_hops = None;
+        self.reply_collaboration = None;
         self.active_prompt = false;
         memory::turns::drop_turn(&self.cfg.id);
         if self.routine_completion.is_none() {

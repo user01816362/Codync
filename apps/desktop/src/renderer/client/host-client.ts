@@ -201,6 +201,10 @@ export class HostClient {
     return (await this.call<{ entries: Entry[] }>('botConversation', { botId, peerId })).entries
   }
 
+  async botExchanges(botId: string) {
+    return (await this.call<{ entries: Entry[] }>('botExchanges', { botId })).entries
+  }
+
   /** `pasted`: what the user pasted rather than typed, which memory never takes as their own words. `replyTo`: the
    * chat message this one replies to. */
   /** `call`: the voice call it was said in (on-device or speech to text). */

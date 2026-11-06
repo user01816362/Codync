@@ -51,6 +51,7 @@ impl App {
             Action::Memory => self.open_memory(),
             Action::Details => self.open_routines(),
             Action::Library => self.open_library(),
+            Action::Sidechat => self.open_sidechat(),
             Action::RefreshAgents => self.call("refreshBackends", json!({}), After::Backends),
             Action::Pair => self.open_pair(),
             Action::Network => self.open_network(),

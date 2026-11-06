@@ -117,6 +117,7 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         held_done: None,
         active_request: None,
         reply_hops: None,
+        reply_collaboration: None,
         active_prompt: false,
         prompt_call: None,
         seg: Seg::None,
@@ -298,6 +299,8 @@ struct Actor {
     active_request: Option<crate::chat::team::BotRequest>,
     /// During a turn that takes bot replies: the hops of their chain (see `chat::team::BotReply`).
     reply_hops: Option<u8>,
+    /// The shared collaboration of a reply turn, when all of its replies have one origin.
+    reply_collaboration: Option<String>,
     /// The running turn is one the host started, with no message of the user's (`Cmd::Prompt`).
     active_prompt: bool,
     /// The call the next host-started turn opens (`Cmd::Prompt`), whose replies are that call's.

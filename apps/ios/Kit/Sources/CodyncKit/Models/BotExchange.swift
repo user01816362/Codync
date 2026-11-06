@@ -15,6 +15,7 @@ public struct BotExchange: Identifiable, Equatable, Sendable {
     public let chatId: String
     public let seq: Int64
     public let rev: Int64
+    public let collaborationId: String?
     public let createdAt: Int64
     public let source: String
     public let target: String
@@ -31,6 +32,7 @@ public struct BotExchange: Identifiable, Equatable, Sendable {
         chatId = entry.botId
         seq = entry.seq
         rev = entry.rev
+        collaborationId = entry.data.collaborationId
         createdAt = entry.createdAt
         source = message.sourceBotId
         target = message.targetBotId
@@ -52,12 +54,38 @@ public struct BotExchange: Identifiable, Equatable, Sendable {
     /// The exchanges with `peer` in a chat, oldest first: what the host returned plus the live
     /// chat, keyed by entry id (the higher `rev` wins).
     public static func conversation(fetched: [Entry], live: [Entry], peer: String) -> [BotExchange] {
+        all(fetched: fetched, live: live).filter { $0.peerId == peer }
+    }
+
+    /// All structured exchanges in a chat, combining history and live revisions.
+    public static func all(fetched: [Entry], live: [Entry]) -> [BotExchange] {
         var byId: [String: Entry] = [:]
         for e in fetched + live where e.kind == "notice" {
             if let known = byId[e.id], known.rev > e.rev { continue }
             byId[e.id] = e
         }
-        return byId.values.compactMap(BotExchange.init).filter { $0.peerId == peer }.sorted { $0.seq < $1.seq }
+        return byId.values.compactMap(BotExchange.init).sorted { $0.seq < $1.seq }
+    }
+}
+
+/// Exchanges from one known collaboration. Older notices remain independent rather than guessed together.
+public struct BotCollaboration: Identifiable, Equatable, Sendable {
+    public let id: String
+    public var exchanges: [BotExchange]
+
+    public static func group(_ exchanges: [BotExchange]) -> [BotCollaboration] {
+        var groups: [BotCollaboration] = []
+        var positions: [String: Int] = [:]
+        for exchange in exchanges {
+            let key = exchange.collaborationId.map { "task:\($0)" } ?? "exchange:\(exchange.id)"
+            if let index = positions[key] {
+                groups[index].exchanges.append(exchange)
+            } else {
+                positions[key] = groups.count
+                groups.append(BotCollaboration(id: key, exchanges: [exchange]))
+            }
+        }
+        return groups
     }
 }
 

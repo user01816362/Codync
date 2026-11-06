@@ -263,6 +263,8 @@ export class BotSync extends BotMirror {
         this.composerDrafts.removeBot(event.id)
         this.bots.delete(event.id)
         this.entries.delete(event.id)
+        this.collaborationUpdates.delete(event.id)
+        this.chatClearGenerations.set(event.id, (this.chatClearGenerations.get(event.id) ?? 0) + 1)
         this.floors.delete(event.id)
         this.bump(event.rev)
         if (this.selection === event.id) this.selection = null
@@ -270,10 +272,16 @@ export class BotSync extends BotMirror {
         break
       case 'chatCleared':
         this.entries.delete(event.botId)
+        this.collaborationUpdates.delete(event.botId)
+        this.chatClearGenerations.set(event.botId, (this.chatClearGenerations.get(event.botId) ?? 0) + 1)
         this.floors.delete(event.botId)
         this.bump(event.rev)
         break
       case 'entry':
+        if (event.entry.data.botMessage) {
+          const old = this.collaborationUpdates.get(event.entry.botId) ?? []
+          this.collaborationUpdates.set(event.entry.botId, [...old.filter((e) => e.id !== event.entry.id), event.entry].slice(-200))
+        }
         // Old entries re-stamped by the host (new rev) belong to history paging, not the live window.
         if (!this.isBelowFloor(event.entry)) this.upsert(event.entry)
         this.bump(event.entry.rev)
@@ -331,6 +339,10 @@ export class BotSync extends BotMirror {
   }
 
   private resetMirror() {
+    for (const id of new Set([...this.entries.keys(), ...this.collaborationUpdates.keys()])) {
+      this.chatClearGenerations.set(id, (this.chatClearGenerations.get(id) ?? 0) + 1)
+    }
+    this.collaborationUpdates.clear()
     this.iconsRevision = -1
     this.applyIcons({})
     this.composerDrafts.clear()

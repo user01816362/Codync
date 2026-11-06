@@ -16,9 +16,11 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 
 ## 2.39.1
 ### zh-Hant
+- 開啟協作活動，查看 bot 之間的請求、回覆和進度。
 - 推理強度滑桿新增漸層點陣，讓不同強度更容易辨識。
 
 ### en-US
+- Open collaboration activity to see requests, replies and progress between bots.
 - The reasoning effort slider now uses a dotted gradient to make levels easier to distinguish.
 
 ## 2.39.0

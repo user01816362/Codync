@@ -8,7 +8,7 @@ import kotlinx.serialization.json.jsonPrimitive
 data class BotExchange(val id: String, val chatId: String, val seq: Long, val rev: Long, val createdAt: Long,
     val source: String, val target: String, val text: String, val reply: String?, val outcome: Outcome,
     /** The peer's name when it is a bot on another computer (its id is `name@computer`, not in this computer's list). */
-    val peerName: String? = null) {
+    val peerName: String? = null, val collaborationId: String? = null) {
     sealed interface Outcome {
         data object Pending : Outcome
         data object Done : Outcome
@@ -33,15 +33,23 @@ data class BotExchange(val id: String, val chatId: String, val seq: Long, val re
                 else -> Outcome.Pending
             }
             return BotExchange(entry.id, entry.botId, entry.seq, entry.rev, entry.createdAt, source, target, field("text").orEmpty(), field("reply"), outcome,
-                field("peerName"))
+                field("peerName"), entry.data["collaborationId"]?.jsonPrimitive?.contentOrNull)
         }
 
         /** The exchanges with `peer` in a chat, oldest first: what the host returned plus the live chat (the higher `rev` wins). */
         fun conversation(fetched: List<Entry>, live: List<Entry>, peer: String): List<BotExchange> =
+            all(fetched, live).filter { it.peerId == peer }
+
+        /** All structured exchanges in a chat, combining history and live revisions. */
+        fun all(fetched: List<Entry>, live: List<Entry>): List<BotExchange> =
             (fetched + live).filter { it.kind == "notice" }.groupBy { it.id }.values.map { copies -> copies.maxBy { it.rev } }
-                .mapNotNull(::of).filter { it.peerId == peer }.sortedBy { it.seq }
+                .mapNotNull(::of).sortedBy { it.seq }
     }
 }
+
+/** Group only exchanges whose originating turn is known; legacy notices remain separate. */
+fun groupCollaborations(exchanges: List<BotExchange>): List<List<BotExchange>> =
+    exchanges.groupBy { it.collaborationId?.let { id -> "task:$id" } ?: "exchange:${it.id}" }.values.toList()
 
 /** A run of consecutive exchanges with one peer in a chat's main transcript, shown as one row. */
 data class BotExchangeGroup(val exchanges: List<BotExchange>) {

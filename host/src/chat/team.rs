@@ -116,6 +116,7 @@ impl BotRequest {
             Back::Local { sender } => {
                 let reply = BotReply {
                     request_id: message.request_id.clone(),
+                    collaboration_id: message.collaboration_id.clone(),
                     quote: message.quote.clone(),
                     from_name: message.target_name.clone(),
                     outcome,
@@ -133,6 +134,7 @@ impl BotRequest {
 /// What a recipient's turn came to, on its way back to the bot that sent the request.
 pub struct BotReply {
     request_id: String,
+    collaboration_id: Option<String>,
     quote: String,
     from_name: String,
     outcome: std::result::Result<String, String>,
@@ -142,6 +144,10 @@ pub struct BotReply {
 impl BotReply {
     pub fn hops(&self) -> u8 {
         self.hops
+    }
+
+    pub fn collaboration_id(&self) -> Option<&str> {
+        self.collaboration_id.as_deref()
     }
 
     fn line(&self) -> String {
@@ -199,6 +205,7 @@ impl Back {
 struct MessageLifetime {
     hub: Arc<Hub>,
     request_id: String,
+    collaboration_id: Option<String>,
     /// The start of the request, for the reply turn (see [`REQUEST_QUOTE_BYTES`]).
     quote: String,
     back: Back,
@@ -211,10 +218,11 @@ struct MessageLifetime {
 
 impl MessageLifetime {
     /// A request's lifetime before its notices: dropped early, it ends the ones saved by then.
-    fn new(hub: &Arc<Hub>, request_id: &str, message: &str, back: Back, target_name: &str) -> Self {
+    fn new(hub: &Arc<Hub>, request_id: &str, message: &str, back: Back, target_name: &str, collaboration_id: Option<String>) -> Self {
         Self {
             hub: hub.clone(),
             request_id: request_id.to_owned(),
+            collaboration_id,
             quote: truncate(message, REQUEST_QUOTE_BYTES),
             back,
             entries: vec![],
@@ -298,6 +306,7 @@ struct Exchange<'a> {
     source: &'a str,
     target: &'a str,
     text: &'a str,
+    collaboration_id: Option<&'a str>,
     /// The other side when it isn't one of this computer's bots (a bot on another computer, the
     /// cloud assistant): its id isn't in the clients' bot list, so the notice names it.
     peer_name: Option<&'a str>,
@@ -310,11 +319,14 @@ impl Exchange<'_> {
         if let Some(peer) = self.peer_name {
             message["peerName"] = peer.into();
         }
-        let data = json!({
+        let mut data = json!({
             "text": format!("{heading}\nWaiting for a reply…"),
             "heading": heading, "style": "info", "status": RequestStatus::Queued, "delegationId": self.request,
             "sourceBotId": self.source, "targetBotId": self.target, "botMessage": message,
         });
+        if let Some(id) = self.collaboration_id {
+            data["collaborationId"] = id.into();
+        }
         let turn = hub.store.max_turn(bot) + i64::from(recipient);
         let entry = hub.add_entry(&Lane::main(bot), EntryKind::Notice, turn, &data);
         entry.map(|e| e.id).ok_or_else(|| anyhow!("couldn't save bot message"))
@@ -408,11 +420,11 @@ fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> R
         bail!("a bot cannot message itself");
     }
     let target = visible_bot(hub, to)?;
-    let hops = hub.team.reserve_message(&source.id)?;
+    let (hops, collaboration) = hub.team.reserve_message_scoped(&source.id)?;
     let id = uuid::Uuid::new_v4().to_string();
     // From here on the lifetime gives the reservation back, also when a notice can't be saved.
-    let mut lifetime = MessageLifetime::new(hub, &id, message, Back::Local { sender: source.id.clone() }, &target.name);
-    let exchange = Exchange { request: &id, source: &source.id, target: &target.id, text: message, peer_name: None };
+    let mut lifetime = MessageLifetime::new(hub, &id, message, Back::Local { sender: source.id.clone() }, &target.name, collaboration.clone());
+    let exchange = Exchange { request: &id, source: &source.id, target: &target.id, text: message, collaboration_id: collaboration.as_deref(), peer_name: None };
     let (asked, from) =
         (format!("Messaged {}: {message}", target.name), format!("Message from {}: {message}", source.name));
     lifetime.entries.push(exchange.notice(hub, &source.id, &asked, false)?);

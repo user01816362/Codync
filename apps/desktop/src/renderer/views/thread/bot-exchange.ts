@@ -9,6 +9,7 @@ export interface BotExchange {
   id: string
   seq: number
   rev: number
+  collaborationId?: string
   createdAt: number
   /** The bot whose chat this notice is in. */
   chat: string
@@ -35,7 +36,7 @@ export function botExchange(e: Entry): BotExchange | null {
   const { botMessage: message, status } = e.data
   if (e.kind !== 'notice' || !message) return null
   if (typeof message.sourceBotId !== 'string' || typeof message.targetBotId !== 'string' || typeof message.text !== 'string') return null
-  return { id: e.id, seq: e.seq, rev: e.rev, createdAt: e.createdAt, chat: e.botId, message, outcome: outcomeOf(status, message.detail) }
+  return { id: e.id, seq: e.seq, rev: e.rev, collaborationId: e.data.collaborationId, createdAt: e.createdAt, chat: e.botId, message, outcome: outcomeOf(status, message.detail) }
 }
 
 export const isOutgoing = (x: BotExchange) => x.chat === x.message.sourceBotId
@@ -87,6 +88,11 @@ export function peerNameIn(xs: BotExchange[]): string | undefined {
  * rev wins), oldest first.
  */
 export function botConversation(fetched: Entry[], live: Entry[], peer: string): BotExchange[] {
+  return allBotExchanges(fetched, live).filter((x) => peerOf(x) === peer)
+}
+
+/** All structured exchanges in a chat, combining history and live revisions. */
+export function allBotExchanges(fetched: Entry[], live: Entry[]): BotExchange[] {
   const byId = new Map<string, BotExchange>()
   for (const e of [...fetched, ...live]) {
     const x = botExchange(e)
@@ -94,7 +100,19 @@ export function botConversation(fetched: Entry[], live: Entry[], peer: string): 
     const known = byId.get(x.id)
     if (!known || x.rev >= known.rev) byId.set(x.id, x)
   }
-  return [...byId.values()].filter((x) => peerOf(x) === peer).sort((a, b) => a.seq - b.seq)
+  return [...byId.values()].sort((a, b) => a.seq - b.seq)
+}
+
+/** Exchanges that the host can attribute to the same originating turn. */
+export function groupCollaborations(exchanges: BotExchange[]): BotExchange[][] {
+  const groups = new Map<string, BotExchange[]>()
+  for (const exchange of exchanges) {
+    const key = exchange.collaborationId ? `task:${exchange.collaborationId}` : `exchange:${exchange.id}`
+    const group = groups.get(key) ?? []
+    group.push(exchange)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
 }
 
 export type BotConversationRow =

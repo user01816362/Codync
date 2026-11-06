@@ -199,9 +199,9 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
     }
     let request = uuid::Uuid::new_v4().to_string();
     let back = Back::Assistant { request: request.clone() };
-    let mut lifetime = MessageLifetime::new(hub, &request, message, back, &target.name);
+    let mut lifetime = MessageLifetime::new(hub, &request, message, back, &target.name, None);
     let (source, name) = (asker.id.as_str(), asker.name.as_str());
-    let exchange = Exchange { request: &request, source, target: &target.id, text: message, peer_name: Some(name) };
+    let exchange = Exchange { request: &request, source, target: &target.id, text: message, collaboration_id: None, peer_name: Some(name) };
     lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {name}: {message}"), true)?);
     hub.assistant.add(Reply::queued(&asker.id, &request, &target.name, message));
     lifetime.deliver(&target.id, 1, request_prompt(&asker.who, name, message))?;

@@ -365,7 +365,7 @@ public enum OrientationLock {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first else { return }
         reloadMask(scene)
-        let bounds = scene.coordinateSpace.bounds
+        let bounds = scene.effectiveGeometry.coordinateSpace.bounds
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: bounds.width > bounds.height ? .portrait : .landscapeRight))
     }
 

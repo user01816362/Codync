@@ -1,0 +1,14 @@
+.sidechat-indicator { display: flex; align-items: center; gap: 7px; align-self: center; margin: 0 auto 6px; padding: 7px 12px; border-radius: 999px; color: var(--secondary); background: var(--surface); font-size: 12px; }
+.sidechat { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--background); }
+.sidechat-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px; }
+.sidechat-exchange + .sidechat-exchange { margin-top: 20px; }
+.sidechat-heading { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.sidechat-heading time { margin-left: auto; color: var(--tertiary); white-space: nowrap; }
+.sidechat-message, .sidechat-reply { margin-top: 7px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; font-size: 13px; }
+.sidechat-reply { color: var(--secondary); }
+.sidechat-reply-label { margin-top: 7px; color: var(--secondary); font-size: 12px; font-weight: 600; }
+.sidechat-status { margin-top: 7px; color: var(--tertiary); font-size: 12px; }
+.sidechat-status.failed { color: var(--danger); }
+
+.sidechat-group { display: flex; flex-direction: column; gap: 16px; }
+.sidechat-group-heading { display: flex; justify-content: space-between; color: var(--tertiary); font-size: 12px; font-weight: 500; }

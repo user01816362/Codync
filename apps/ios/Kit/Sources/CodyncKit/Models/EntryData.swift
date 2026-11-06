@@ -51,6 +51,8 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var botMessage: BotMessage?
     public var heading: String?
     public var delegationId: String?
+    /// The originating task's collaboration, when the host can identify it.
+    public var collaborationId: String?
     public var sourceBotId: String?
     public var targetBotId: String?
     /// The bot that wrote it (a group shows who spoke).

@@ -111,15 +111,25 @@ extension BotStore {
             removeComposerDrafts(for: id)
             bots[id] = nil
             entries[id] = nil
+            collaborationUpdates[id] = nil
+            chatClearGenerations[id, default: 0] += 1
             windowFloors[id] = nil
             bump(r)
             if selection == id { selection = nil }
             onRosterChanged?()
         case let .chatCleared(botId, r):
             entries[botId] = nil
+            collaborationUpdates[botId] = nil
+            chatClearGenerations[botId, default: 0] += 1
             windowFloors[botId] = nil
             bump(r)
         case let .entry(e):
+            if e.data.botMessage != nil {
+                var updates = collaborationUpdates[e.botId] ?? []
+                updates.removeAll { $0.id == e.id }
+                updates.append(e)
+                collaborationUpdates[e.botId] = Array(updates.suffix(200))
+            }
             if Self.isOutsideLoadedWindow(e, floor: windowFloors[e.botId], held: entries[e.botId]?.contains { $0.id == e.id } == true) {
                 bump(e.rev)
                 break
@@ -160,6 +170,8 @@ extension BotStore {
     }
 
     private func resetMirror() {
+        for id in Set(entries.keys).union(collaborationUpdates.keys) { chatClearGenerations[id, default: 0] += 1 }
+        collaborationUpdates = [:]
         iconsRevision = -1
         composerDrafts = [:]
         persistComposerDrafts()

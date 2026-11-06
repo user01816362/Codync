@@ -15,6 +15,7 @@ import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
 import type { VersionPick } from './message-versions'
 import { BotConversationView, BotMessageRow } from './BotConversation'
+import { SidechatIndicator, SidechatView } from './Sidechat'
 import { CallConversationView, CallLineRow } from '../call/CallRows'
 import { hidingCalls } from '@shared/calls'
 import { ChatRow, TimeSeparator } from './ChatRows'
@@ -51,6 +52,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const [showTrace, setShowTrace] = useState(false)
+  const [showSidechat, setShowSidechat] = useState(false)
   const [replyTo, setReplyTo] = useState<Entry | null>(null)
   const [editing, setEditing] = useState<Entry | null>(null)
   const cancelEdit = useCallback(() => {
@@ -119,7 +121,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     }
   }, [])
 
-  const panelOpen = wide && showSettings
+  const panelOpen = wide && (showSettings || showSidechat)
   squeezeBelow.current = panelOpen ? Math.max(360, detailsWidth) : 0
   // The side panel's edge drags its width, leaving the conversation at least 380 wide.
   const panelWidth = (w: number) => Math.min(Math.max(360, w), width.current - 380)
@@ -128,6 +130,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     if (wide) setCompactDetails(false)
   }, [wide])
   const toggleDetails = useCallback(() => {
+    setShowSidechat(false)
     if (!wide) setCompactDetails((c) => !c)
     else setShowSettings((s) => !s)
   }, [wide])
@@ -213,6 +216,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           ) : artifactId ? null : (
             // The artifact over the chat has its own box (two would both take the voice shortcut).
             <>
+              <SidechatIndicator botId={botId} open={() => { setShowSettings(false); setCompactDetails(false); setShowSidechat(true) }} />
               <QueuedMessages botId={botId} />
               <Composer
                 botId={botId}
@@ -240,9 +244,12 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
         max={width.current - 380}
         onResize={(w) => setDetailsWidth(panelWidth(w))}
       >
-        {details}
+        {showSidechat ? <SidechatView botId={botId} close={() => setShowSidechat(false)} /> : details}
       </ChatSidePanel>
 
+      <Sheet open={!wide && showSidechat} onClose={() => setShowSidechat(false)} width={620} height={560}>
+        <SidechatView botId={botId} close={() => setShowSidechat(false)} />
+      </Sheet>
       <Sheet open={compactDetails} onClose={() => setCompactDetails(false)} width={400} height={600}>
         {details}
       </Sheet>

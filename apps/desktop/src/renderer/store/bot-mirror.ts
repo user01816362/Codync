@@ -81,6 +81,9 @@ export class BotMirror extends Observable {
   hostUpdate: HostUpdate | null = null
   bots = new Map<string, Bot>()
   entries = new Map<string, Entry[]>()
+  /** Changes whenever a chat is cleared, invalidating open historical snapshots. */
+  chatClearGenerations = new Map<string, number>()
+  collaborationUpdates = new Map<string, Entry[]>()
   usage: Usage = { providers: [] }
   screen: ScreenState | null = null
   accessRequests: AccessRequest[] = []

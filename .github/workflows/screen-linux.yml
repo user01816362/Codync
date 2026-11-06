@@ -16,7 +16,7 @@ jobs:
       run:
         working-directory: apps/screen-linux
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install GStreamer development packages
         timeout-minutes: 10
         run: |

@@ -108,3 +108,7 @@ A bot made this way records its creator (`createdBy`, next to `createdAt`); clie
 - `host/src/chat/manage.rs` (+ `Cmd::Approve` in `agent/bot/updates.rs`): team management; `host/tests/manage_e2e.rs` walks an allowed `create_bot`, a denied `update_bot`, and cards that end when the turn stops or the agent cancels the call, through the real `manage` MCP process.
 
 Run `cargo test` and `cargo clippy --all-targets -- -D warnings` in `host/`.
+
+## Collaboration activity
+
+The collaboration indicator opens a read-only timeline of the current chat’s recent bot-message notices. The host returns up to 200 exchanges; live revisions are merged by entry ID and revision. Notices carry an optional collaboration ID derived from the originating turn, propagated through replies and remote requests. Older notices without that ID remain separate. Closing the view does not cancel work. The desktop uses a side panel or sheet, phones use sheets, and the terminal offers the action palette.

@@ -23,7 +23,22 @@ jobs:
   macos:
     runs-on: xcode-27
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+
+      # Generate the checked-in project and format Rust on the runner so contributors with
+      # limited local disk space can retrieve the exact generated changes as an artifact.
+      - name: Prepare generated sources
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          xcodegen generate --spec apps/project.yml
+          (cd host && rustup toolchain install && cargo fmt --all)
+          git diff --binary -- apps/Codync.xcodeproj/project.pbxproj host/src > "$RUNNER_TEMP/generated.patch"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: generated-source-patch
+          path: ${{ runner.temp }}/generated.patch
+          retention-days: 14
 
       - name: Build the iOS package
         working-directory: apps/ios/Kit
@@ -31,9 +46,9 @@ jobs:
           xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
           -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
@@ -118,7 +133,7 @@ jobs:
             && shasum -a 256 codync-macos.dmg > codync-macos.dmg.sha256)
           cat dist/codync-macos.zip.sha256 dist/codync-macos.dmg.sha256
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codync-macos-arm64-unsigned
           path: |
@@ -130,7 +145,7 @@ jobs:
 
       # Actions artifacts need an account and expire; a release is a plain download link.
       # Releases follow upstream's shape: tagged and titled `v<version>` with the same asset
-      # names. Pushes without a version bump replace that version's assets.
+      # names. An existing version is never replaced by a later commit.
       - name: Publish the release
         if: github.ref == 'refs/heads/main'
         working-directory: apps/desktop
@@ -140,7 +155,10 @@ jobs:
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           TAG="v$VERSION"
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists; this build remains available as a workflow artifact."
+            exit 0
+          fi
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "$TAG" \

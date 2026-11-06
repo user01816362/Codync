@@ -24,7 +24,7 @@ jobs:
       run:
         working-directory: host
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Rust (rust-toolchain.toml)
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -56,7 +56,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # rustup reads the pin from the folder it runs in (host/rust-toolchain.toml).
       - name: Install Rust (host/rust-toolchain.toml)
         working-directory: host

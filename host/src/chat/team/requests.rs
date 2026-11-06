@@ -28,14 +28,17 @@ pub enum Turn {
 pub(super) struct RequestState {
     /// Bots in a turn.
     pub(super) active: HashMap<String, Turn>,
+    /// The collaboration that owns each active turn, when known.
+    pub(super) collaborations: HashMap<String, String>,
     pub(super) messages: usize,
     pub(super) messages_by_sender: HashMap<String, usize>,
 }
 
 impl Requests {
-    pub(super) fn reserve_message(&self, from: &str) -> Result<u8> {
+    pub(super) fn reserve_message_scoped(&self, from: &str) -> Result<(u8, Option<String>)> {
         let mut state = self.0.locked();
         let hops = state.next_hop(from)?;
+        let collaboration = state.collaborations.get(from).cloned();
         if state.messages >= MAX_PENDING_MESSAGES {
             bail!("too many pending bot messages");
         }
@@ -45,7 +48,12 @@ impl Requests {
         }
         *count += 1;
         state.messages += 1;
-        Ok(hops)
+        Ok((hops, collaboration))
+    }
+
+    #[cfg(test)]
+    pub(super) fn reserve_message(&self, from: &str) -> Result<u8> {
+        self.reserve_message_scoped(from).map(|(hops, _)| hops)
     }
 
     pub(super) fn release_message(&self, from: &str) {
@@ -59,13 +67,25 @@ impl Requests {
         }
     }
 
+    #[cfg(test)]
     pub fn start_turn(&self, bot: &str, turn: Turn) {
-        self.0.locked().active.insert(bot.to_owned(), turn);
+        self.start_turn_with_collaboration(bot, turn, None);
+    }
+
+    pub fn start_turn_with_collaboration(&self, bot: &str, turn: Turn, collaboration: Option<String>) {
+        let mut state = self.0.locked();
+        state.active.insert(bot.to_owned(), turn);
+        state.collaborations.remove(bot);
+        if let Some(id) = collaboration {
+            state.collaborations.insert(bot.to_owned(), id);
+        }
     }
 
     /// `bot`'s turn ended (or it was deleted): it can't send more until its next turn.
     pub fn end_turn(&self, bot: &str) {
-        self.0.locked().active.remove(bot);
+        let mut state = self.0.locked();
+        state.active.remove(bot);
+        state.collaborations.remove(bot);
     }
 }
 
@@ -89,6 +109,19 @@ impl RequestState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn collaboration_scope_is_shared_within_a_turn_and_cleared_at_end() {
+        let requests = Requests::default();
+        requests.start_turn_with_collaboration("a", Turn::Chat(0), Some("task-1".into()));
+        assert_eq!(requests.reserve_message_scoped("a").unwrap(), (1, Some("task-1".into())));
+        requests.release_message("a");
+        assert_eq!(requests.reserve_message_scoped("a").unwrap(), (1, Some("task-1".into())));
+        requests.release_message("a");
+        requests.end_turn("a");
+        requests.start_turn("a", Turn::Chat(0));
+        assert_eq!(requests.reserve_message_scoped("a").unwrap(), (1, None));
+    }
 
     #[test]
     fn exhausted_chain_rejects_messages_without_reserving_capacity() {

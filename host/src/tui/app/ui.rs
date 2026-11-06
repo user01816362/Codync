@@ -53,6 +53,7 @@ pub enum Action {
     Memory,
     Details,
     Library,
+    Sidechat,
     RefreshAgents,
     Pair,
     Network,
@@ -66,13 +67,14 @@ pub enum Action {
     Appearance(super::super::appearance::Appearance),
 }
 
-pub const ACTIONS: [(&str, &str, Action); 19] = [
+pub const ACTIONS: [(&str, &str, Action); 20] = [
     ("New bot…", "n", Action::NewBot),
     ("New group chat…", "m", Action::NewGroup),
     ("Extensions: agents, connectors, skills…", "A", Action::Market),
     ("Memory of this bot…", "M", Action::Memory),
     ("Details of this bot…", "R", Action::Details),
     ("Library of this bot: artifacts and files…", "L", Action::Library),
+    ("Collaboration activity…", "", Action::Sidechat),
     ("Refresh agents", "", Action::RefreshAgents),
     ("Pair a phone…", "P", Action::Pair),
     ("Network: your other computers…", "N", Action::Network),
