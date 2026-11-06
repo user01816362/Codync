@@ -25,17 +25,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build the iOS package
-        working-directory: apps/ios/Kit
-        run: >-
-          xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
-          -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
-
       - uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install desktop dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Check desktop types and tests
+        working-directory: apps/desktop
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build the iOS package
+        working-directory: apps/ios/Kit
+        run: >-
+          xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
+          -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
 
       - name: Install Rust (host/rust-toolchain.toml)
         working-directory: host
@@ -57,16 +67,6 @@ jobs:
           cargo fmt --all --check
           cargo clippy --workspace --all-targets -- -D warnings
           cargo test --bin codync-host
-
-      - name: Install desktop dependencies
-        working-directory: apps/desktop
-        run: npm ci
-
-      - name: Check desktop types and tests
-        working-directory: apps/desktop
-        run: |
-          npm run typecheck
-          npm test
 
       - name: Native pieces
         env:
