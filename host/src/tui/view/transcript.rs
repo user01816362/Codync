@@ -209,7 +209,7 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                         t.text,
                     )));
                     out.lines.push(Line::from(Span::styled(
-                        "   Select this message, then o previews text · f downloads",
+                        "   Select this message, then o previews text · f to download",
                         t.dim,
                     )));
                 }

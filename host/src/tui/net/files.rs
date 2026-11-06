@@ -87,7 +87,9 @@ async fn preview(client: &Client, entry: &str, file: &SharedFile) -> Result<Stri
     }
     ensure!(crate::chat::files::digest_hex(&Sha256::digest(&bytes)) == file.sha256, "file integrity check failed");
     ensure!(!bytes.contains(&0), "file is not text");
-    Ok(String::from_utf8(bytes)?)
+    let text = String::from_utf8(bytes)?;
+    // Never pass terminal control sequences through the viewer.
+    Ok(text.chars().filter(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t')).collect())
 }
 
 async fn save(client: &Client, entry: &str, meta: &SharedFile, id: &str, tx: &UnboundedSender<Msg>) -> Result<PathBuf> {
