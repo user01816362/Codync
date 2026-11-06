@@ -50,18 +50,11 @@ pub fn binary() -> Option<PathBuf> {
         }
     }
     let paths: &[&str] = if cfg!(target_os = "macos") {
-        &[
-            "/opt/homebrew/bin/tailscale",
-            "/usr/local/bin/tailscale",
-        ]
+        &["/opt/homebrew/bin/tailscale", "/usr/local/bin/tailscale"]
     } else {
         &["/usr/bin/tailscale", "/usr/local/bin/tailscale"]
     };
-    paths
-        .iter()
-        .map(PathBuf::from)
-        .find(|path| path.is_file())
-        .or_else(mac_app_binary)
+    paths.iter().map(PathBuf::from).find(|path| path.is_file()).or_else(mac_app_binary)
 }
 
 pub fn status() -> Status {
@@ -79,7 +72,8 @@ pub fn status() -> Status {
         // Installed but the daemon is stopped or signed out: that is not "not installed".
         return Status { installed: true, can_open, download: DOWNLOAD.into(), ..Status::default() };
     }
-    let mut status = parse(&output.stdout).unwrap_or(Status { installed: true, download: DOWNLOAD.into(), ..Status::default() });
+    let mut status =
+        parse(&output.stdout).unwrap_or(Status { installed: true, download: DOWNLOAD.into(), ..Status::default() });
     status.can_open = can_open;
     status
 }

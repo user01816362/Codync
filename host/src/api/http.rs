@@ -25,10 +25,7 @@ use std::time::Duration;
 /// What a Cloudflare Tunnel serves: only the end-to-end phone channel, so a public
 /// hostname never reaches this computer's local API, terminals or webhooks.
 pub fn public_router(hub: Arc<Hub>) -> Router {
-    Router::new()
-        .route("/channel", get(channel))
-        .route("/health", get(public_health))
-        .with_state(hub)
+    Router::new().route("/channel", get(channel)).route("/health", get(public_health)).with_state(hub)
 }
 
 /// A deliberately small health response for the public tunnel listener. The main

@@ -33,27 +33,6 @@ jobs:
           command -v xcodegen >/dev/null || brew install xcodegen
           xcodegen generate --spec apps/project.yml
 
-      - name: Prepare generated project and Rust formatting
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
-        run: |
-          rustup toolchain install stable --component rustfmt
-          cd host && cargo +stable fmt --all
-
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
-        with:
-          name: generated-project-files
-          path: |
-            apps/Codync.xcodeproj/project.pbxproj
-            host/src/reach/
-            host/src/api/reach.rs
-            host/src/api/http.rs
-            host/src/api/mod.rs
-            host/src/api/events.rs
-            host/src/main.rs
-            host/src/service/addresses.rs
-          retention-days: 1
-
       - name: Build the iOS app (unsigned)
         working-directory: apps
         run: |

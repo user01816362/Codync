@@ -46,8 +46,6 @@ struct Runtime {
     login_pending: bool,
     login_url: Option<String>,
     last_error: Option<String>,
-    /// When the login process started, so a stuck one can be offered again.
-    login_started: Option<Instant>,
 }
 
 // A status snapshot from `cloudflared`, not a decision: each bool says what an external
@@ -165,10 +163,11 @@ pub fn login() -> Result<(), String> {
     }
     {
         let mut runtime = RUNTIME.locked();
-        if runtime.login_pending { return Ok(()); }
+        if runtime.login_pending {
+            return Ok(());
+        }
         runtime.last_error = None;
         runtime.login_pending = true;
-        runtime.login_started = Some(Instant::now());
         runtime.login_url = None;
     }
     let mut child =
@@ -176,7 +175,6 @@ pub fn login() -> Result<(), String> {
             |error| {
                 let mut runtime = RUNTIME.locked();
                 runtime.login_pending = false;
-                runtime.login_started = None;
                 format!("Couldn't start cloudflared: {error}")
             },
         )?;
@@ -191,11 +189,12 @@ pub fn login() -> Result<(), String> {
     std::thread::spawn(move || {
         let exit = child.wait();
         if exit.as_ref().is_ok_and(|status| status.success()) {
-            if let Some(cert) = origin_cert() { secure_file(&cert); }
+            if let Some(cert) = origin_cert() {
+                secure_file(&cert);
+            }
         }
         let mut runtime = RUNTIME.locked();
         runtime.login_pending = false;
-        runtime.login_started = None;
         if !exit.is_ok_and(|status| status.success()) && origin_cert().is_none() {
             runtime.last_error = Some("Cloudflare sign-in didn't finish. Try again.".into());
         }
@@ -220,11 +219,15 @@ pub fn create(store: &Store, hostname: &str) -> Result<Status, String> {
     let cert = origin_cert().ok_or("Sign in to Cloudflare on this computer first.")?;
     private_dir()?;
 
-    let (name, uuid, credentials) = match (store.kv_get(TUNNEL), store.kv_get(UUID), saved_credentials(store)?) {
-        (Some(name), Some(uuid), Some(credentials)) => (name, uuid, credentials),
-        (Some(_), Some(_), None) => return Err("The saved Cloudflare Tunnel credentials are missing. Forget this tunnel here and create a new one.".into()),
-        _ => create_tunnel(&binary, &cert)?,
-    };
+    let (name, uuid, credentials) =
+        match (store.kv_get(TUNNEL), store.kv_get(UUID), saved_credentials(store)?) {
+            (Some(name), Some(uuid), Some(credentials)) => (name, uuid, credentials),
+            (Some(_), Some(_), None) => return Err(
+                "The saved Cloudflare Tunnel credentials are missing. Forget this tunnel here and create a new one."
+                    .into(),
+            ),
+            _ => create_tunnel(&binary, &cert)?,
+        };
 
     // Keep what was created even if the DNS route is refused: a second try reuses it
     // instead of leaving an orphan tunnel in the account.
@@ -277,7 +280,9 @@ pub fn forget(store: &Store) -> Result<Status, String> {
 /// Runs the saved tunnel against the loopback channel listener.
 pub fn start(store: &Store) -> Result<(), String> {
     let _operation = OPERATION.locked();
-    if SHUTTING_DOWN.load(Ordering::Relaxed) || !enabled(store) { return Ok(()); }
+    if SHUTTING_DOWN.load(Ordering::Relaxed) || !enabled(store) {
+        return Ok(());
+    }
     start_inner(store)
 }
 
@@ -411,7 +416,8 @@ fn create_tunnel(binary: &Path, cert: &Path) -> Result<(String, String, String),
             return Err(command_error("Cloudflare didn't create the tunnel", &output.stderr, &output.stdout));
         }
         secure_file(&creds);
-        let raw = fs::read_to_string(&creds).map_err(|error| format!("Couldn't read the tunnel credentials: {error}"))?;
+        let raw =
+            fs::read_to_string(&creds).map_err(|error| format!("Couldn't read the tunnel credentials: {error}"))?;
         let uuid = credentials_id(&raw)
             .ok_or_else(|| "Cloudflare created the tunnel but its credentials file has no tunnel id.".to_owned())?;
         Ok((name, uuid, raw))

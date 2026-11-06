@@ -12,10 +12,8 @@ pub fn addresses(port: u16) -> Vec<String> {
     static EXTERNAL: LazyLock<Vec<String>> =
         LazyLock::new(|| external_urls(&std::env::var("CODYNC_EXTERNAL_URL").unwrap_or_default()));
     let tailscale_status = crate::reach::tailscale::status();
-    let tailscale_dns = tailscale_status
-        .dns_name
-        .filter(|name| !name.is_empty())
-        .map(|name| format!("http://{name}:{port}"));
+    let tailscale_dns =
+        tailscale_status.dns_name.filter(|name| !name.is_empty()).map(|name| format!("http://{name}:{port}"));
     let mut tailscale = vec![];
     let mut lan = vec![];
     for iface in if_addrs::get_if_addrs().unwrap_or_default() {

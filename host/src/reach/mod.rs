@@ -74,9 +74,7 @@ pub async fn start(hub: Arc<Hub>) -> Result<()> {
                 continue;
             }
             let needs_unlock = supervisor.store.secret_key.locked().is_none();
-            if needs_unlock
-                && let Err(error) = crate::market::vault::unlock(supervisor.clone()).await
-            {
+            if needs_unlock && let Err(error) = crate::market::vault::unlock(supervisor.clone()).await {
                 cloudflare::set_error(error.to_string());
                 tracing::warn!(%error, "couldn't unlock the Cloudflare Tunnel credentials");
                 continue;
