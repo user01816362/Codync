@@ -45,7 +45,9 @@ fn decode_path(value: &str) -> Option<String> {
             i += 1;
         }
     }
-    if output.contains(&0) { return None; }
+    if output.contains(&0) {
+        return None;
+    }
     String::from_utf8(output).ok()
 }
 
@@ -56,7 +58,9 @@ fn local_target(target: &str) -> Option<String> {
     if target.starts_with("file:") {
         return url::Url::parse(target).ok()?.to_file_path().ok()?.to_str().map(str::to_owned);
     }
-    if target.contains(':') || target.chars().any(char::is_whitespace) { return None; }
+    if target.contains(':') || target.chars().any(char::is_whitespace) {
+        return None;
+    }
     decode_path(target)
 }
 
@@ -67,7 +71,9 @@ impl App {
         for line in text.lines() {
             let trimmed = line.trim_start_matches(' ');
             let indent = line.len() - trimmed.len();
-            if indent <= 3 && let Some(marker @ (b'`' | b'~')) = trimmed.bytes().next() {
+            if indent <= 3
+                && let Some(marker @ (b'`' | b'~')) = trimmed.bytes().next()
+            {
                 let count = trimmed.bytes().take_while(|b| *b == marker).count();
                 if count >= 3 {
                     match fence {
@@ -78,7 +84,9 @@ impl App {
                     continue;
                 }
             }
-            if fence.is_some() || indent >= 4 { continue; }
+            if fence.is_some() || indent >= 4 {
+                continue;
+            }
             let bytes = line.as_bytes();
             let (mut index, mut ticks) = (0, 0);
             while index < bytes.len() {
@@ -86,16 +94,24 @@ impl App {
                     b'\\' => index += 2,
                     b'`' => {
                         let count = bytes[index..].iter().take_while(|b| **b == b'`').count();
-                        if ticks == 0 { ticks = count; } else if ticks == count { ticks = 0; }
+                        if ticks == 0 {
+                            ticks = count;
+                        } else if ticks == count {
+                            ticks = 0;
+                        }
                         index += count;
                     }
                     b'[' if ticks == 0 => {
                         let Some(end) = line[index + 1..].find("](") else { break };
                         let start = index + 1 + end + 2;
                         if let Some(close) = line[start..].find(')') {
-                            if let Some(path) = local_target(&line[start..start + close]) { return Some(path); }
+                            if let Some(path) = local_target(&line[start..start + close]) {
+                                return Some(path);
+                            }
                             index = start + close + 1;
-                        } else { break; }
+                        } else {
+                            break;
+                        }
                     }
                     _ => index += 1,
                 }
@@ -108,14 +124,23 @@ impl App {
         let id = uuid::Uuid::new_v4().to_string();
         self.client.preview_workspace(bot.to_owned(), path.clone(), id.clone(), self.tx.clone());
         self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
-            id, name: path, content: None, scroll: 0, max_scroll: Cell::default(), page: Cell::default(),
+            id,
+            name: path,
+            content: None,
+            scroll: 0,
+            max_scroll: Cell::default(),
+            page: Cell::default(),
         }));
     }
 
     pub(in crate::tui) fn open_file_preview(&mut self, entry: &str, data: &Value) {
-        let Some(file) = data["files"].as_array().into_iter().flatten().filter_map(|raw| {
-            serde_json::from_value::<crate::chat::files::SharedFile>(raw.clone()).ok()
-        }).find(|file| supported(&file.name, file.size)) else {
+        let Some(file) = data["files"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|raw| serde_json::from_value::<crate::chat::files::SharedFile>(raw.clone()).ok())
+            .find(|file| supported(&file.name, file.size))
+        else {
             self.flash("No text file up to 1 MiB to preview; use f to download");
             return;
         };
@@ -139,7 +164,12 @@ impl App {
         let id = uuid::Uuid::new_v4().to_string();
         self.client.preview_upload(bot.to_owned(), upload.to_owned(), size, id.clone(), self.tx.clone());
         self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
-            id, name: name.to_owned(), content: None, scroll: 0, max_scroll: Cell::default(), page: Cell::default(),
+            id,
+            name: name.to_owned(),
+            content: None,
+            scroll: 0,
+            max_scroll: Cell::default(),
+            page: Cell::default(),
         }));
     }
 

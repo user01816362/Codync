@@ -8,6 +8,7 @@
 mod agent;
 mod analytics;
 mod bot_chat;
+mod dev_servers;
 mod fields;
 mod file_preview;
 mod gear;
@@ -25,6 +26,7 @@ mod skill;
 mod when;
 
 pub use analytics::AnalyticsSheet;
+pub use dev_servers::{DevServer, DevServerSummary, DevServersSheet, LogsView, summary as dev_server_summary};
 pub use fields::{handoff_fields, section_fields};
 pub use file_preview::FilePreviewSheet;
 pub use gear::{Gear, GearRow};
@@ -51,6 +53,8 @@ pub const REACTIONS: [&str; 6] = ["👍", "❤️", "😂", "🎉", "👀", "✅
 /// Replies to the sheets' commands.
 #[derive(Clone)]
 pub enum Reply {
+    /// A dev server's log, by the server's id.
+    DevServerLogs(String),
     Memory(String),
     MemorySaved(String),
     /// A note the bot's memory sheet has open.

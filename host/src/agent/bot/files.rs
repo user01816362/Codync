@@ -100,7 +100,8 @@ impl Actor {
         // Reserve the message's chronological position before later ACP chunks can arrive. The empty nonfinal
         // entry is hidden until the verified snapshot is ready, and stays hidden on cancellation or failure.
         self.close_seg();
-        let Some(entry) = self.add(EntryKind::Agent, self.turn.unwrap_or(0), json!({"text": "", "final": false})) else {
+        let Some(entry) = self.add(EntryKind::Agent, self.turn.unwrap_or(0), json!({"text": "", "final": false}))
+        else {
             return;
         };
         let image_entry = entry.id;

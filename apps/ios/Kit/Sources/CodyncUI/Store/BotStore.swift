@@ -69,6 +69,9 @@ public final class BotStore {
     public internal(set) var chatClearGenerations: [String: Int] = [:]
     var collaborationUpdates: [String: [Entry]] = [:]
     public internal(set) var usage: Usage
+    /// The newest order still to send, and the task sending them (`setUsageOrder`).
+    @ObservationIgnored var usageOrderWaiting: [String]?
+    @ObservationIgnored var usageOrderSending: Task<Void, Never>?
     /// The computer's remote screen (`nil`: the host predates it).
     public internal(set) var screen: ScreenState?
     /// The computer's network of the user's computers (`nil`: the host predates it).

@@ -27,8 +27,12 @@ fn read_text(root: &Path, requested: &str) -> Result<(String, String)> {
     } else {
         requested
     };
-    ensure!(relative.components().all(|part| matches!(part, Component::Normal(_) | Component::CurDir)), "invalid workspace path");
-    let name = relative.file_name().and_then(|value| value.to_str()).ok_or_else(|| anyhow!("invalid file name"))?.to_owned();
+    ensure!(
+        relative.components().all(|part| matches!(part, Component::Normal(_) | Component::CurDir)),
+        "invalid workspace path"
+    );
+    let name =
+        relative.file_name().and_then(|value| value.to_str()).ok_or_else(|| anyhow!("invalid file name"))?.to_owned();
     let mut file = open_workspace_file(&root, relative)?;
     ensure!(file.metadata()?.is_file(), "only regular files can be previewed");
     ensure!(file.metadata()?.len() <= MAX_PREVIEW, "file exceeds 1 MiB");
@@ -46,17 +50,24 @@ fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
     use std::os::fd::{AsRawFd as _, FromRawFd as _};
     use std::os::unix::ffi::OsStrExt as _;
     let mut directory = std::fs::File::open(root)?;
-    let mut parts = relative.components().filter_map(|part| match part {
-        Component::Normal(value) => Some(value),
-        _ => None,
-    }).peekable();
+    let mut parts = relative
+        .components()
+        .filter_map(|part| match part {
+            Component::Normal(value) => Some(value),
+            _ => None,
+        })
+        .peekable();
     while let Some(part) = parts.next() {
         let name = CString::new(part.as_bytes()).context("invalid path")?;
         let mut flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK;
-        if parts.peek().is_some() { flags |= libc::O_DIRECTORY; }
+        if parts.peek().is_some() {
+            flags |= libc::O_DIRECTORY;
+        }
         // Each component is opened relative to the already-open directory, without following symlinks.
         let fd = unsafe { libc::openat(directory.as_raw_fd(), name.as_ptr(), flags) };
-        if fd < 0 { return Err(std::io::Error::last_os_error()).context("opening workspace file"); }
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error()).context("opening workspace file");
+        }
         // SAFETY: openat returned a new owned descriptor.
         directory = unsafe { std::fs::File::from_raw_fd(fd) };
     }

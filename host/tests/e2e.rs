@@ -194,10 +194,18 @@ async fn turn_with_approval_reaches_a_final_reply() {
 async fn explicitly_streamed_message_updates_one_entry_and_finishes() {
     let host = start_host().await;
     let agent = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fake_agent.py");
-    let bot = host.call("createBot", json!({
-        "name": "Streamer", "backend": "custom", "command": common::python_agent(&agent),
-        "cwd": host.home.to_string_lossy(), "permission": "ask"
-    })).await["bot"]["id"].as_str().unwrap().to_owned();
+    let bot = host
+        .call(
+            "createBot",
+            json!({
+                "name": "Streamer", "backend": "custom", "command": common::python_agent(&agent),
+                "cwd": host.home.to_string_lossy(), "permission": "ask"
+            }),
+        )
+        .await["bot"]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     host.call("send", json!({"botId": bot, "text": "go", "clientNonce": "stream"})).await;
     let _card = host.wait_for(&bot, |e| e["kind"] == "permission" && e["data"]["status"] == "pending").await;
     let chunk = |action: &str, text: &str| json!({"botId": bot, "name": "stream_message", "arguments": {"action": action, "text": text}});
@@ -221,7 +229,8 @@ async fn explicitly_streamed_message_updates_one_entry_and_finishes() {
     let final_message = host.wait_for(&bot, |e| e["id"] == first["id"] && e["data"]["final"] == true).await;
     assert_eq!(final_message["data"]["streaming"], false);
     host.call("chatCall", chunk("start", "Interrupted")).await;
-    let interrupted = host.wait_for(&bot, |e| e["data"]["streaming"] == true && e["data"]["text"] == "Interrupted").await;
+    let interrupted =
+        host.wait_for(&bot, |e| e["data"]["streaming"] == true && e["data"]["text"] == "Interrupted").await;
     host.call("stop", json!({"botId": bot})).await;
     let stopped = host.wait_for(&bot, |e| e["id"] == interrupted["id"] && e["data"]["streaming"] == false).await;
     assert_eq!(stopped["data"]["final"], false);
@@ -231,13 +240,25 @@ async fn explicitly_streamed_message_updates_one_entry_and_finishes() {
 async fn unfinished_stream_is_cleared_after_host_restart() {
     let mut host = start_host().await;
     let agent = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fake_agent.py");
-    let bot = host.call("createBot", json!({
-        "name": "Recovery", "backend": "custom", "command": common::python_agent(&agent),
-        "cwd": host.home.to_string_lossy(), "permission": "ask"
-    })).await["bot"]["id"].as_str().unwrap().to_owned();
+    let bot = host
+        .call(
+            "createBot",
+            json!({
+                "name": "Recovery", "backend": "custom", "command": common::python_agent(&agent),
+                "cwd": host.home.to_string_lossy(), "permission": "ask"
+            }),
+        )
+        .await["bot"]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     host.call("send", json!({"botId": bot, "text": "go", "clientNonce": "recover"})).await;
     host.wait_for(&bot, |e| e["kind"] == "permission" && e["data"]["status"] == "pending").await;
-    host.call("chatCall", json!({"botId": bot, "name": "stream_message", "arguments": {"action": "start", "text": "Partial"}})).await;
+    host.call(
+        "chatCall",
+        json!({"botId": bot, "name": "stream_message", "arguments": {"action": "start", "text": "Partial"}}),
+    )
+    .await;
     let entry = host.wait_for(&bot, |e| e["data"]["streaming"] == true).await;
     common::stop(&mut host.child);
     (host.child, host.base) = common::serve(&host.home).await;

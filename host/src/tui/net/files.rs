@@ -53,12 +53,16 @@ impl Client {
         let client = self.clone();
         tokio::spawn(async move {
             let result = async {
-                let response = client.call("previewWorkspaceFile", &json!({"botId": bot, "path": path}))
-                    .await.map_err(|e| anyhow!(e))?;
+                let response = client
+                    .call("previewWorkspaceFile", &json!({"botId": bot, "path": path}))
+                    .await
+                    .map_err(|e| anyhow!(e))?;
                 let text = response["text"].as_str().ok_or_else(|| anyhow!("invalid preview"))?;
                 ensure!(text.len() <= 1024 * 1024, "file is too large");
                 Ok(text.chars().filter(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t')).collect())
-            }.await.map_err(|error: anyhow::Error| format!("{error:#}"));
+            }
+            .await
+            .map_err(|error: anyhow::Error| format!("{error:#}"));
             let _ = tx.send(Msg::FilePreview { id, result });
         });
     }
@@ -94,13 +98,17 @@ async fn preview_upload(client: &Client, bot: &str, upload: &str, size: u64) -> 
     let mut bytes = Vec::with_capacity(usize::try_from(size)?);
     let mut offset = 0;
     loop {
-        let response = client.call("readUpload", &json!({"botId": bot, "uploadId": upload, "offset": offset}))
-            .await.map_err(|e| anyhow!(e))?;
+        let response = client
+            .call("readUpload", &json!({"botId": bot, "uploadId": upload, "offset": offset}))
+            .await
+            .map_err(|e| anyhow!(e))?;
         ensure!(response["size"].as_u64() == Some(size), "file size changed");
         let chunk = decode_chunk(&response, size, offset)?;
         offset += chunk.len() as u64;
         bytes.extend_from_slice(&chunk);
-        if offset == size { break; }
+        if offset == size {
+            break;
+        }
     }
     ensure!(!bytes.contains(&0), "file is not text");
     Ok(String::from_utf8(bytes)?.chars().filter(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t')).collect())

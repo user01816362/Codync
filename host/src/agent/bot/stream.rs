@@ -17,10 +17,12 @@ impl Actor {
     /// A restarted host cannot continue an agent's old stream. Keep it in trace, not live chat.
     pub(super) fn recover_streams(&self) {
         match self.hub.store.unfinished_streams(&self.cfg.id) {
-            Ok(entries) => for mut entry in entries {
-                entry.data["streaming"] = false.into();
-                self.hub.set_entry(&entry.id, &entry.data);
-            },
+            Ok(entries) => {
+                for mut entry in entries {
+                    entry.data["streaming"] = false.into();
+                    self.hub.set_entry(&entry.id, &entry.data);
+                }
+            }
             Err(error) => tracing::warn!(bot = %self.cfg.id, %error, "couldn't recover unfinished message streams"),
         }
     }
@@ -29,13 +31,21 @@ impl Actor {
     pub(super) fn stream_message(&mut self, action: &str, text: &str) -> Result<()> {
         ensure!(!self.stop_requested, "turn is stopping");
         ensure!(self.turn.is_some(), "no turn is running");
-        ensure!(self.active_group.is_none() && self.active_request.is_none() && self.active_routine.is_none(), "stream_message is available only in the bot's own chat");
+        ensure!(
+            self.active_group.is_none() && self.active_request.is_none() && self.active_routine.is_none(),
+            "stream_message is available only in the bot's own chat"
+        );
         match action {
             "start" => {
                 ensure!(self.stream.is_none(), "a stream is already open");
                 ensure!(!text.is_empty() && text.len() <= MAX_BYTES, "invalid stream text");
                 self.close_seg();
-                let entry = self.add(EntryKind::Agent, self.turn.unwrap_or(0), json!({"text": text, "final": false, "streaming": true}))
+                let entry = self
+                    .add(
+                        EntryKind::Agent,
+                        self.turn.unwrap_or(0),
+                        json!({"text": text, "final": false, "streaming": true}),
+                    )
                     .ok_or_else(|| anyhow!("couldn't save the stream"))?;
                 self.stream = Some(ActiveStream { id: entry.id, text: text.to_owned(), deltas: 1 });
                 self.set_activity("Writing a reply…");

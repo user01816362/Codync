@@ -202,9 +202,8 @@ pub fn inline(text: &str, base: Style) -> Vec<Span<'static>> {
             continue;
         }
         if c == '['
-            && let Some(close) = (i + 1..chars.len()).find(|&j| {
-                chars[j] == ']' && chars[i + 1..j].iter().rev().take_while(|&&c| c == '\\').count() % 2 == 0
-            })
+            && let Some(close) = (i + 1..chars.len())
+                .find(|&j| chars[j] == ']' && chars[i + 1..j].iter().rev().take_while(|&&c| c == '\\').count() % 2 == 0)
             && chars.get(close + 1) == Some(&'(')
             && let Some(end) = chars[close..].iter().position(|&x| x == ')').map(|p| p + close)
         {

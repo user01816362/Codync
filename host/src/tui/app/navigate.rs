@@ -260,7 +260,9 @@ impl App {
                 }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| Self::workspace_link(e.text()).is_some()) => {
-                if let Some(e) = picked && let Some(path) = Self::workspace_link(e.text()) {
+                if let Some(e) = picked
+                    && let Some(path) = Self::workspace_link(e.text())
+                {
                     let bot = e.data["author"].as_str().unwrap_or(&id);
                     self.open_workspace_preview(bot, path);
                 }

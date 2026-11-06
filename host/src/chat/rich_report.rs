@@ -88,7 +88,10 @@ pub(super) fn render(args: &Value) -> Result<String> {
         check_text(&source.title, 200)?;
         ensure!(source.url.len() <= 2048, "source URL is too long");
         let url = url::Url::parse(&source.url).context("invalid source URL")?;
-        ensure!(matches!(url.scheme(), "http" | "https") && url.host_str().is_some(), "source URL must be http or https");
+        ensure!(
+            matches!(url.scheme(), "http" | "https") && url.host_str().is_some(),
+            "source URL must be http or https"
+        );
         ensure!(url.username().is_empty() && url.password().is_none(), "source URL must not contain credentials");
         // Parentheses delimit links in the desktop's Markdown parser. Percent-encode them
         // in the destination while retaining the same URL for browsers and native clients.
@@ -98,8 +101,14 @@ pub(super) fn render(args: &Value) -> Result<String> {
     let mut result = format!("# {}\n", escape(&report.title));
     for section in &report.sections {
         check_text(&section.heading, 200)?;
-        ensure!(section.text.len() <= 6000 && !section.text.chars().any(|c| c.is_control() && c != '\n' && c != '\t'), "invalid section text");
-        ensure!(section.items.len() <= MAX_ITEMS && section.citations.len() <= MAX_SOURCES, "too many section items or citations");
+        ensure!(
+            section.text.len() <= 6000 && !section.text.chars().any(|c| c.is_control() && c != '\n' && c != '\t'),
+            "invalid section text"
+        );
+        ensure!(
+            section.items.len() <= MAX_ITEMS && section.citations.len() <= MAX_SOURCES,
+            "too many section items or citations"
+        );
         let mut cited = HashSet::new();
         for &citation in &section.citations {
             ensure!(citation > 0 && citation <= report.sources.len(), "citation references a missing source");
@@ -111,7 +120,10 @@ pub(super) fn render(args: &Value) -> Result<String> {
             result.push('\n');
         }
         match section.kind.as_str() {
-            "text" => ensure!(section.items.is_empty() && !section.text.trim().is_empty(), "text sections require text and no items"),
+            "text" => ensure!(
+                section.items.is_empty() && !section.text.trim().is_empty(),
+                "text sections require text and no items"
+            ),
             "comparison" | "timeline" | "data" => {
                 ensure!(!section.items.is_empty(), "section requires items");
                 for item in &section.items {
@@ -126,7 +138,9 @@ pub(super) fn render(args: &Value) -> Result<String> {
         if !section.citations.is_empty() {
             result.push_str("\nSources: ");
             for (index, citation) in section.citations.iter().enumerate() {
-                if index > 0 { result.push_str(", "); }
+                if index > 0 {
+                    result.push_str(", ");
+                }
                 result.push_str(&format!("[{}]({})", citation, source_urls[citation - 1]));
             }
             result.push('\n');
@@ -143,7 +157,10 @@ pub(super) fn render(args: &Value) -> Result<String> {
 }
 
 fn check_text(value: &str, max: usize) -> Result<()> {
-    ensure!(!value.trim().is_empty() && value.len() <= max && !value.chars().any(char::is_control), "invalid report text");
+    ensure!(
+        !value.trim().is_empty() && value.len() <= max && !value.chars().any(char::is_control),
+        "invalid report text"
+    );
     Ok(())
 }
 
@@ -151,7 +168,10 @@ fn check_text(value: &str, max: usize) -> Result<()> {
 fn escape(value: &str) -> String {
     let mut result = String::with_capacity(value.len());
     for c in value.chars() {
-        if matches!(c, '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '<' | '>' | '(' | ')' | '#' | '+' | '-' | '.' | '!' | '|') {
+        if matches!(
+            c,
+            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '<' | '>' | '(' | ')' | '#' | '+' | '-' | '.' | '!' | '|'
+        ) {
             result.push('\\');
         }
         result.push(c);

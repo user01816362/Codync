@@ -60,7 +60,12 @@ pub fn tools() -> Value {
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
     if name == "stream_message" {
         let action = args["action"].as_str().ok_or_else(|| anyhow!("action is required"))?.to_owned();
-        let text = args.get("text").map(|v| v.as_str().ok_or_else(|| anyhow!("text must be a string"))).transpose()?.unwrap_or_default().to_owned();
+        let text = args
+            .get("text")
+            .map(|v| v.as_str().ok_or_else(|| anyhow!("text must be a string")))
+            .transpose()?
+            .unwrap_or_default()
+            .to_owned();
         deliver(hub, bot, |reply| Cmd::StreamMessage { action, text, reply }).await?;
         return Ok(json!({"sent": true}));
     }

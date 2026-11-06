@@ -61,6 +61,8 @@ pub enum After {
     Sheet(Reply),
     /// The network sheet's calls.
     Network(super::super::manage::NetReply),
+    /// A move in the Usage chooser, to this row.
+    UsageOrder(usize),
 }
 
 /// What the reader chose to see: a version, and how many versions the message had when they chose it.
@@ -179,7 +181,9 @@ impl Entry {
     pub fn is_working_step(&self) -> bool {
         match self.kind {
             Kind::Thought => !self.text().trim().is_empty(),
-            Kind::Agent => !self.is_final() && self.data["streaming"] != true && !crate::chat::group::is_pass(self.text()),
+            Kind::Agent => {
+                !self.is_final() && self.data["streaming"] != true && !crate::chat::group::is_pass(self.text())
+            }
             Kind::Tool => self.data["bookkeeping"] == false,
             Kind::Plan => true,
             _ => false,
@@ -220,7 +224,10 @@ impl Entry {
 
     /// What the chat shows as a message: the user's, and each turn's final reply.
     pub fn is_message(&self) -> bool {
-        self.kind == Kind::User || self.is_final() || (self.kind == Kind::Agent && self.data["streaming"] == true) || self.data["connectionRequest"].is_object()
+        self.kind == Kind::User
+            || self.is_final()
+            || (self.kind == Kind::Agent && self.data["streaming"] == true)
+            || self.data["connectionRequest"].is_object()
     }
 
     /// An artifact card's artifact id (`docs/features/artifacts.md`): `o` opens it, `f` saves it.
