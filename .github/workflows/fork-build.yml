@@ -63,12 +63,16 @@ jobs:
         run: npm ci
 
       - name: Native pieces
+        env:
+          # The runner's Rust objcopy cannot load libLLVM. Use Apple's strip below.
+          CARGO_PROFILE_RELEASE_STRIP: "none"
         run: |
           mkdir -p apps/desktop/build/native
           # The host the app bundles (tools/native-host.mjs builds it; universal for release,
           # this build is Apple Silicon only).
           node apps/desktop/tools/account-config.mjs main
           node apps/desktop/tools/native-host.mjs main
+          strip -S -x apps/desktop/build/native/codync-host
           # The screen target embeds the pinned cua-driver from GitHub. Fetch it here, with
           # retries, so a slow runner network doesn't fail the Xcode build phase; the script
           # checks the pinned SHA-256 and keeps the archive in build/cua-driver.
