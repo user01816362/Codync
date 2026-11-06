@@ -889,6 +889,7 @@
   "Dreaming": "梦境",
   "{name}'s own memory": "{name} 自己的记忆",
   "About {name}'s own memory": "关于 {name} 自己的记忆",
+  "Share usage analytics": "共享用量分析",
   "Shared": "共用",
   "{name} keeps notes apart from Codync's memory, and Codync can't turn them off for one bot.": "{name} 会在 Codync 的记忆之外另外记笔记，Codync 没办法只为一个 Bot 关掉。",
   "Shared by every bot": "所有 Bot 共用",
