@@ -45,6 +45,15 @@ jobs:
       # PRs run the tests, compile and lint. The minified release build (R8) runs once a change lands on
       # dev or main, before a tag ships it.
       - run: ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug ${{ github.event_name != 'pull_request' && ':app:assembleRelease' || '' }}
+      - name: Upload Android test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-test-reports
+          path: |
+            apps/android/app/build/test-results/testDebugUnitTest/*.xml
+            apps/android/core/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
           name: codync-android-debug
