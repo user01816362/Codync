@@ -108,9 +108,10 @@ import java.util.Date
             Text(time, style = Type.footnote, color = Palette.tertiary)
         }
         SelectionContainer { Text(exchange.text, style = Type.body, color = Palette.text) }
-        if (!exchange.reply.isNullOrEmpty()) {
+        val reply = exchange.reply
+        if (!reply.isNullOrEmpty()) {
             Text(tr("Reply from {name}").replace("{name}", name(exchange.target)), style = Type.footnote.semibold, color = Palette.secondary)
-            SelectionContainer { Text(exchange.reply, style = Type.body, color = Palette.secondary) }
+            SelectionContainer { Text(reply, style = Type.body, color = Palette.secondary) }
         }
         val status = when (val outcome = exchange.outcome) {
             BotExchange.Outcome.Pending -> tr("Waiting for a reply…")
