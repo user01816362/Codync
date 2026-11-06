@@ -9,6 +9,7 @@ mod agent;
 mod analytics;
 mod bot_chat;
 mod fields;
+mod file_preview;
 mod gear;
 mod icons;
 mod library;
@@ -24,6 +25,7 @@ mod skill;
 mod when;
 
 pub use analytics::AnalyticsSheet;
+pub use file_preview::FilePreviewSheet;
 pub use fields::{handoff_fields, section_fields};
 pub use gear::{Gear, GearRow};
 pub use icons::icon_fields;

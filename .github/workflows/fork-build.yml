@@ -51,6 +51,17 @@ jobs:
         working-directory: host
         run: rustup toolchain install
 
+      - name: Prepare Rust formatting patch
+        run: |
+          (cd host && cargo fmt --all)
+          git diff --binary -- host/src > "$RUNNER_TEMP/rust-format.patch"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rust-format-patch
+          path: ${{ runner.temp }}/rust-format.patch
+          retention-days: 1
+
       - name: Add macOS targets
         working-directory: host
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin

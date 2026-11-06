@@ -48,6 +48,15 @@ impl Drop for Partial {
 }
 
 impl Client {
+    /// Fetches a small snapshot for a read-only viewer, checking every chunk and its digest.
+    pub fn preview_file(&self, entry: String, file: SharedFile, id: String, tx: UnboundedSender<Msg>) {
+        let client = self.clone();
+        tokio::spawn(async move {
+            let result = preview(&client, &entry, &file).await.map_err(|error| format!("{error:#}"));
+            let _ = tx.send(Msg::FilePreview { id, result });
+        });
+    }
+
     pub fn download_file(&self, entry: String, file: SharedFile, tx: UnboundedSender<Msg>) -> Download {
         let (client, progress) = (self.clone(), tx.clone());
         Download::spawn(tx, move |id| async move {
@@ -55,6 +64,25 @@ impl Client {
             Ok(format!("Saved {}", path.display()))
         })
     }
+}
+
+async fn preview(client: &Client, entry: &str, file: &SharedFile) -> Result<String> {
+    crate::chat::files::name(&file.name)?;
+    ensure!(file.size <= 1024 * 1024 && file.sha256.len() == 64 && file.sha256.bytes().all(|b| b.is_ascii_hexdigit()), "invalid file metadata");
+    let mut bytes = Vec::with_capacity(file.size as usize);
+    let mut offset = 0;
+    loop {
+        let result = client.call("readFile", &json!({"entryId": entry, "fileId": file.id, "offset": offset})).await;
+        let response = result.map_err(|e| anyhow!(e))?;
+        ensure!(response["size"].as_u64() == Some(file.size), "file size changed");
+        let chunk = decode_chunk(&response, file.size, offset)?;
+        offset += chunk.len() as u64;
+        bytes.extend_from_slice(&chunk);
+        if offset == file.size { break; }
+    }
+    ensure!(crate::chat::files::digest_hex(&Sha256::digest(&bytes)) == file.sha256, "file integrity check failed");
+    ensure!(!bytes.contains(&0), "file is not text");
+    Ok(String::from_utf8(bytes)?)
 }
 
 async fn save(client: &Client, entry: &str, meta: &SharedFile, id: &str, tx: &UnboundedSender<Msg>) -> Result<PathBuf> {

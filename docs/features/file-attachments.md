@@ -82,8 +82,8 @@ Small bot-shared Markdown and source/text files (at most 1 MiB) can also be open
 cards. Desktop uses a side panel, or a sheet in a narrow window; iPhone and Android use a sheet.
 Markdown renders as a document and source stays selectable plain text. Contents are checked against
 the saved size and SHA-256 and must be valid UTF-8 without NUL characters. The viewer never executes
-file content. Unsupported and larger files remain downloadable. The terminal currently saves shared
-files rather than showing a text preview.
+file content. Unsupported and larger files remain downloadable. In the terminal, select the file message and press `o` to preview the first supported shared file;
+`f` still downloads it.
 
 This feature adds no previews of other file types, folder packaging, background
 transfers, persistent resume or Watch UI. Existing bots do not publish workspace files

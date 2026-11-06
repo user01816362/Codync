@@ -21,6 +21,7 @@ mod network;
 mod network_rules;
 mod new_bot;
 mod overlay;
+mod file_preview;
 mod pair;
 mod permission;
 mod queue;

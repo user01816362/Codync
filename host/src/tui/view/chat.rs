@@ -150,7 +150,7 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
             let mut hint = if artifact {
                 "j k pick · o open in the browser · f save as HTML · ↵ reply · 1–6 react · c copy · esc".to_owned()
             } else {
-                "j k pick · ↵ reply · 1–6 react · f save files · c copy · esc".to_owned()
+                "j k pick · ↵ reply · 1–6 react · o preview text · f save files · c copy · esc".to_owned()
             };
             if entry.is_some_and(Entry::editable) {
                 hint.push_str(" · e edit");

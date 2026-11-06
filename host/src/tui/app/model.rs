@@ -11,6 +11,7 @@ pub enum Msg {
     Connected {
         since: i64,
     },
+    FilePreview { id: String, result: Result<String, String> },
     FileDownload {
         id: String,
         status: Result<String, String>,

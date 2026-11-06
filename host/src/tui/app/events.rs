@@ -40,6 +40,13 @@ impl App {
             }
             Msg::Event(v) => self.on_event(&v),
             Msg::Reply(after, r) => self.on_reply(after, r),
+            Msg::FilePreview { id, result } => {
+                for overlay in &mut self.overlays {
+                    if let super::Overlay::FilePreview(view) = overlay && view.id == id {
+                        view.content = Some(result.clone());
+                    }
+                }
+            }
             Msg::FileDownload { id, status, done } => {
                 if self.download.as_ref().is_some_and(|job| job.id == id) {
                     self.flash(&status.unwrap_or_else(|error| format!("Download failed: {error}")));
