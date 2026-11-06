@@ -28,11 +28,11 @@ class MessageVersionsTest {
         reply("a2", 3, 3_100, "answer to the edit"),
     )
 
-    private fun ids(items: List<ChatItem>) = items.map {
+    private fun ids(items: List<ChatItem>) = items.mapNotNull {
         when (it) {
             is ChatItem.Message -> "${it.entry.id}:${it.entry.text}"
             is ChatItem.Pending -> "pending"
-            is ChatItem.Separator -> "separator"
+            is ChatItem.Separator -> null
             is ChatItem.Exchanges -> "exchanges"
         }
     }
@@ -41,7 +41,7 @@ class MessageVersionsTest {
     fun `an edited message shows its newest version and answer where it was first sent`() {
         val items = chatItems(chat(), emptyList())
         assertEquals(listOf("e1:edited first", "a2:answer to the edit", "u2:second"), ids(items))
-        val shown = items.first() as ChatItem.Message
+        val shown = items.filterIsInstance<ChatItem.Message>().first()
         assertEquals(listOf("u1", "e1"), shown.versions?.map { it.id })
         assertEquals(1, shown.versionIndex)
     }
