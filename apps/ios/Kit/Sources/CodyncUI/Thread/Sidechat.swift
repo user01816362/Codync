@@ -35,7 +35,7 @@ struct SidechatView: View {
     let botId: String
     @Environment(BotStore.self) private var model
     @State private var fetched: [Entry] = []
-    @State private var error: String?
+    @State private var loadError: String?
 
     private var exchanges: [BotExchange] { BotExchange.all(fetched: fetched, live: model.chat(botId) + (model.collaborationUpdates[botId] ?? [])) }
 
@@ -44,8 +44,8 @@ struct SidechatView: View {
             ModalHeader("Collaboration")
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
-                    if let error {
-                        Text(error).font(.footnote).foregroundStyle(Palette.danger)
+                    if let loadError {
+                        Text(loadError).font(.footnote).foregroundStyle(Palette.danger)
                     }
                     ForEach(BotCollaboration.group(exchanges)) { group in
                         VStack(alignment: .leading, spacing: 16) {
@@ -68,7 +68,7 @@ struct SidechatView: View {
         .background(Palette.background)
         .onChange(of: model.chatClearGenerations[botId] ?? 0) { _, _ in
             fetched = []
-            error = nil
+            loadError = nil
         }
         .task(id: botId) {
             let generation = model.chatClearGenerations[botId] ?? 0
@@ -78,7 +78,7 @@ struct SidechatView: View {
                 fetched = entries
             } catch {
                 guard !Task.isCancelled, generation == (model.chatClearGenerations[botId] ?? 0) else { return }
-                error = L10n.tr("Couldn't load earlier collaboration activity.")
+                loadError = L10n.tr("Couldn't load earlier collaboration activity.")
             }
         }
     }
