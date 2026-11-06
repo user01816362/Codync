@@ -9,6 +9,7 @@
 pub mod cloudflare;
 pub mod tailscale;
 
+use crate::LockExt;
 use crate::hub::Hub;
 use crate::store::Store;
 use anyhow::{Context, Result};
