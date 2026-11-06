@@ -63,7 +63,7 @@ fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
         if parts.peek().is_some() {
             flags |= libc::O_DIRECTORY;
         }
-        // Each component is opened relative to the already-open directory, without following symlinks.
+        // SAFETY: the directory descriptor is live and name is a NUL-terminated CString.
         let fd = unsafe { libc::openat(directory.as_raw_fd(), name.as_ptr(), flags) };
         if fd < 0 {
             return Err(std::io::Error::last_os_error()).context("opening workspace file");

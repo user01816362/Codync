@@ -87,12 +87,12 @@ impl Actor {
 
     /// ACP sends image content directly, with no tool response that can wait for the disk copy.
     pub(super) fn begin_image(&mut self, content: &Value) {
+        const MAX_ENCODED: usize = (20 * 1024 * 1024_usize).div_ceil(3) * 4;
         if self.can_send_file().is_err() {
             return;
         }
         let (Some(mime), Some(data)) = (content["mimeType"].as_str(), content["data"].as_str()) else { return };
         // Check before cloning the agent's payload onto a blocking worker.
-        const MAX_ENCODED: usize = (20 * 1024 * 1024_usize).div_ceil(3) * 4;
         if data.len() > MAX_ENCODED || self.files.pending.len() >= 4 {
             tracing::warn!(bot = %self.cfg.id, "agent image exceeds the size or pending-share limit");
             return;

@@ -6,6 +6,7 @@ use anyhow::{Context as _, Result, bail, ensure};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashSet;
+use std::fmt::Write as _;
 
 const MAX_BYTES: usize = 32 * 1024;
 const MAX_SECTIONS: usize = 24;
@@ -114,7 +115,7 @@ pub(super) fn render(args: &Value) -> Result<String> {
             ensure!(citation > 0 && citation <= report.sources.len(), "citation references a missing source");
             ensure!(cited.insert(citation), "duplicate citation");
         }
-        result.push_str(&format!("\n## {}\n\n", escape(&section.heading)));
+        let _ = write!(result, "\n## {}\n\n", escape(&section.heading));
         if !section.text.trim().is_empty() {
             result.push_str(&escape(&section.text));
             result.push('\n');
@@ -129,7 +130,7 @@ pub(super) fn render(args: &Value) -> Result<String> {
                 for item in &section.items {
                     check_text(&item.label, 500)?;
                     check_text(&item.value, 2000)?;
-                    result.push_str(&format!("\n- **{}:** {}", escape(&item.label), escape(&item.value)));
+                    let _ = write!(result, "\n- **{}:** {}", escape(&item.label), escape(&item.value));
                 }
                 result.push('\n');
             }
@@ -141,7 +142,7 @@ pub(super) fn render(args: &Value) -> Result<String> {
                 if index > 0 {
                     result.push_str(", ");
                 }
-                result.push_str(&format!("[{}]({})", citation, source_urls[citation - 1]));
+                let _ = write!(result, "[{}]({})", citation, source_urls[citation - 1]);
             }
             result.push('\n');
         }
@@ -149,7 +150,7 @@ pub(super) fn render(args: &Value) -> Result<String> {
     if !report.sources.is_empty() {
         result.push_str("\n## Sources\n");
         for (index, source) in report.sources.iter().enumerate() {
-            result.push_str(&format!("\n{}. [{}]({})", index + 1, escape(&source.title), source_urls[index]));
+            let _ = write!(result, "\n{}. [{}]({})", index + 1, escape(&source.title), source_urls[index]);
         }
     }
     ensure!(result.len() <= MAX_BYTES, "rendered report exceeds 32 KiB");

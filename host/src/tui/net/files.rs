@@ -188,20 +188,6 @@ pub(super) fn decode_chunk(response: &Value, size: u64, offset: u64) -> Result<V
     Ok(data)
 }
 
-#[cfg(test)]
-mod preview_chunk_tests {
-    use super::*;
-
-    #[test]
-    fn empty_and_malformed_chunks_are_checked() {
-        assert_eq!(decode_chunk(&json!({"data": ""}), 0, 0).unwrap(), Vec::<u8>::new());
-        assert!(decode_chunk(&json!({"data": ""}), 1, 0).is_err());
-        assert!(decode_chunk(&json!({"data": "not base64"}), 1, 0).is_err());
-        assert!(decode_chunk(&json!({"data": "YWI="}), 1, 0).is_err());
-        assert!(decode_chunk(&json!({"data": ""}), 0, 1).is_err());
-    }
-}
-
 pub(super) fn downloads() -> Result<PathBuf> {
     dirs::download_dir().or_else(dirs::home_dir).ok_or_else(|| anyhow!("No Downloads folder"))
 }
@@ -217,4 +203,18 @@ pub(super) async fn place(partial: &Partial, dir: &std::path::Path, name: &str) 
         }
     }
     Err(anyhow!("No available filename in Downloads"))
+}
+
+#[cfg(test)]
+mod preview_chunk_tests {
+    use super::*;
+
+    #[test]
+    fn empty_and_malformed_chunks_are_checked() {
+        assert_eq!(decode_chunk(&json!({"data": ""}), 0, 0).unwrap(), Vec::<u8>::new());
+        assert!(decode_chunk(&json!({"data": ""}), 1, 0).is_err());
+        assert!(decode_chunk(&json!({"data": "not base64"}), 1, 0).is_err());
+        assert!(decode_chunk(&json!({"data": "YWI="}), 1, 0).is_err());
+        assert!(decode_chunk(&json!({"data": ""}), 0, 1).is_err());
+    }
 }

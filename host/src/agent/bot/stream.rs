@@ -77,16 +77,16 @@ impl Actor {
 
     /// A completed stream becomes a normal final message; cancelled drafts stay in the trace.
     pub(super) fn settle_stream(&mut self, finish: bool) {
-        if let Some(stream) = self.stream.take() {
-            if let Some(mut entry) = self.hub.store.entry(&stream.id) {
-                entry.data["streaming"] = false.into();
-                if finish {
-                    entry.data["final"] = true.into();
-                    self.sent.push(stream.text);
-                    self.last_text = None;
-                }
-                self.hub.set_entry(&stream.id, &entry.data);
+        if let Some(stream) = self.stream.take()
+            && let Some(mut entry) = self.hub.store.entry(&stream.id)
+        {
+            entry.data["streaming"] = false.into();
+            if finish {
+                entry.data["final"] = true.into();
+                self.sent.push(stream.text);
+                self.last_text = None;
             }
+            self.hub.set_entry(&stream.id, &entry.data);
         }
     }
 }
