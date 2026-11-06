@@ -7,6 +7,7 @@ import { version } from '../../../package.json'
 // signed out, unavailable or a no-op. Imported before the renderer so module-level reads see it.
 
 const host = new FakeHost(version)
+let keepRunning = false
 const none = () => () => {}
 const unavailable = () => Promise.reject(new Error(DEMO_UNAVAILABLE))
 
@@ -37,6 +38,8 @@ const bridge: CodyncBridge = {
     onChange: none,
     install() {},
     restart() {},
+    keepRunningAfterQuit: async () => keepRunning,
+    setKeepRunningAfterQuit: async (on) => (keepRunning = on),
     async call(_baseURL, _token, method, body) {
       await new Promise((r) => setTimeout(r, 30))
       try {
