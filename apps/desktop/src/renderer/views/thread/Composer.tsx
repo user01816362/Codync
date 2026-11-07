@@ -4,6 +4,7 @@ import { artifactDraftKey, artifactQuote, type Artifact } from '@shared/artifact
 import { isGroup, isWorkingIn, quoteOf, type Bot, type Entry } from '@shared/models'
 import type { PickedFile } from '@shared/ipc'
 import { Icon } from '../../components/Icon'
+import { Text } from '../../components/Text'
 import { IconButton } from '../../components/Controls'
 import { RecordingPill } from '../../components/RecordingPill'
 import { Sheet, usePresence } from '../../components/Overlay'
