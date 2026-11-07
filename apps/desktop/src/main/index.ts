@@ -14,6 +14,7 @@ import { Tray } from './tray'
 import { applyDockVisibility, setShowInDock, showInDock } from './dock'
 import { AccountService } from './account'
 import { Updates, yieldsToInstall } from './updates'
+import { ForkUpdates, forkBuild } from './fork-updates'
 import { handleURL, registerAuthIPC, registerSchemes, urlFromArgv } from './auth'
 import { registerSpeech } from './speech'
 import { VoiceShortcutKeys } from './voice-shortcut'
@@ -51,7 +52,8 @@ registerErrorReports(host)
 registerRendererRecovery(host)
 host.on('setupFailed', reportHostSetupFailure)
 const account = new AccountService()
-const updates = new Updates(host)
+const fork = forkBuild()
+const updates = fork ? new ForkUpdates(host, fork) : new Updates(host)
 let chat: BrowserWindow | null = null
 let pairing: BrowserWindow | null = null
 const quitLifecycle = new QuitLifecycle(app, autoUpdater)

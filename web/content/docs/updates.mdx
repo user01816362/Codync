@@ -1,3 +1,14 @@
+## This fork's macOS builds
+
+The ad-hoc Mac app checks this fork's GitHub releases, including fixes published at the same
+app version. **Settings → Updates** offers **Download** when a newer build is available;
+replace Codync in Applications after downloading. Automatic checks are optional. Automatic
+installation requires a signed release and is unavailable in these ad-hoc packages.
+Install the first build with this checker manually; the old missing-config updater cannot
+install it for you. iPhone IPAs still need your sideloading tool to sign and install them.
+
+The sections below describe the upstream signed distribution.
+
 Codync has three parts that update separately: the desktop app, the host that runs your bots, and the iPhone app. On macOS and Windows the host ships inside the desktop app and updates with it. On Linux, and on any computer where you installed only the host, the host updates on its own. The iPhone app comes from the App Store.
 
 ## The desktop app

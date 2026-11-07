@@ -195,6 +195,9 @@ jobs:
           # the whole bundle recursively: an outer-only signature trips over their stale seals.
           APP="$(ls -d dist/mac-*/Codync.app | head -n 1)"
           echo "app: $APP"
+          # Ad-hoc builds use GitHub release checks, not the signed Squirrel installer.
+          node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({runId: Number(process.env.GITHUB_RUN_ID), commit: process.env.GITHUB_SHA}))' \
+            "$APP/Contents/Resources/fork-updates.json"
           codesign --force --deep --sign - "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           # Gatekeeper still quarantines a download: FORK.md has the one `xattr` command.
@@ -216,8 +219,8 @@ jobs:
           retention-days: 14
 
       # Actions artifacts need an account and expire; a release is a plain download link.
-      # Releases follow upstream's shape: tagged and titled `v<version>` with the same asset
-      # names. An existing version is never replaced by a later commit.
+      # Separate fork build tags preserve upstream's app version and make same-version fixes discoverable.
+      # Existing releases and tags are never replaced.
       - name: Publish the release
         if: github.ref == 'refs/heads/main'
         working-directory: apps/desktop
@@ -226,14 +229,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          TAG="v$VERSION"
+          TAG="v$VERSION-fork.$GITHUB_RUN_ID"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "$TAG already exists; this build remains available as a workflow artifact."
+            echo "$TAG already exists; preserving its release assets."
             exit 0
           fi
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
-            --title "$TAG" \
+            --title "$VERSION (fork build $GITHUB_RUN_ID)" --latest \
             --notes "Codync, local fork — build of \`$GITHUB_SHA\` ($(date -u +%Y-%m-%dT%H:%MZ)).
           Apple Silicon, ad-hoc signed, not notarized; see FORK.md for the one-time \`xattr\` command." \
             dist/codync-macos.zip dist/codync-macos.zip.sha256 \

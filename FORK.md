@@ -20,8 +20,7 @@ account and without the hosted Codync cloud.
 ## Download and run the macOS app
 
 1. Open **Releases** and download `codync-macos.zip` (or `codync-macos.dmg`) from the newest
-   `vX.Y.Z` release. When the version already exists, newer builds are available in the
-   corresponding GitHub Actions run artifacts; the published release is preserved.
+   `vX.Y.Z-fork.<build-id>` release. Each successful fork build has its own release; older releases remain available.
 2. Unzip it, then move `Codync.app` to `/Applications`.
 3. The app is ad-hoc signed, not notarized. Clear the download quarantine once:
 
@@ -63,3 +62,22 @@ are adopted during that merge. CI remains Apple-only, and iPhone analytics stay 
 Version 2.41.1 reconciles two independent schema-8 migrations: upstream's signed-out-device
 field and this fork's cleared-chat tracking. Schema 9 checks for both additions, preserves
 existing paired devices and chat clear marks, and handles databases from either repository.
+
+## Updates from this fork
+
+The ad-hoc macOS app checks releases from `user01816362/Codync`, including newer fork builds
+at the same upstream app version. Settings → Updates and the menu bar offer a direct DMG
+download when one is available. Automatic checks can be turned off.
+
+These builds cannot use Electron's signed macOS installer. Replace the app in Applications
+after downloading; automatic installation requires a consistent signing identity and a signed
+update feed. The automatic-install setting is hidden for these packages. The iPhone IPA still
+requires re-signing and installation with your sideloading tool.
+
+Install a new fork build manually once to get this checker: existing installed apps cannot
+acquire the fix through their broken updater. CI embeds its build ID before ad-hoc signing,
+and publishes `v<upstream-version>-fork.<build-id>` without changing the app's version.
+Electron packaging also points at this fork, so a future signed feed cannot select upstream.
+
+References: [Electron autoUpdater](https://www.electronjs.org/docs/latest/api/auto-updater),
+[electron-builder auto updates](https://www.electron.build/v26/docs/features/auto-update/).

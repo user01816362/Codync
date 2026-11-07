@@ -197,7 +197,7 @@ export class Tray {
     const items: Electron.MenuItemConstructorOptions[] = [
       { label: this.tr(action.label), enabled: action.enabled, click: () => updates.check() },
       { label: this.tr('Automatically check for updates'), type: 'checkbox', checked: u.autoCheck, enabled: u.supported, click: () => updates.emit('setAutoCheck', !u.autoCheck) },
-      { label: this.tr('Automatically download and install'), type: 'checkbox', checked: u.autoDownload, enabled: u.supported, click: () => updates.emit('setAutoDownload', !u.autoDownload) },
+      ...(!u.manualInstall ? [{ label: this.tr('Automatically download and install'), type: 'checkbox' as const, checked: u.autoDownload, enabled: u.supported, click: () => updates.emit('setAutoDownload', !u.autoDownload) }] : []),
     ]
     if (!u.supported) items.push({ label: this.tr('Updates are available in release builds.'), enabled: false })
     items.push({ label: this.tr('Version {version}').replaceAll('{version}', app.getVersion()), enabled: false })

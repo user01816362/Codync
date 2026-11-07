@@ -110,6 +110,8 @@ export type WindowCommand =
 
 /** The app's own updates (electron-updater, release builds only). */
 export interface UpdateState {
+  /** Ad-hoc fork builds check releases but macOS installation is manual. */
+  manualInstall?: boolean
   supported: boolean
   checking: boolean
   availableVersion: string | null

@@ -68,8 +68,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          VERSION="$(node -p "require('./apps/desktop/package.json').version")"
-          TAG="v$VERSION"
+          # The Build workflow publishes one release per successful fork build.
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          TAG="$(gh api "repos/$GH_REPO/releases?per_page=100" \
+            --jq ".[] | select(.target_commitish == \"$HEAD_COMMIT\") | .tag_name" | head -n 1)"
+          if [ -z "$TAG" ]; then
+            echo "No release for this commit; the IPA stays in the workflow artifact."
+            exit 0
+          fi
           git fetch --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG" || true
           TAG_COMMIT="$(git rev-list -n 1 "$TAG" 2>/dev/null || true)"
           if [ "$TAG_COMMIT" = "$(git rev-parse HEAD)" ] && gh release view "$TAG" >/dev/null 2>&1; then
