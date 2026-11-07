@@ -46,7 +46,7 @@ pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Resul
         quote(store, chat, id)?
     };
     // Selecting an artifact card's text must not replace the excerpt with an artifact-location note.
-    reply.as_object_mut().unwrap().remove("artifact");
+    reply.as_object_mut().ok_or_else(|| anyhow!("invalid reply quote"))?.remove("artifact");
     reply["text"] = text.into();
     reply["selected"] = true.into();
     Ok(reply)
