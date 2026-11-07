@@ -251,14 +251,11 @@ mod tests {
             }
             migrate(&c).unwrap();
             migrate(&c).unwrap();
-            let signed_out: i64 = c
-                .query_row("SELECT no_account FROM devices WHERE key = 'paired-phone'", [], |r| r.get(0))
-                .unwrap();
+            let signed_out: i64 =
+                c.query_row("SELECT no_account FROM devices WHERE key = 'paired-phone'", [], |r| r.get(0)).unwrap();
             assert_eq!(signed_out, i64::from(!fork));
-            let cleared: Option<i64> = c
-                .query_row("SELECT rev FROM chat_clears WHERE bot_id = 'bot'", [], |r| r.get(0))
-                .optional()
-                .unwrap();
+            let cleared: Option<i64> =
+                c.query_row("SELECT rev FROM chat_clears WHERE bot_id = 'bot'", [], |r| r.get(0)).optional().unwrap();
             assert_eq!(cleared, fork.then_some(42));
         }
     }
