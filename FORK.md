@@ -7,7 +7,7 @@ account and without the hosted Codync cloud.
 
 | Area | Change |
 |---|---|
-| Host pairing | A **direct** (LAN, Tailscale, in-person) pairing is let in without a cloud-signed device certificate. A relay link still has to prove its account. |
+| Host pairing | Direct pairing (LAN, Tailscale or Cloudflare Tunnel) and a configured private relay support phones without an account. The computer asks before allowing a new phone; the hosted Codync relay still requires account proof. |
 | Host telemetry | Off, always. The settings switch and `codync-host analytics on` cannot turn it back on. |
 | Codync account UI | Hidden in iPhone, Android and desktop apps when this fork has no Codync cloud configuration. Pair computers directly with a QR code. |
 | iPhone analytics | Usage analytics and crash reporting have been removed from the iPhone app. |
@@ -53,3 +53,13 @@ works on a jailbroken device or with TrollStore.
 - The address book ("find my computers"), short pairing codes and cloud assistants.
 - Relay/TURN remote screen across networks: use LAN or Tailscale instead.
 - Signed iPhone and Android builds: the CI IPA is unsigned; sign it yourself with your own identity.
+
+## Upstream sync
+
+Merge upstream `main` into this fork; do not use GitHub's **Discard commits** option.
+Keep the fork's commits and resolve overlapping changes explicitly. New upstream versions
+are adopted during that merge. CI remains Apple-only, and iPhone analytics stay removed.
+
+Version 2.41.1 reconciles two independent schema-8 migrations: upstream's signed-out-device
+field and this fork's cleared-chat tracking. Schema 9 checks for both additions, preserves
+existing paired devices and chat clear marks, and handles databases from either repository.

@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 /// Current schema version (kv `schema`).
-const SCHEMA: i64 = 8;
+const SCHEMA: i64 = 9;
 
 /// 3: authorized devices (keys, not push tickets) with their push and Live Activity
 /// tickets. The old ticket-only `devices` table is dropped; phones re-register on connect.
@@ -17,7 +17,8 @@ const SCHEMA: i64 = 8;
 /// 6: the dividers that announced a fresh agent session go; the chat no longer shows session resets.
 /// 7: each device records the account it was let in for (`devices.account`), so a computer that changes
 /// accounts drops the old account's devices.
-/// 8: when each chat was last cleared (`chat_clears`), so a client that was away drops its messages.
+/// 8: upstream signed-out device tracking or fork cleared-chat tracking.
+/// 9: reconcile both version-8 layouts without losing existing devices or chat clear marks.
 fn migrate(c: &Connection) -> Result<()> {
     let version: i64 =
         c.query_row("SELECT CAST(v AS INTEGER) FROM kv WHERE k = 'schema'", [], |r| r.get(0)).optional()?.unwrap_or(0);
@@ -39,7 +40,10 @@ fn migrate(c: &Connection) -> Result<()> {
     if version < 7 {
         migrate_7(c)?;
     }
-    migrate_8(c)
+    if version < 8 {
+        migrate_8(c)?;
+    }
+    migrate_9(c)
 }
 
 fn migrate_3(c: &Connection) -> Result<()> {
@@ -151,10 +155,24 @@ fn migrate_7(c: &Connection) -> Result<()> {
 }
 
 fn migrate_8(c: &Connection) -> Result<()> {
+    let has: bool =
+        c.query_row("SELECT count(*) > 0 FROM pragma_table_info('devices') WHERE name = 'no_account'", [], |r| {
+            r.get(0)
+        })?;
+    if !has {
+        c.execute_batch("ALTER TABLE devices ADD COLUMN no_account INTEGER NOT NULL DEFAULT 0;")?;
+    }
+    c.execute_batch("INSERT INTO kv(k, v) VALUES('schema', '8') ON CONFLICT(k) DO UPDATE SET v = '8';")?;
+    Ok(())
+}
+
+/// Both upstream and this fork shipped schema 8 with independent additions. Check the actual layout.
+fn migrate_9(c: &Connection) -> Result<()> {
+    migrate_8(c)?;
     c.execute_batch(
         "BEGIN;
          CREATE TABLE IF NOT EXISTS chat_clears(bot_id TEXT PRIMARY KEY, rev INTEGER NOT NULL);
-         INSERT INTO kv(k, v) VALUES('schema', '8') ON CONFLICT(k) DO UPDATE SET v = '8';
+         INSERT INTO kv(k, v) VALUES('schema', '9') ON CONFLICT(k) DO UPDATE SET v = '9';
          COMMIT;",
     )?;
     Ok(())
@@ -208,6 +226,44 @@ mod tests {
     }
 
     #[test]
+    fn both_version_eight_layouts_keep_their_data() {
+        for fork in [false, true] {
+            let c = Connection::open_in_memory().unwrap();
+            c.execute_batch(
+                "CREATE TABLE kv(k TEXT PRIMARY KEY, v TEXT NOT NULL);
+                 INSERT INTO kv VALUES('schema', '8');
+                 CREATE TABLE devices(key TEXT PRIMARY KEY);
+                 INSERT INTO devices VALUES('paired-phone');",
+            )
+            .unwrap();
+            if fork {
+                c.execute_batch(
+                    "CREATE TABLE chat_clears(bot_id TEXT PRIMARY KEY, rev INTEGER NOT NULL);
+                     INSERT INTO chat_clears VALUES('bot', 42);",
+                )
+                .unwrap();
+            } else {
+                c.execute_batch(
+                    "ALTER TABLE devices ADD COLUMN no_account INTEGER NOT NULL DEFAULT 0;
+                     UPDATE devices SET no_account = 1;",
+                )
+                .unwrap();
+            }
+            migrate(&c).unwrap();
+            migrate(&c).unwrap();
+            let signed_out: i64 = c
+                .query_row("SELECT no_account FROM devices WHERE key = 'paired-phone'", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(signed_out, i64::from(!fork));
+            let cleared: Option<i64> = c
+                .query_row("SELECT rev FROM chat_clears WHERE bot_id = 'bot'", [], |r| r.get(0))
+                .optional()
+                .unwrap();
+            assert_eq!(cleared, fork.then_some(42));
+        }
+    }
+
+    #[test]
     fn migrations_replace_the_old_ticket_table() {
         let db = temp_db();
         {
@@ -221,7 +277,7 @@ mod tests {
         }
         let s = Store::open(&db).unwrap();
         assert!(s.devices().unwrap().is_empty());
-        assert_eq!(s.kv_get("schema").as_deref(), Some("8"));
+        assert_eq!(s.kv_get("schema").as_deref(), Some("9"));
         drop(s);
         let s = Store::open(&db).unwrap();
         assert!(s.devices().unwrap().is_empty(), "reopening keeps the new table");
@@ -244,7 +300,7 @@ mod tests {
         let s = Store::open(&db).unwrap();
         let chat: Vec<String> = s.history("b", i64::MAX, 10).unwrap().into_iter().map(|e| e.id).collect();
         assert_eq!(chat, ["info"]);
-        assert_eq!(s.kv_get("schema").as_deref(), Some("8"));
+        assert_eq!(s.kv_get("schema").as_deref(), Some("9"));
     }
 
     #[test]

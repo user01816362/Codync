@@ -43,3 +43,7 @@ This fork keeps its private-relay implementation unchanged. See the [private rel
 - For Tailscale, check that both devices show as connected in Tailscale and belong to the same tailnet.
 - For Cloudflare, keep the computer on, check **Reach from anywhere** for the tunnel status, and confirm the hostname still points to the tunnel in your Cloudflare account.
 - On a local network, check that the phone and computer can reach each other and that the computer's firewall allows Codync.
+
+A computer with no relay now advertises its private addresses on the local network, so nearby
+paired phones can recover after its LAN address changes. The connection still verifies the
+computer's paired key. Named Cloudflare tunnels and Tailscale remain available in this fork.

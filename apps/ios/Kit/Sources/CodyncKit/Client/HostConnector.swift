@@ -16,10 +16,10 @@ public enum HostConnector {
         throw HostError.unreachable
     }
 
-    /// Proves the QR's one-time code inside a channel to the QR's host key, with the account's `certificate`
-    /// when there is one. A build with no cloud, paired in person, sends none: the QR code is the credential.
-    /// The host then authorizes this device and closes with `4100 paired`. A computer in no account asks its
-    /// user first, then signs `claim` and returns it (as JSON) for the phone to complete with the cloud.
+    /// Proves the QR's one-time code inside a channel to the QR's host key, with the account's `certificate`, if this
+    /// phone is signed in; the host then authorizes this device and closes with `4100 paired`. A computer in no
+    /// account asks its user first, and when told to join signs `claim` and returns it (as JSON) for the phone to
+    /// complete with the cloud.
     public static func pair(_ pairing: Pairing, identity: DeviceIdentity, deviceName: String, platform: String,
                             certificate: DeviceCertificate?, claim: CloudClaim?) async throws -> (computer: Computer, claim: Data?) {
         try await pair(pairing, identity: identity, deviceName: deviceName, platform: platform,
@@ -40,7 +40,8 @@ public enum HostConnector {
             }
             struct Res: Decodable { var computerId: ComputerID; var name: String? }
             let body = try JSONEncoder().encode(Body(code: pairing.code, name: deviceName, platform: platform, certificate: certificate, claim: claim))
-            try await transport.ready(within: 30)
+            // Without a relay there's only the direct race to wait for, and waiting longer changes nothing.
+            try await transport.ready(within: pairing.computer.cloud == nil ? 12 : 30)
             // The computer may be waiting for its user to let this phone in (up to 90 seconds).
             let data = try await transport.call("pair", body: body, timeout: 150)
             await transport.shutdown()

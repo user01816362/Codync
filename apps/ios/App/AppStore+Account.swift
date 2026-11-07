@@ -3,11 +3,16 @@ import CodyncUI
 
 /// Leaving an account (signing out, deleting it) and moving signed-out pairings into one.
 extension AppStore {
-    /// Sign-in is required: computers paired while signed out move into the account the first time one is
-    /// used here, before its stores and keys load. Builds without Clerk stay in the signed-out context.
-    static func adoptSignedOutPairings(into storage: SharedStore.Context) {
-        _ = storage.adopt(from: SharedStore.Context(accountID: nil))
+    /// Computers paired while signed out move into the account the first time one is used here, before its stores and
+    /// keys load. Builds without Clerk stay in the signed-out context. True when they have to be paired again: this
+    /// account has its own key on this iPhone.
+    @discardableResult
+    static func adoptSignedOutPairings(into storage: SharedStore.Context) -> Bool {
+        guard let adoption = storage.adopt(from: SharedStore.Context(accountID: nil)), adoption.computers > 0 else { return false }
+        return adoption.keys == .rescan
     }
+
+    static let scanAgain = "This account already has its own key on this iPhone. Scan the code of each computer you paired without an account again; your messages are kept."
 
     /// Signing out: Clerk first, so a sign-out that fails changes nothing. This iPhone keeps the account's key,
     /// computers and drafts, so signing back in needs no scan or check; only its alerts stop: the computers it reaches

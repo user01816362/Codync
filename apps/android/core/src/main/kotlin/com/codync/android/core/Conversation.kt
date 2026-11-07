@@ -141,8 +141,9 @@ private fun canPreviewText(name: String, size: Long) = size in 0..(1024L * 1024)
 /** Unicode control and format characters, which a file name may not contain. */
 private val CONTROLS = setOf(Character.CONTROL, Character.FORMAT)
 
+/** [Waiting]: in the relay's mailbox. [Held]: on this phone, until the computer can be reached. */
 @Serializable
-enum class SendStatus { Sending, Waiting, Delivering, Failed }
+enum class SendStatus { Sending, Waiting, Delivering, Failed, Held }
 
 @Serializable
 data class PendingSend(
