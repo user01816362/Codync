@@ -13,7 +13,8 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 6 | Read-only workspace directory navigation within host-authorized roots | Planned |
 | 7 | Queued-only text editing through the actor, preserving files/replies | Implemented; CI pending |
 | 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
-| 9 | Inline math and diagram expansion/zoom with existing rendering bundles | Planned |
+| 9 | Diagram expansion, fit/zoom and scrolling with existing offline bundles | Implemented; CI pending |
+| 9b | Inline formula layout across native text renderers | Planned |
 | 10 | Incremental Markdown presentation and adapter-specific streaming finality | Planned |
 | 11 | Citation/source navigation using existing reports and supplied source metadata | Planned |
 
@@ -68,3 +69,9 @@ CSV and TSV text previews request the same host formatter on desktop and phones;
 Quoted fields, doubled quotes, embedded newlines and CRLF records are handled. Malformed quotes produce an explicit error and Source fallback. Cells escape Markdown punctuation and do not execute formulas, links, HTML or macros. Columns use numeric labels: the first record is preserved as data rather than guessed to be a header. Truncation is labeled and never changes the original file. Empty data shows No rows. Large, offline or older-host formatting failures leave Source available. A formatted view requires the connected host on phones/desktop; cached raw text remains readable offline.
 
 XLSX parsing is not shipped by this batch. It requires a separately chosen workbook/decompression implementation, bounded ZIP handling and multiple-sheet semantics, not merely adding its extension to text previews.
+
+## Expanded rendering
+
+Graphical rich previews expose Expand preview using the existing sheet. The same bounded renderer and source copy action remain in use. Mermaid adds local Zoom in, Zoom out and Fit controls, a zoom percentage, scroll-to-pan and keyboard `+`, `-`, `0` on its focusable viewport. These controls run only inside the isolated preview and add no network or application bridge. Zoom is bounded from 0.1× to 8×. The canonical template and all three packaged copies carry identical control logic; vendored library bytes and versions are unchanged.
+
+Terminal keeps the readable source rather than a graphical viewport. Existing fenced and standalone display math remain supported. Inline formula layout within native flowing text is not delivered by this batch and must not be implied by expanding a math preview.

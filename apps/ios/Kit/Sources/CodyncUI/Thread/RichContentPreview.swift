@@ -8,6 +8,7 @@ struct RichContentPreview: View {
     let language: String
     var allowMarkdownPreview = true
     @State private var showSource: Bool?
+    @State private var expanded = false
 
     private var markdown: Bool { allowMarkdownPreview && ["md", "markdown"].contains(language) }
     private var canPreview: Bool { !source.isEmpty && (markdown || (source.utf16.count <= 16000 && !["md", "markdown"].contains(language))) }
@@ -27,6 +28,9 @@ struct RichContentPreview: View {
                         .buttonStyle(.plain).font(.caption).foregroundStyle(Palette.secondary)
                         .accessibilityLabel(preview ? "Show code" : "Show preview")
                 }
+                if preview && !markdown {
+                    IconButton("Expand preview", systemImage: "arrow.up.left.and.arrow.down.right") { expanded = true }
+                }
                 IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
             }
             .padding(.leading, 10).padding(.trailing, 4)
@@ -44,6 +48,16 @@ struct RichContentPreview: View {
             }
         }
         .background(Palette.codeBackground, in: RoundedRectangle(cornerRadius: 8))
+        .codyncSheet(isPresented: $expanded) {
+            VStack(spacing: 0) {
+                ModalHeader("Preview") {
+                    IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
+                }
+                if let html = RichRenderer.html(source: source, language: language) {
+                    RichContentWebView(html: html).frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }.background(Palette.background)
+        }
     }
 }
 

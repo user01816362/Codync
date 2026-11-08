@@ -21,6 +21,23 @@ async function load(name){
   mermaid.initialize({startOnLoad:false,securityLevel:'strict',suppressErrorRendering:true,maxTextSize:16000,maxEdges:200,flowchart:{htmlLabels:false},secure:['securityLevel','startOnLoad','maxTextSize','maxEdges','suppressErrorRendering']});
   const result=await mermaid.render('diagram',payload.source);output.innerHTML=result.svg;
   output.querySelectorAll('a').forEach(a=>{a.removeAttribute('href');a.removeAttribute('xlink:href')});
+  const svg=output.querySelector('svg');
+  if(svg){
+   const controls=document.createElement('div');controls.setAttribute('role','toolbar');controls.setAttribute('aria-label','Diagram zoom');
+   controls.style.cssText='display:flex;gap:8px;align-items:center;padding:6px 0;position:sticky;top:0;background:Canvas;color:CanvasText;z-index:1';
+   output.before(controls);output.style.cssText+=';overflow:auto;max-height:calc(100vh - 54px);touch-action:pan-x pan-y';
+   output.tabIndex=0;output.setAttribute('aria-label','Diagram. Scroll to pan; use plus, minus or zero to zoom.');
+   const natural=Math.max(1,Math.min(16384,svg.viewBox.baseVal.width||svg.getBoundingClientRect().width));
+   const fit=()=>Math.min(1,Math.max(.1,(document.documentElement.clientWidth-24)/natural));
+   let zoom=fit();const label=document.createElement('span');label.setAttribute('aria-live','polite');
+   const apply=()=>{svg.style.maxWidth='none';svg.style.width=(natural*zoom)+'px';svg.style.height='auto';label.textContent=Math.round(zoom*100)+'%'};
+   const change=value=>{zoom=Math.max(.1,Math.min(8,value));apply()};
+   for(const [title,action] of [['−',()=>change(zoom/1.25)],['+',()=>change(zoom*1.25)],['Fit',()=>change(fit())]]){
+    const button=document.createElement('button');button.type='button';button.textContent=title;button.setAttribute('aria-label',title==='−'?'Zoom out':title==='+'?'Zoom in':'Fit diagram');button.onclick=action;controls.append(button);
+   }
+   controls.append(label);output.addEventListener('keydown',event=>{if(['+','=','-','0'].includes(event.key)){event.preventDefault();change(event.key==='0'?fit():event.key==='-'?zoom/1.25:zoom*1.25)}});apply();
+  }
+
  }else if(payload.kind==='math'){
   await load('katex');
   katex.render(payload.source,output,{displayMode:true,output:'mathml',trust:false,strict:'error',maxExpand:1000,maxSize:20,throwOnError:true});
