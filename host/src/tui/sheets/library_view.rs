@@ -50,9 +50,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, l: &Library) {
             }
         }
     }
-    let count = l.items.as_ref().map_or(0, |items| {
-        items.iter().filter(|item| !matches!(item, LibraryItem::Artifact(_))).count()
-    });
+    let count = l
+        .items
+        .as_ref()
+        .map_or(0, |items| items.iter().filter(|item| !matches!(item, LibraryItem::Artifact(_))).count());
     let mode = if l.files_only { "Files" } else { "All" };
     let help = format!("{mode} · {count} files · ↵ open · F filter · R retry · f download · r rename · esc");
     footer(buf, inner, None, &help);
