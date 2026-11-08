@@ -235,10 +235,16 @@ jobs:
             exit 0
           fi
           # An existing unpublished tag can belong to an older build. Never relabel new code as that tag.
-          TAG_COMMIT="$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha 2>/dev/null || true)"
-          if [ -n "$TAG_COMMIT" ] && [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
-            echo "$TAG names an earlier commit; this build remains available as a workflow artifact."
-            exit 0
+          # Query actual remote refs: gh api prints error JSON on stdout for a missing tag.
+          # An empty successful listing means the tag is absent; network/auth errors fail the step.
+          TAG_REF="$(git ls-remote --refs origin "refs/tags/$TAG")"
+          if [ -n "$TAG_REF" ]; then
+            git fetch --no-tags --depth=1 origin "refs/tags/$TAG"
+            TAG_COMMIT="$(git rev-parse 'FETCH_HEAD^{commit}')"
+            if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+              echo "$TAG names an earlier commit; this build remains available as a workflow artifact."
+              exit 0
+            fi
           fi
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \

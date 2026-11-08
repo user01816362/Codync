@@ -15,7 +15,7 @@ account and without the hosted Codync cloud.
 | Remote access | Wi-Fi, Tailscale and a named Cloudflare Tunnel are available without a Codync account. Cloudflare exposes only the phone channel and a minimal health check. |
 | App configs | `apps/shared/Config/{main,dev}.plist` ship an empty Clerk key and cloud URL, so every client takes its existing signed-out path. |
 | iPhone / Android | Pairing omits the certificate when the build has no cloud, instead of failing with "Connect to the internet to pair". |
-| CI | [Build workflow](.github/workflows/fork-build.yml) builds an unsigned Apple Silicon macOS app on every push to `main`; the standalone `.github/workflows/ios-ipa.yml` builds an unsigned iPhone IPA. |
+| CI | [Build workflow](.github/workflows/build.yml) builds an unsigned Apple Silicon macOS app on every push to `main`; the standalone `.github/workflows/ios-ipa.yml` builds an unsigned iPhone IPA. |
 
 ## Chat and agent features added in this version
 
@@ -27,7 +27,7 @@ account and without the hosted Codync cloud.
 - Desktop selected-text quotes with author and source-message context in the reply bar.
 
 See the [coverage audit](docs/features/rich-agent-responses.md) for limits and platform gaps.
-Phone selected-text quotes still become draft text, image generation depends on the provider,
+Phone message, collaboration and saved-file selections retain reply metadata; image generation depends on the provider,
 and seen acknowledgements do not prove comprehension. Real-device and accessibility checks
 remain outstanding. **Hidden collaboration activity changes presentation, not bot execution.**
 
@@ -46,6 +46,13 @@ remain outstanding. **Hidden collaboration activity changes presentation, not bo
    If macOS still refuses the first launch, right-click the app → **Open**.
 
 Requires an Apple Silicon Mac (arm64 only).
+
+A successful Build publishes a normal `v<version>` release when that version has no
+existing release or conflicting tag. Existing releases and tags are preserved: later builds
+of the same version are available in Actions artifacts. The following iOS workflow attaches
+the IPA only when the release points to the exact same commit. A successful iOS package
+check in Build validates compilation; the separate iOS IPA workflow creates the installable
+package, which still requires re-signing.
 
 ## Download the unsigned iPhone IPA
 
