@@ -10,7 +10,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 3b | Structured file excerpts and collaboration selections with source context | Planned |
 | 4 | Bounded local PDF/audio/video adapters using verified transfers; terminal download fallback | Implemented; CI/device checks pending |
 | 5 | Shared host CSV/TSV formatting with Source fallback; XLSX remains a separate dependency decision | Implemented; CI pending |
-| 6 | Read-only workspace directory navigation within host-authorized roots | Planned |
+| 6 | Read-only workspace directory navigation within host-authorized roots | Implemented; CI/platform checks pending |
 | 7 | Queued-only text editing through the actor, preserving files/replies | Implemented; CI pending |
 | 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
 | 9 | Diagram expansion, fit/zoom and scrolling with existing offline bundles | Implemented; CI pending |
@@ -85,3 +85,9 @@ Existing numbered report citations and the Sources list now open the same source
 Graphical clients render bounded formulas within plain prose paragraphs: explicit `\(...\)` and unambiguous `$...$` expressions. Currency-like pairs without mathematical content stay literal. Formulas use the existing offline math bundle in untrusted mode. Invalid expressions retain their original text, not an empty paragraph. Paragraphs containing other Markdown styling, links or code outside formulas keep the existing native renderer; this conservative path does not claim full mixed Markdown/math layout.
 
 At most eight such paragraphs per Markdown view are embedded, each at most 4,000 UTF-16 units and each formula at most 1,024 units. Extra paragraphs remain readable source. An observer reports rendered height so paragraphs are not assigned a guessed fixed height. Desktop accepts only layout messages from its exact iframe; native clients expose only a finite 24–1,200 pixel height callback with no data, file, navigation or network actions. The native layout handler is removed when the view closes. Original source remains available through the message's selection/copy flow. Terminal keeps source. Real-device selection, accessibility and dynamic font-size behavior remain unverified.
+
+## Workspace navigation
+
+Bot details now offers Browse workspace on desktop and phones. The terminal uses `W` while a message is selected. Listings use the same host-authorized workspace roots as text previews, with directory navigation, parent/root controls, hidden-file filtering and retry. At most 2,000 directory entries are examined and 500 displayed; truncated results are labeled. Listing order is directories first, then names. A listing is not a disk-wide search or an access grant.
+
+Supported text files up to 1 MiB open the existing read-only preview. Links and special files cannot be opened through the browser. Unsupported binaries retain the explicit bot-sharing route. Groups have no workspace of their own. Windows enumeration uses the opened directory handle and rejects reparse targets; Unix listing retains the confined directory descriptor. Actual filesystem, touch and keyboard interactions remain unverified on devices.

@@ -67,6 +67,15 @@ impl Client {
         });
     }
 
+    pub fn preview_directory(&self, bot: String, path: String, hidden: bool, id: String, tx: UnboundedSender<Msg>) {
+        let client = self.clone();
+        tokio::spawn(async move {
+            let result = client.call("listWorkspaceFiles", &json!({"botId": bot, "path": path, "showHidden": hidden}))
+                .await;
+            let _ = tx.send(Msg::WorkspaceDirectory { id, result });
+        });
+    }
+
     /// Fetch a bounded user-uploaded file without exposing terminal control sequences.
     pub fn preview_upload(&self, bot: String, upload: String, size: u64, id: String, tx: UnboundedSender<Msg>) {
         let client = self.clone();

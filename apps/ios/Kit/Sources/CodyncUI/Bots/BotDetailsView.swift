@@ -32,6 +32,7 @@ struct BotDetailsView: View {
     @State private var presence = PagePresence()
     @State private var saving: Task<Void, Never>?
     @State private var template: EditorRequest?
+    @State private var browsingWorkspace = false
 
     init(botId: String, request: DetailsRequest, openArtifact: @escaping (ArtifactTarget) -> Void) {
         self.botId = botId
@@ -67,6 +68,7 @@ struct BotDetailsView: View {
         .onChange(of: draft) { _, draft in autosave(draft) }
         .onAppear { presence.shown = true }
         .onDisappear { presence.shown = false }
+        .codyncSheet(isPresented: $browsingWorkspace) { WorkspaceBrowser(botId: botId) }
         .codyncSheet(item: $template) { BotTemplateView(draft: $0.draft) }
     }
 
@@ -128,6 +130,9 @@ struct BotDetailsView: View {
                         Text(Date(milliseconds: usage.reportedAt), style: .time).font(.caption)
                     } else { Text(L10n.tr("Not reported by this agent")).font(.subheadline) }
                 }.foregroundStyle(Palette.secondary)
+                if let bot, !bot.cwd.isEmpty {
+                    Button("Browse workspace") { browsingWorkspace = true }.buttonStyle(SecondaryButtonStyle())
+                }
                 if let bot, !bot.devServers.isEmpty { DevServersSection(bot: bot) }
                 if let draft = Binding($draft) {
                     BotSettingsForm(draft: draft, error: saveError, scrolls: false, part: .often)

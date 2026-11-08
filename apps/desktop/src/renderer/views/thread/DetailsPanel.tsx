@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { Sheet } from '../../components/Overlay'
+import { WorkspaceBrowser } from '../bots/WorkspaceBrowser'
+import { useFilePreview } from './FilePreview'
 import { hasLibrary } from '@shared/artifacts'
 import { isGroup, isWorking, type Bot } from '@shared/models'
 import { AgentIcon } from '../../components/AgentIcon'
@@ -41,6 +45,8 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
   close: () => void
 }) {
   const tr = useTr()
+  const [browsingWorkspace, setBrowsingWorkspace] = useState(false)
+  const preview = useFilePreview()
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const group = !!bot && isGroup(bot)
@@ -69,6 +75,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
                       ? `${bot.contextUsage.used.toLocaleString()} / ${bot.contextUsage.size.toLocaleString()} · ${new Date(bot.contextUsage.reportedAt).toLocaleTimeString()}`
                       : tr('Not reported by this agent')}</Text>
                   </section> : null}
+                  {bot?.cwd ? <button className="member-row press" onClick={() => setBrowsingWorkspace(true)}><Icon name="folder" size={18} /> Browse workspace</button> : null}
                   {bot ? <DevServersSection bot={bot} /> : null}
                   <BotSettingsPanel botId={botId} part="often" />
                   {bot ? <ComputerUse bot={bot} /> : null}
@@ -85,6 +92,9 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           </>
         )}
       </div>
+      <Sheet open={browsingWorkspace} onClose={() => setBrowsingWorkspace(false)} width={600} height={640}>
+        <WorkspaceBrowser botId={botId} open={(owner, path) => { setBrowsingWorkspace(false); preview?.({ botId: owner, path }) }} />
+      </Sheet>
     </div>
   )
 }

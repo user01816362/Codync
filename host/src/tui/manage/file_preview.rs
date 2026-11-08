@@ -12,6 +12,7 @@ pub struct FilePreviewSheet {
     pub id: String,
     pub name: String,
     pub content: Option<Result<String, String>>,
+    pub directory: Option<Value>,
     pub scroll: usize,
     pub max_scroll: Cell<usize>,
     pub page: Cell<usize>,
@@ -22,6 +23,7 @@ pub struct FilePreviewSheet {
 
 #[derive(Clone)]
 enum PreviewRequest {
+    Directory { bot: String, path: String, hidden: bool },
     Workspace { bot: String, path: String },
     Shared { entry: String, file: crate::chat::files::SharedFile },
     Upload { bot: String, upload: String, size: u64 },
@@ -130,6 +132,16 @@ impl App {
         None
     }
 
+    pub(in crate::tui) fn open_workspace_browser(&mut self, bot: &str) {
+        if self.bots.get(bot).is_none_or(|bot| bot.group) {
+            self.flash("A group has no workspace; open one of its bots instead");
+            return;
+        }
+        self.push_file_preview("Workspace files".into(), PreviewRequest::Directory {
+            bot: bot.to_owned(), path: ".".into(), hidden: false,
+        });
+    }
+
     pub(in crate::tui) fn open_workspace_preview(&mut self, bot: &str, path: String) {
         self.push_file_preview(path.clone(), PreviewRequest::Workspace { bot: bot.to_owned(), path });
     }
@@ -161,6 +173,9 @@ impl App {
 
     fn request_preview(&self, request: &PreviewRequest, id: &str) {
         match request {
+            PreviewRequest::Directory { bot, path, hidden } => {
+                self.client.preview_directory(bot.clone(), path.clone(), *hidden, id.to_owned(), self.tx.clone());
+            }
             PreviewRequest::Workspace { bot, path } => {
                 self.client.preview_workspace(bot.clone(), path.clone(), id.to_owned(), self.tx.clone());
             }
@@ -180,6 +195,7 @@ impl App {
             id,
             name,
             content: None,
+            directory: None,
             scroll: 0,
             max_scroll: Cell::default(),
             page: Cell::default(),
@@ -190,6 +206,39 @@ impl App {
     }
 
     pub(in crate::tui) fn file_preview_key(&mut self, mut view: FilePreviewSheet, key: KeyEvent) -> Option<Overlay> {
+        if let PreviewRequest::Directory { bot, path, hidden } = view.request.clone() {
+            if key.code == KeyCode::Char('H') {
+                view.request = PreviewRequest::Directory { bot, path, hidden: !hidden };
+                view.id = uuid::Uuid::new_v4().to_string();
+                view.directory = None;
+                view.content = None;
+                view.scroll = 0;
+                self.request_preview(&view.request, &view.id);
+                return Some(Overlay::FilePreview(view));
+            }
+            if matches!(key.code, KeyCode::Enter | KeyCode::Char('o'))
+                && let Some(item) = view.directory.as_ref().and_then(|v| v["entries"].as_array())
+                    .and_then(|rows| rows.get(view.scroll)).cloned()
+            {
+                let path = item["path"].as_str().unwrap_or_default().to_owned();
+                if item["kind"] == "directory" {
+                    view.request = PreviewRequest::Directory { bot, path: path.clone(), hidden };
+                    view.name = path;
+                    view.id = uuid::Uuid::new_v4().to_string();
+                    view.directory = None;
+                    view.content = None;
+                    view.scroll = 0;
+                    self.request_preview(&view.request, &view.id);
+                } else if item["kind"] == "file" && supported(item["name"].as_str().unwrap_or_default(), item["size"].as_u64().unwrap_or(u64::MAX)) {
+                    self.overlays.push(Overlay::FilePreview(view));
+                    self.open_workspace_preview(&bot, path);
+                    return None;
+                } else {
+                    self.flash("Ask the bot to share this file for preview");
+                }
+                return Some(Overlay::FilePreview(view));
+            }
+        }
         let half = (view.page.get() / 2).max(1);
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return None,
@@ -202,13 +251,18 @@ impl App {
                 view.scroll = 0;
             }
             KeyCode::Char('c') => {
-                if let Some(Ok(text)) = &view.content {
+                if let Some(directory) = &view.directory {
+                    let path = directory["entries"].as_array().and_then(|rows| rows.get(view.scroll))
+                        .and_then(|entry| entry["path"].as_str()).unwrap_or(".");
+                    super::super::app::copy(path);
+                } else if let Some(Ok(text)) = &view.content {
                     super::super::app::copy(text);
                 }
             }
             KeyCode::Char('r') if view.content.is_some() => {
                 view.id = uuid::Uuid::new_v4().to_string();
                 view.content = None;
+                view.directory = None;
                 view.scroll = 0;
                 self.request_preview(&view.request, &view.id);
             }

@@ -241,6 +241,7 @@ impl App {
             KeyCode::Char('r' | 'f' | '1'..='6') if picked.as_ref().is_some_and(super::Entry::is_bot_message) => {
                 self.flash("Bot conversations are read-only");
             }
+            KeyCode::Char('W') => self.open_workspace_browser(&id),
             KeyCode::Enter if picked.as_ref().is_some_and(|e| e.data["connectionRequest"]["status"] == "pending") => {
                 self.open_connection();
             }

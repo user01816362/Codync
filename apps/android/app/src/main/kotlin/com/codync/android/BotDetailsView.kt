@@ -58,6 +58,7 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
     var routineId by remember(request) { mutableStateOf(request.routineId) }
     val saved = BotDraft.from(bot)
     var draft by rememberBotDraft(saved, state)
+    var browsingWorkspace by remember(bot.id) { mutableStateOf(false) }
     var template by remember { mutableStateOf<BotDraft?>(null) }
     val online = state.actualConnection is LinkState.Ready
     // What the last save said, on the page where it was made (iOS `saveError`); one that fails after the page closed
@@ -87,6 +88,7 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
                                 Text(bot.contextUsage?.let { "${it.used} / ${it.size}" } ?: tr("Not reported by this agent"), style = Type.subheadline, color = Palette.secondary)
                                 bot.contextUsage?.let { Text(java.text.DateFormat.getTimeInstance().format(java.util.Date(it.reportedAt)), style = Type.caption, color = Palette.secondary) }
                             }
+                            if (bot.cwd.isNotEmpty()) SecondaryButton("Browse workspace") { browsingWorkspace = true }
                             if (bot.devServers.isNotEmpty()) DevServersSection(bot, store)
                             BotSettingsForm(state, store, draft, { draft = it }, FormPart.Often, error = saveError)
                             state.screen?.let { ComputerCard(it, draft.computer, online) { on -> draft = draft.copy(computer = on) } }
@@ -106,6 +108,7 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
             CornerButton("Close details", "xmark", dismiss)
         }
     }
+    CodyncSheet(browsingWorkspace, { browsingWorkspace = false }) { WorkspaceBrowser(bot.id, store) }
     CodyncSheet(template, { template = null }) { BotTemplateView(it) }
 }
 

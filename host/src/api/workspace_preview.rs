@@ -13,12 +13,7 @@ pub async fn read(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
     let bot = hub.store.bot(str_arg(body, "botId")?)?.ok_or_else(|| anyhow!("unknown bot"))?;
     ensure!(!bot.deleted && !bot.config.is_group(), "unknown bot");
     let bot_id = bot.config.id;
-    let bots = hub.store.bots()?;
-    let roots: Vec<(String, PathBuf)> = bots
-        .into_iter()
-        .filter(|row| !row.deleted && !row.config.is_group() && !row.config.cwd.is_empty())
-        .map(|row| (row.config.id, PathBuf::from(row.config.cwd)))
-        .collect();
+    let roots = roots(hub)?;
     let path = str_arg(body, "path")?.to_owned();
     ensure!(path.len() <= 4096 && !path.is_empty(), "invalid path");
     tokio::task::spawn_blocking(move || {
@@ -29,9 +24,16 @@ pub async fn read(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
     .await?
 }
 
+pub(super) fn roots(hub: &Hub) -> Result<Vec<(String, PathBuf)>> {
+    Ok(hub.store.bots()?.into_iter()
+        .filter(|row| !row.deleted && !row.config.is_group() && !row.config.cwd.is_empty())
+        .map(|row| (row.config.id, PathBuf::from(row.config.cwd)))
+        .collect())
+}
+
 /// Absolute links can be forwarded between bots. Resolve only registered workspaces,
 /// never a filesystem-wide search or a guess by basename. Relative links retain their author.
-fn workspace<'a>(roots: &'a [(String, PathBuf)], author: &str, path: &Path) -> Result<&'a (String, PathBuf)> {
+pub(super) fn workspace<'a>(roots: &'a [(String, PathBuf)], author: &str, path: &Path) -> Result<&'a (String, PathBuf)> {
     if path.is_absolute() {
         roots
             .iter()
@@ -45,7 +47,7 @@ fn workspace<'a>(roots: &'a [(String, PathBuf)], author: &str, path: &Path) -> R
     }
 }
 
-fn read_text(root: &Path, requested: &str) -> Result<(String, String)> {
+pub(super) fn open(root: &Path, requested: &str) -> Result<(std::fs::File, PathBuf)> {
     let configured = root;
     let root = configured.canonicalize().context("workspace is unavailable")?;
     let requested = Path::new(requested);
@@ -61,9 +63,14 @@ fn read_text(root: &Path, requested: &str) -> Result<(String, String)> {
         relative.components().all(|part| matches!(part, Component::Normal(_) | Component::CurDir)),
         "invalid workspace path"
     );
+    let file = open_workspace_file(&root, relative)?;
+    Ok((file, relative.to_path_buf()))
+}
+
+fn read_text(root: &Path, requested: &str) -> Result<(String, String)> {
+    let (mut file, relative) = open(root, requested)?;
     let name =
         relative.file_name().and_then(|value| value.to_str()).ok_or_else(|| anyhow!("invalid file name"))?.to_owned();
-    let mut file = open_workspace_file(&root, relative)?;
     ensure!(file.metadata()?.is_file(), "only regular files can be previewed");
     ensure!(file.metadata()?.len() <= MAX_PREVIEW, "file exceeds 1 MiB");
     let mut bytes = Vec::new();
@@ -108,7 +115,8 @@ fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
 fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
     use std::os::windows::ffi::OsStringExt as _;
     use std::os::windows::io::AsRawHandle as _;
-    use windows_sys::Win32::Storage::FileSystem::GetFinalPathNameByHandleW;
+    use std::os::windows::fs::{OpenOptionsExt as _, MetadataExt as _};
+    use windows_sys::Win32::Storage::FileSystem::{GetFinalPathNameByHandleW, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_ATTRIBUTE_REPARSE_POINT};
 
     // Reject alternate data streams and Windows device names before opening anything.
     for part in relative.components() {
@@ -125,8 +133,10 @@ fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
             "invalid workspace path"
         );
     }
-    let file = std::fs::File::open(root.join(relative)).context("opening workspace file")?;
-    ensure!(file.metadata()?.is_file(), "only regular files can be previewed");
+    let file = std::fs::OpenOptions::new().read(true)
+        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(root.join(relative)).context("opening workspace file")?;
+    ensure!(file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0, "symbolic links cannot be previewed");
     let mut buffer = vec![0u16; 32768];
     // SAFETY: the file owns a live Windows handle and the buffer has the stated capacity.
     let len = unsafe { GetFinalPathNameByHandleW(file.as_raw_handle().cast(), buffer.as_mut_ptr(), 32768, 0) };

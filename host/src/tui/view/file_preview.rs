@@ -28,6 +28,22 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
     );
     let body = Rect::new(inner.x, inner.y, inner.width, inner.height - 2);
     let width = usize::from(body.width);
+    if let Some(directory) = &view.directory {
+        let rows = directory["entries"].as_array().map(Vec::as_slice).unwrap_or_default();
+        let height = usize::from(body.height);
+        view.max_scroll.set(rows.len().saturating_sub(1));
+        view.page.set(height);
+        let first = view.scroll.saturating_sub(height.saturating_sub(1));
+        for (offset, item) in rows.iter().enumerate().skip(first).take(height) {
+            let mark = if offset == view.scroll { ">" } else { " " };
+            let suffix = if item["kind"] == "directory" { "/" } else { "" };
+            let label = format!("{mark} {}{suffix}", item["name"].as_str().unwrap_or_default());
+            put(buf, body.x, body.y + u(offset - first), body.width, &label, t.text.patch(t.panel));
+        }
+        if rows.is_empty() { put(buf, body.x, body.y, body.width, "This folder is empty.", t.dim); }
+        put(buf, inner.x, inner.bottom() - 1, inner.width, "↑↓ select · ↵ open · H hidden · r retry · esc close", t.dim.patch(t.panel));
+        return;
+    }
     let lines = match &view.content {
         None => vec![Line::from(Span::styled(" Loading…", t.dim))],
         Some(Err(error)) => vec![Line::from(Span::styled(format!(" {error}"), t.red))],

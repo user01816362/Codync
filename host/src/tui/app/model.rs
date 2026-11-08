@@ -15,6 +15,10 @@ pub enum Msg {
         id: String,
         result: Result<String, String>,
     },
+    WorkspaceDirectory {
+        id: String,
+        result: Result<Value, String>,
+    },
     FileDownload {
         id: String,
         status: Result<String, String>,

@@ -49,6 +49,27 @@ impl App {
                     }
                 }
             }
+            Msg::WorkspaceDirectory { id, result } => {
+                for overlay in &mut self.overlays {
+                    if let Overlay::FilePreview(view) = overlay
+                        && view.id == id
+                    {
+                        match &result {
+                            Ok(value) => {
+                                let mut value = value.clone();
+                                if let Some(parent) = value["parent"].as_str().map(str::to_owned)
+                                    && let Some(rows) = value["entries"].as_array_mut()
+                                {
+                                    rows.insert(0, serde_json::json!({"name": "..", "path": parent, "kind": "directory", "size": 0}));
+                                }
+                                view.directory = Some(value);
+                                view.content = Some(Ok(String::new()));
+                            }
+                            Err(error) => view.content = Some(Err(error.clone())),
+                        }
+                    }
+                }
+            }
             Msg::FileDownload { id, status, done } => {
                 if self.download.as_ref().is_some_and(|job| job.id == id) {
                     self.flash(&status.unwrap_or_else(|error| format!("Download failed: {error}")));
