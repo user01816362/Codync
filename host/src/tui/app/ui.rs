@@ -198,7 +198,7 @@ pub enum Field {
     Skills,
 }
 
-pub const FIELDS: [Field; 20] = [
+pub const FIELDS: [Field; 21] = [
     Field::Name,
     Field::Instructions,
     Field::Agent,
