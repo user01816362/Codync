@@ -25,7 +25,7 @@ export function MediaFilePreview({ preview, close }: { preview: Exclude<PreviewF
           ? await store.sharedFileData(preview.file, preview.entryId)
           : await store.attachmentData(preview.file.id, preview.botId, preview.file.size)
         if (!bytes || bytes.byteLength !== preview.file.size) throw new Error('The file size could not be verified.')
-        if ('entryId' in preview && await sha256Hex(bytes) !== preview.file.sha256) throw new Error('The file integrity check failed.')
+        if ('entryId' in preview && await sha256Hex(new Uint8Array(bytes)) !== preview.file.sha256) throw new Error('The file integrity check failed.')
         if (mime === 'application/pdf' && new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('This file is not a PDF document.')
         if (!active) return
         objectURL = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }))
