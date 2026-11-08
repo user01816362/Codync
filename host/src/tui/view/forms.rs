@@ -36,9 +36,6 @@ fn created_by(app: &App, id: &str) -> Option<String> {
     Some(format!("created by {creator} · {} {day}", MONTHS[month]))
 }
 
-/// The rows under the fields: the help, up to two, and the buttons.
-const FOOTER: u16 = 3;
-
 /// The rows a field's value takes.
 fn field_rows(field: Field) -> u16 {
     if field == Field::Instructions { 3 } else { 1 }
@@ -119,8 +116,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     let vw = inner.right().saturating_sub(vx);
     let mut y = inner.y + 1;
     let agent_name = app.agent_name(&f.backend);
+    let help = field_help(app, f, &agent_name).map_or_else(Vec::new, |(line, style)| {
+        wrap(&[Span::styled(line, style.patch(t.panel))], usize::from(inner.width), &[], &[])
+    });
+    // Reserve wrapped help plus the buttons, while retaining room for a field on short terminals.
+    let help_rows = u(help.len()).min(inner.height.saturating_sub(5));
+    let footer = help_rows.max(2) + 1;
     // The form can outgrow the terminal: it starts as far down as keeps the focused field in sight.
-    let room = inner.bottom().saturating_sub(FOOTER).saturating_sub(y);
+    let room = inner.bottom().saturating_sub(footer).saturating_sub(y);
     let mut first = 0;
     while first < f.field && FIELDS[first..f.field].iter().map(|field| field_rows(*field) + 1).sum::<u16>() >= room {
         first += 1;
@@ -372,17 +375,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             }
         }
         y += rows + 1;
-        if y >= inner.bottom().saturating_sub(FOOTER) {
+        if y >= inner.bottom().saturating_sub(footer) {
             break;
         }
     }
     let by = inner.bottom() - 1;
-    if let Some((line, style)) = field_help(app, f, &agent_name) {
-        let lines = wrap(&[Span::styled(line, style.patch(t.panel))], usize::from(inner.width), &[], &[]);
-        let shown = &lines[..lines.len().min(usize::from(FOOTER - 1))];
-        for (j, l) in shown.iter().enumerate() {
-            put_line(buf, inner.x, by.saturating_sub(u(shown.len() - j)), inner.width, l);
-        }
+    let shown = &help[..usize::from(help_rows)];
+    for (j, line) in shown.iter().enumerate() {
+        put_line(buf, inner.x, by.saturating_sub(u(shown.len() - j)), inner.width, line);
     }
     let save = if f.saving {
         " … Saving "
