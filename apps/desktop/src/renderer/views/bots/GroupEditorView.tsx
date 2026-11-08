@@ -128,7 +128,7 @@ function DeleteBotDialog({ bot, onClose, onDeleted }: { bot: Bot | null; onClose
       message={tr(bot && isGroup(bot) ? 'Its bots and their own chats stay.' : 'Files it changed on your computer stay as they are.')}
       actions={[
         {
-          title: 'Delete bot and its conversation',
+          title: bot && isGroup(bot) ? 'Delete group chat' : 'Delete bot and its conversation',
           destructive: true,
           action: () => {
             if (bot) store.delete(bot)

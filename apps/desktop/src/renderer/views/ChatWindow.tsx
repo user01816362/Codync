@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { WindowCommand } from '@shared/ipc'
 import { isSSHConnecting, showsChat as shouldShowChat } from '@shared/ssh-startup'
-import { draftOf, type Bot, type BotDraft } from '@shared/models'
+import { draftOf, isGroup, type Bot, type BotDraft } from '@shared/models'
 import { CharacterAvatar } from '../components/Avatar'
 import { Button, IconButton, ResizeHandle } from '../components/Controls'
 import { Dialog, ModalHeader, Sheet } from '../components/Overlay'
@@ -26,6 +26,7 @@ import { queueVoiceKey } from './thread/voice-shortcut-keys'
 import { NewBotView, NewGroupView } from './bots/NewBotView'
 import { ImportBotsSheet } from './bots/ImportBotsView'
 import { BotEditorView } from './bots/BotEditorView'
+import { GroupEditorView } from './bots/GroupEditorView'
 import { MarketplaceView } from './marketplace/MarketplaceView'
 import { SignInCodeDialog } from './marketplace/ConnectorSheets'
 import { SettingsView, type SettingsPage } from './settings/SettingsView'
@@ -183,11 +184,10 @@ interface BotTarget {
   store: BotStore
 }
 
-interface EditTarget {
+type EditTarget = {
   id: string
-  draft: BotDraft
   store: BotStore
-}
+} & ({ kind: 'bot'; draft: BotDraft } | { kind: 'group'; group: Bot })
 
 /** A new bot or group chat being made, and the computer it goes to. */
 interface CreateTarget {
@@ -307,7 +307,13 @@ function ChatSplitView() {
     { title: bot.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => store.setPinned(bot, !bot.pinned) },
     ...moveToSectionItems(bot, store, setNaming),
     { title: 'Mark as Read', icon: 'bell.badge', action: () => store.markAllRead(bot.id) },
-    { title: 'Edit Profile…', icon: 'square.and.pencil', action: () => setEditing({ id: crypto.randomUUID(), draft: draftOf(bot), store }) },
+    {
+      title: isGroup(bot) ? 'Edit group' : 'Edit Profile…',
+      icon: isGroup(bot) ? 'person.2' : 'square.and.pencil',
+      action: () => setEditing(isGroup(bot)
+        ? { id: crypto.randomUUID(), kind: 'group', group: bot, store }
+        : { id: crypto.randomUUID(), kind: 'bot', draft: draftOf(bot), store }),
+    },
     { title: 'Copy conversation ID', icon: 'square.on.square', action: () => window.codync.app.copy(bot.id) },
     ...makeLeadItems(bot, store),
     ...(bot.lead ? [] : [{ title: 'Hide from sidebar', icon: 'eye.slash', action: () => store.setHidden(bot, true) }]),
@@ -466,7 +472,9 @@ function ChatSplitView() {
       <Sheet open={editing !== null} onClose={() => setEditing(null)} width={520} height={Math.min(680, sheetHeight)}>
         {editing ? (
           <StoreContext.Provider value={editing.store}>
-            <BotEditorView key={editing.id} draft={editing.draft} />
+            {editing.kind === 'group'
+              ? <GroupEditorView key={editing.id} group={editing.group} />
+              : <BotEditorView key={editing.id} draft={editing.draft} />}
           </StoreContext.Provider>
         ) : null}
       </Sheet>
