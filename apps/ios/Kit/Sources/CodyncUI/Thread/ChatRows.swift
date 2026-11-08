@@ -168,7 +168,7 @@ struct UserBubble: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
             if let attachments = entry.data.attachments, !attachments.isEmpty {
-                AttachmentList(attachments: attachments, botId: entry.botId)
+                AttachmentList(attachments: attachments, botId: entry.botId, entryId: entry.id)
             }
             if !(entry.data.text ?? "").isEmpty || entry.data.replyTo != nil { text }
                 status

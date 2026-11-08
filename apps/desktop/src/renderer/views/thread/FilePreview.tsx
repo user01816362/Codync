@@ -14,7 +14,7 @@ import { quoteSelection } from './selection-quote'
 import { MarkdownText } from './Markdown'
 import './sidechat.css'
 
-export type PreviewFile = { entryId: string; botId: string; file: SharedFile } | { botId: string; file: Attachment } | { botId: string; path: string }
+export type PreviewFile = { entryId: string; botId: string; file: SharedFile } | { botId: string; file: Attachment; uploadEntryId?: string } | { botId: string; path: string }
 export const PreviewContext = createContext<((preview: PreviewFile) => void) | null>(null)
 export const useFilePreview = () => useContext(PreviewContext)
 export const previewKey = (preview: PreviewFile) => JSON.stringify('path' in preview
@@ -66,6 +66,7 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
   const markdown = /\.(md|markdown)$/i.test(name)
   const text = result && 'text' in result ? result.text : null
   const table = useTablePreview(name, text)
+  const sourceEntryId = 'entryId' in preview ? preview.entryId : 'file' in preview ? preview.uploadEntryId : undefined
   const tableText = table.result && 'markdown' in table.result ? table.result.markdown : null
   return <div className="sidechat">
     <ModalHeader title={name} onClose={close} />
@@ -76,9 +77,9 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
       <IconButton title="Retry" icon="arrow.clockwise" disabled={!result} onClick={() => setAttempt(value => value + 1)} />
     </HStack>
     {quoteError && <div role="alert">{quoteError}</div>}
-    <Bubble className="sidechat-scroll selectable" items={() => []} quote={'entryId' in preview ? selected => {
+    <Bubble className="sidechat-scroll selectable" items={() => []} quote={sourceEntryId && 'file' in preview ? selected => {
       const text = Array.from(selected.trim()).slice(0, 4000).join('')
-      void store.client?.call<{ chatId: string; quote: ReplyQuote }>('quoteFile', { entryId: preview.entryId, fileId: preview.file.id, text }).then(value => {
+      void store.client?.call<{ chatId: string; quote: ReplyQuote }>('quoteFile', { entryId: sourceEntryId, fileId: preview.file.id, text }).then(value => {
         quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part)
         close()
       }).catch((error: unknown) => setQuoteError(error instanceof Error ? error.message : String(error)))

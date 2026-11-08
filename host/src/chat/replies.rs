@@ -38,9 +38,11 @@ pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Resul
         if let Some(file_id) = part.strip_prefix("file:") {
             let mut reply = quote(store, chat, id)?;
             let entry = store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
-            let file = ["files", "attachments"].into_iter()
+            let file = ["files", "attachments"]
+                .into_iter()
                 .filter_map(|field| entry.data[field].as_array())
-                .flatten().find(|file| file["id"].as_str() == Some(file_id))
+                .flatten()
+                .find(|file| file["id"].as_str() == Some(file_id))
                 .ok_or_else(|| anyhow!("unknown message file"))?;
             reply.as_object_mut().ok_or_else(|| anyhow!("invalid quote"))?.remove("artifact");
             reply["text"] = text.into();

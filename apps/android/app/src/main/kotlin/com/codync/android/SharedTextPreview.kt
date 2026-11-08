@@ -26,9 +26,18 @@ import java.security.MessageDigest
     }) { store.sharedImage(entryId, file) }
 }
 
-@Composable internal fun AttachmentTextPreview(file: Attachment, botId: String, store: AppStore) {
+@Composable internal fun AttachmentTextPreview(file: Attachment, botId: String, store: AppStore, entryId: String? = null) {
+    val scope = rememberCoroutineScope()
+    val dismiss = LocalDismissModal.current
+    val quote: ((String) -> Unit)? = if (entryId == null) null else { passage ->
+        scope.launch {
+            try { store.selectFileReply(entryId, file.id, passage); dismiss() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { store.showError(error) }
+        }
+    }
     if (mediaPreviewKind(file.name, file.size) != null) MediaFilePreview(file.id, file.name, file.size, null) { store.attachment(botId, file) }
-    else TextFilePreview(file.id, file.name, file.size, file.showsAsText, null, store) { store.attachment(botId, file) }
+    else TextFilePreview(file.id, file.name, file.size, file.showsAsText, null, store, quote = quote) { store.attachment(botId, file) }
 }
 
 @Composable private fun TextFilePreview(id: String, name: String, size: Long, supported: Boolean, sha256: String?, store: AppStore, quote: ((String) -> Unit)? = null, load: suspend () -> java.io.File) {

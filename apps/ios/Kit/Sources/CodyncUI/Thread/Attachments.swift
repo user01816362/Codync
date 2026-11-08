@@ -93,6 +93,7 @@ enum AttachmentIcon {
 struct AttachmentList: View {
     let attachments: [Attachment]
     let botId: String
+    var entryId: String? = nil
     @State private var viewing: Attachment?
     @State private var textFile: Attachment?
 
@@ -115,7 +116,7 @@ struct AttachmentList: View {
             }
         }
         .codyncSheet(item: $viewing) { AttachmentViewer(file: $0, botId: botId) }
-        .codyncSheet(item: $textFile) { SharedTextPreview(attachment: $0, botId: botId) }
+        .codyncSheet(item: $textFile) { SharedTextPreview(attachment: $0, botId: botId, entryId: entryId) }
     }
 
     private func card(_ file: Attachment) -> some View {

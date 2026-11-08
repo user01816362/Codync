@@ -33,7 +33,7 @@ export function byteCount(bytes: number) {
 }
 
 /** Files sent with a message: images as pictures (click for full size), other files as cards. */
-export function AttachmentList({ attachments, botId }: { attachments: Attachment[]; botId: string }) {
+export function AttachmentList({ attachments, botId, entryId }: { attachments: Attachment[]; botId: string; entryId?: string }) {
   const [viewing, setViewing] = useState<Attachment | null>(null)
   const openPreview = useFilePreview()
   return (
@@ -47,7 +47,7 @@ export function AttachmentList({ attachments, botId }: { attachments: Attachment
           <HStack key={file.id} gap={8} className="attachment-file">
             <Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />
             <VStack gap={1} shrink>
-              {openPreview && canOpenPreview(file) ? <button className="file-preview-name" onClick={() => openPreview({ botId, file })}><Text as="span" size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text></button> : <Text size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text>}
+              {openPreview && canOpenPreview(file) ? <button className="file-preview-name" onClick={() => openPreview({ botId, file, uploadEntryId: entryId })}><Text as="span" size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text></button> : <Text size="subheadline" tone="text" truncate className="attachment-file-name">{file.name}</Text>}
               <Text size="caption2" tone="tertiary">{byteCount(file.size)}</Text>
             </VStack>
           </HStack>

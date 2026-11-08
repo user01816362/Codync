@@ -150,7 +150,7 @@ export function UserBubble({ entry, reply, edit }: { entry: Entry; reply?: () =>
   return (
     <div className="message user" title={fullDate.format(entry.createdAt)} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
       <div className="message-body">
-        {entry.data.attachments?.length ? <AttachmentList attachments={entry.data.attachments} botId={entry.botId} /> : null}
+        {entry.data.attachments?.length ? <AttachmentList attachments={entry.data.attachments} botId={entry.botId} entryId={entry.id} /> : null}
         {entry.data.text || entry.data.replyTo ? (
           <Bubble
             className="bubble user selectable"

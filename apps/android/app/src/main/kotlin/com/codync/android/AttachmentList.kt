@@ -35,7 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Files sent with a message, on the sender's side (iOS `AttachmentList`): images as pictures (tap for full size), other files as cards. */
-@Composable internal fun AttachmentList(attachments: List<Attachment>, botId: String, state: AppState, store: AppStore) {
+@Composable internal fun AttachmentList(attachments: List<Attachment>, botId: String, state: AppState, store: AppStore, entryId: String? = null) {
     var viewing by remember { mutableStateOf<Attachment?>(null) }
     var viewingText by remember { mutableStateOf<Attachment?>(null) }
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -46,7 +46,7 @@ import kotlinx.coroutines.withContext
         }
     }
     AttachmentImageSheet(viewing, botId, state, store) { viewing = null }
-    CodyncSheet(viewingText, { viewingText = null }) { file -> AttachmentTextPreview(file, botId, store) }
+    CodyncSheet(viewingText, { viewingText = null }) { file -> AttachmentTextPreview(file, botId, store, entryId) }
 }
 
 /** A sent image full size, in a sheet while `file` is set. */

@@ -21,8 +21,9 @@ struct SharedTextPreview: View {
         load = { await $0.sharedFileData(file, entryId: entryId) }
     }
 
-    init(attachment: Attachment, botId: String) {
+    init(attachment: Attachment, botId: String, entryId: String? = nil) {
         name = attachment.name; id = attachment.id; size = attachment.size
+        self.entryId = entryId
         load = { await $0.attachmentData(attachment, bot: botId, bounded: true) }
     }
 
