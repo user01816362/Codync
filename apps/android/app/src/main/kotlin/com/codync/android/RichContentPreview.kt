@@ -11,6 +11,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.JavascriptInterface
+import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -26,19 +28,21 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.ByteArrayInputStream
 
-/** Offline renderer with no app bridge, navigation, file access or network requests. */
+/** Offline renderer: no application actions, navigation, file access or network; inline layout accepts height only. */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable internal fun RichContentPreview(source: String, language: String, allowMarkdownPreview: Boolean = true, fullSize: Boolean = false) {
     val context = LocalContext.current
+    val inlineMath = language == "inline-math"
+    var measuredHeight by remember(source) { mutableStateOf(48) }
     var expanded by remember { mutableStateOf(false) }
     val markdown = allowMarkdownPreview && language in listOf("md", "markdown")
     val canPreview = source.isNotEmpty() && (markdown || (source.length <= 16000 && language !in listOf("md", "markdown")))
     var showSource by remember(language, allowMarkdownPreview) { mutableStateOf<Boolean?>(null) }
-    val preview = canPreview && !(showSource ?: !(markdown || language in listOf("mermaid", "math", "latex", "tex")))
+    val preview = canPreview && !(showSource ?: !(markdown || language in listOf("mermaid", "math", "latex", "tex", "inline-math")))
     var failed by remember(source, language) { mutableStateOf(false) }
-    Column((if (fullSize) Modifier.fillMaxSize() else Modifier.fillMaxWidth()).animateContentSize().background(Palette.codeBackground)) {
+    Column((if (fullSize) Modifier.fillMaxSize() else Modifier.fillMaxWidth()).animateContentSize().background(if (inlineMath) Color.Transparent else Palette.codeBackground)) {
         if (fullSize) ModalHeader("Preview")
-        Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        if (!inlineMath) Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text(language.ifEmpty { "text" }, style = Type.caption, color = Palette.secondary, maxLines = 1)
             Spacer(Modifier.weight(1f))
             if (canPreview) Text(tr(if (preview) "Code" else "Preview"), Modifier.plainButton { showSource = preview }.padding(4.dp), style = Type.caption, color = Palette.secondary)
@@ -55,8 +59,8 @@ import java.io.ByteArrayInputStream
             val html by produceState<String?>(null, source, language) {
                 value = withContext(Dispatchers.IO) {
                     try {
-                        val kind = when (language) { "mermaid" -> "mermaid"; "math", "latex", "tex" -> "math"; else -> "code" }
-                        val payload = buildJsonObject { put("kind", kind); put("source", source); put("language", language) }
+                        val kind = when (language) { "inline-math" -> "inline-math"; "mermaid" -> "mermaid"; "math", "latex", "tex" -> "math"; else -> "code" }
+                        val payload = buildJsonObject { put("kind", kind); put("source", source); put("language", language); put("fontSize", 17) }
                         val encoded = Base64.encodeToString(payload.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
                         context.assets.open("rich-renderer.html").bufferedReader().use { it.readText() }
                             .replace("__CODYNC_PAYLOAD__", encoded)
@@ -68,6 +72,10 @@ import java.io.ByteArrayInputStream
             else AndroidView(factory = { ctx ->
                 WebView(ctx).apply {
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    if (inlineMath) {
+                        val target = this
+                        addJavascriptInterface(InlineLayout { value -> target.post { if (target.isAttachedToWindow) measuredHeight = value.toInt() } }, "CodyncLayout")
+                    }
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = false
                     settings.allowFileAccess = false
@@ -84,12 +92,19 @@ import java.io.ByteArrayInputStream
                         }
                     }
                 }
-            }, modifier = if (fullSize) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(if (language in listOf("mermaid", "math", "latex", "tex")) 280.dp else (source.lineSequence().count() * 18 + 20).coerceIn(64, 360).dp), onRelease = { it.stopLoading(); it.destroy() }, update = { view ->
+            }, modifier = if (fullSize) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(if (inlineMath) measuredHeight.dp else if (language in listOf("mermaid", "math", "latex", "tex")) 280.dp else (source.lineSequence().count() * 18 + 20).coerceIn(64, 360).dp), onRelease = { it.removeJavascriptInterface("CodyncLayout"); it.stopLoading(); it.destroy() }, update = { view ->
                 if (view.tag != html) { view.tag = html; view.loadDataWithBaseURL(null, html!!, "text/html", "UTF-8", null) }
             })
         }
     }
     if (!fullSize) CodyncSheet(expanded, { expanded = false }) {
         RichContentPreview(source, language, allowMarkdownPreview, fullSize = true)
+    }
+}
+
+/** The only callable capability is a validated layout height; no application actions or data access. */
+private class InlineLayout(private val emit: (Double) -> Unit) {
+    @JavascriptInterface fun height(value: Double) {
+        if (value.isFinite() && value >= 24 && value <= 1200) emit(value)
     }
 }

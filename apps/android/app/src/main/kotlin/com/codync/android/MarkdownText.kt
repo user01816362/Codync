@@ -62,18 +62,20 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
  */
 @Composable fun MarkdownText(source: String, selectable: Boolean = true, color: Color = Palette.text, openFile: ((String) -> Unit)? = null, allowMarkdownPreview: Boolean = true) {
     val blocks = remember(source) { MarkdownBlocks.parse(source) }
+    val mathIndices = remember(blocks) { blocks.withIndex().filter { (_, block) -> block is Block.Paragraph && InlineMath.eligible(block.text) }.take(8).map { it.index }.toSet() }
     val content: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { for (block in blocks) MarkdownBlock(block, color, openFile, allowMarkdownPreview) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { for ((index, block) in blocks.withIndex()) MarkdownBlock(block, color, openFile, allowMarkdownPreview, index in mathIndices) }
     }
     if (selectable) SelectionContainer(content = content) else content()
 }
 
-@Composable private fun MarkdownBlock(block: Block, ink: Color, openFile: ((String) -> Unit)?, allowMarkdownPreview: Boolean) {
+@Composable private fun MarkdownBlock(block: Block, ink: Color, openFile: ((String) -> Unit)?, allowMarkdownPreview: Boolean, inlineMath: Boolean) {
     val code = Palette.text.copy(alpha = 0.08f)
     when (block) {
         is Block.Paragraph -> Column {
             val text = block.text.trim()
             if (text.length > 4 && text.startsWith("$$") && text.endsWith("$$")) RichContentPreview(text.drop(2).dropLast(2), "math")
+            else if (inlineMath) RichContentPreview(block.text, "inline-math")
             else Text(inline(block.text, code, openFile), style = Type.body, color = ink)
         }
         is Block.Heading -> Text(inline(block.text, code, openFile), style = when (block.level) {

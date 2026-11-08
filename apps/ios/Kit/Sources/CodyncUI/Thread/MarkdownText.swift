@@ -15,9 +15,13 @@ public struct MarkdownText: View, Equatable {
 
     public var body: some View {
         let blocks = MarkdownBlocks.parse(source)
+        let mathIndices = Set(blocks.enumerated().filter { _, block in
+            if case let .paragraph(text) = block { return InlineMath.eligible(text) }
+            return false
+        }.prefix(8).map { $0.offset })
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                MarkdownBlock(block: block, allowMarkdownPreview: allowMarkdownPreview)
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                MarkdownBlock(block: block, allowMarkdownPreview: allowMarkdownPreview, inlineMath: mathIndices.contains(index))
             }
         }
         .textSelection(.enabled)
@@ -41,6 +45,7 @@ public struct MarkdownText: View, Equatable {
 private struct MarkdownBlock: View {
     let block: MarkdownBlocks.Block
     let allowMarkdownPreview: Bool
+    let inlineMath: Bool
 
     @ViewBuilder var body: some View {
         switch block {
@@ -48,6 +53,8 @@ private struct MarkdownBlock: View {
             let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.hasPrefix("$$"), trimmed.hasSuffix("$$"), trimmed.count > 4 {
                 RichContentPreview(source: String(trimmed.dropFirst(2).dropLast(2)), language: "math")
+            } else if inlineMath {
+                RichContentPreview(source: t, language: "inline-math")
             } else {
                 Text(MarkdownText.inline(t)).font(.body).foregroundStyle(Palette.text)
             }

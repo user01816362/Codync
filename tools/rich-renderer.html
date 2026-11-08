@@ -38,6 +38,27 @@ async function load(name){
    controls.append(label);output.addEventListener('keydown',event=>{if(['+','=','-','0'].includes(event.key)){event.preventDefault();change(event.key==='0'?fit():event.key==='-'?zoom/1.25:zoom*1.25)}});apply();
   }
 
+ }else if(payload.kind==='inline-math'){
+  await load('katex');
+  document.documentElement.style.fontSize=Math.max(12,Math.min(40,Number(payload.fontSize)||14))+'px';
+  output.style.overflow='visible';let cursor=0;
+  const pattern=/\\\(([^\n]{1,1024}?)\\\)|(?<!\\)\$([^$\n]{1,1024}?)\$/g;
+  for(const match of payload.source.matchAll(pattern)){
+   const math=match[1]??match[2];
+   if(match[1]===undefined&&!(math.trim()===math&&(/[\\^_=+*/{}]/.test(math)||/^[A-Za-z]$/.test(math))))continue;
+   output.append(document.createTextNode(payload.source.slice(cursor,match.index)));
+   const span=document.createElement('span');
+   try{katex.render(math,span,{displayMode:false,output:'mathml',trust:false,strict:'error',maxExpand:1000,maxSize:20,throwOnError:true})}catch{span.textContent=match[0]}
+   output.append(span);cursor=match.index+match[0].length;
+  }
+  output.append(document.createTextNode(payload.source.slice(cursor)));
+  const measure=()=>{
+   const height=Math.min(1200,Math.max(24,Math.ceil(output.getBoundingClientRect().height+16)));
+   window.parent.postMessage({kind:'codync-layout',height},'*');
+   window.webkit?.messageHandlers?.layout?.postMessage(height);
+   window.CodyncLayout?.height(height);
+  };
+  new ResizeObserver(()=>requestAnimationFrame(measure)).observe(output);measure();
  }else if(payload.kind==='math'){
   await load('katex');
   katex.render(payload.source,output,{displayMode:true,output:'mathml',trust:false,strict:'error',maxExpand:1000,maxSize:20,throwOnError:true});

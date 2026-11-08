@@ -14,7 +14,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 7 | Queued-only text editing through the actor, preserving files/replies | Implemented; CI pending |
 | 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
 | 9 | Diagram expansion, fit/zoom and scrolling with existing offline bundles | Implemented; CI pending |
-| 9b | Inline formula layout across native text renderers | Planned |
+| 9b | Bounded inline formulas in plain prose, preserving native styled/link/code paragraphs | Implemented; CI pending |
 | 10 | Incremental Markdown presentation and adapter-specific streaming finality | Planned |
 | 11 | Inspect numbered report sources with title, URL, open and copy actions | Implemented; CI pending |
 
@@ -79,3 +79,9 @@ Terminal keeps the readable source rather than a graphical viewport. Existing fe
 ## Source inspection
 
 Existing numbered report citations and the Sources list now open the same source-inspection sheet on graphical clients. It preserves the source number, title and full selectable URL, with explicit Open source and Copy URL actions. No source is fetched in the background and no independent verification is claimed. The existing host report schema, source bounds and HTTP(S) link restrictions remain unchanged. Terminal report fallback already shows numbered titles/URLs and remains readable without a graphical sheet. Plain Markdown links remain ordinary links; no citation metadata is invented from them.
+
+## Inline math paragraphs
+
+Graphical clients render bounded formulas within plain prose paragraphs: explicit `\(...\)` and unambiguous `$...$` expressions. Currency-like pairs without mathematical content stay literal. Formulas use the existing offline math bundle in untrusted mode. Invalid expressions retain their original text, not an empty paragraph. Paragraphs containing other Markdown styling, links or code outside formulas keep the existing native renderer; this conservative path does not claim full mixed Markdown/math layout.
+
+At most eight such paragraphs per Markdown view are embedded, each at most 4,000 UTF-16 units and each formula at most 1,024 units. Extra paragraphs remain readable source. An observer reports rendered height so paragraphs are not assigned a guessed fixed height. Desktop accepts only layout messages from its exact iframe; native clients expose only a finite 24–1,200 pixel height callback with no data, file, navigation or network actions. The native layout handler is removed when the view closes. Original source remains available through the message's selection/copy flow. Terminal keeps source. Real-device selection, accessibility and dynamic font-size behavior remain unverified.

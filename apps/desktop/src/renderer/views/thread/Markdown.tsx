@@ -1,3 +1,4 @@
+import { hasInlineMath } from './inline-math'
 import { RichContentPreview } from './RichContentPreview'
 import { memo, useContext, type ReactNode } from 'react'
 import { parseMarkdown, type Block } from './markdown-blocks.ts'
@@ -56,13 +57,13 @@ function emphasis(text: string, key: string, open?: ((path: string) => void) | n
   return out
 }
 
-const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences }: { block: Block; literalFences?: boolean }) {
+const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences, inlineMath = false }: { block: Block; literalFences?: boolean; inlineMath?: boolean }) {
   const open = useContext(WorkspacePreviewContext)
   switch (block.kind) {
     case 'paragraph':
       return block.text.trim().startsWith('$$') && block.text.trim().endsWith('$$') && block.text.trim().length > 4
         ? <RichContentPreview source={block.text.trim().slice(2, -2)} language="math" />
-        : <div className="md-text md-spaced md-body">{inline(block.text, 'i', open)}</div>
+        : inlineMath ? <RichContentPreview source={block.text} language="inline-math" /> : <div className="md-text md-spaced md-body">{inline(block.text, 'i', open)}</div>
     case 'heading':
       return (
         <div className={`md-text md-spaced md-heading-${Math.min(block.level, 3)}`}>
@@ -100,15 +101,17 @@ const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences }: { bl
     case 'code':
       return <RichContentPreview source={block.text} language={block.language.toLowerCase()} renderMarkdown={literalFences ? undefined : text => <MarkdownText text={text} literalFences />} />
   }
-}, (a, b) => a.literalFences === b.literalFences && JSON.stringify(a.block) === JSON.stringify(b.block))
+}, (a, b) => a.inlineMath === b.inlineMath && a.literalFences === b.literalFences && JSON.stringify(a.block) === JSON.stringify(b.block))
 
 /** The desktop's Markdown for messages; a block that didn't change keeps its rendering. */
 export const MarkdownText = memo(function MarkdownText({ text, literalFences = false }: { text: string; literalFences?: boolean }) {
   const blocks = parseMarkdown(text)
+  const mathIndices = new Set<number>()
+  blocks.forEach((block, index) => { if (mathIndices.size < 8 && block.kind === 'paragraph' && hasInlineMath(block.text)) mathIndices.add(index) })
   return (
     <VStack gap={10} shrink className="markdown selectable">
       {blocks.map((b, i) => (
-        <MarkdownBlock key={i} block={b} literalFences={literalFences} />
+        <MarkdownBlock key={i} block={b} literalFences={literalFences} inlineMath={mathIndices.has(i)} />
       ))}
     </VStack>
   )
