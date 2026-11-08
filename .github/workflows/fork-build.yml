@@ -219,8 +219,8 @@ jobs:
           retention-days: 14
 
       # Actions artifacts need an account and expire; a release is a plain download link.
-      # Separate fork build tags preserve upstream's app version and make same-version fixes discoverable.
-      # Existing releases and tags are never replaced.
+      # Publish normal version tags. Existing tags and releases are never moved or replaced.
+      # Later builds at the same version remain available as workflow artifacts.
       - name: Publish the release
         if: github.ref == 'refs/heads/main'
         working-directory: apps/desktop
@@ -229,15 +229,21 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          TAG="v$VERSION-fork.$GITHUB_RUN_ID"
+          TAG="v$VERSION"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "$TAG already exists; preserving its release assets."
             exit 0
           fi
+          # An existing unpublished tag can belong to an older build. Never relabel new code as that tag.
+          TAG_COMMIT="$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha 2>/dev/null || true)"
+          if [ -n "$TAG_COMMIT" ] && [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "$TAG names an earlier commit; this build remains available as a workflow artifact."
+            exit 0
+          fi
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
-            --title "$VERSION (fork build $GITHUB_RUN_ID)" --latest \
-            --notes "Codync, local fork — build of \`$GITHUB_SHA\` ($(date -u +%Y-%m-%dT%H:%MZ)).
+            --title "$TAG" --latest \
+            --notes "Codync — build of \`$GITHUB_SHA\` ($(date -u +%Y-%m-%dT%H:%MZ)).
           Apple Silicon, ad-hoc signed, not notarized; see FORK.md for the one-time \`xattr\` command." \
             dist/codync-macos.zip dist/codync-macos.zip.sha256 \
             dist/codync-macos.dmg dist/codync-macos.dmg.sha256

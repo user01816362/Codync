@@ -89,8 +89,8 @@ supported. The terminal's quote action also produces draft text. See [chat messa
 
 ## Release and validation boundaries
 
-The source version follows upstream; release tags add a build ID to the Git tag so fixes at
-the same app version can be discovered. Ad-hoc Mac builds check this repository and offer a DMG
+The source version follows upstream and releases use normal `v<version>` tags. Existing
+tags and releases are preserved; later same-version builds stay in Actions artifacts. Ad-hoc Mac builds check this repository and offer a DMG
 download, but do not install automatically. See [updates](../../FORK.md#updates).
 CI status belongs to a particular commit, not this inventory. A successful build does not
 establish real-device interaction, accessibility, provider behavior or Windows runtime validation.

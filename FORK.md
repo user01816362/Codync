@@ -34,7 +34,7 @@ remain outstanding. **Hidden collaboration activity changes presentation, not bo
 ## Download and run the macOS app
 
 1. Open **Releases** and download `codync-macos.zip` (or `codync-macos.dmg`) from the newest
-   release. Each successful build has its own release; older releases remain available.
+   release. Releases use normal version tags such as `v2.41.1`. Later builds at the same version remain available in GitHub Actions artifacts.
 2. Unzip it, then move `Codync.app` to `/Applications`.
 3. The app is ad-hoc signed, not notarized. Clear the download quarantine once:
 
@@ -79,8 +79,7 @@ existing paired devices and chat clear marks, and handles databases from either 
 
 ## Updates
 
-The ad-hoc macOS app checks releases from `user01816362/Codync`, including newer builds
-at the same upstream app version. Settings → Updates and the menu bar offer a direct DMG
+The ad-hoc macOS app checks releases from `user01816362/Codync`, when a newer app version is published. Settings → Updates and the menu bar offer a direct DMG
 download when one is available. Automatic checks can be turned off.
 
 These builds cannot use Electron's signed macOS installer. Replace the app in Applications
@@ -90,7 +89,8 @@ requires re-signing and installation with your sideloading tool.
 
 Install a new build manually once to get this checker: existing installed apps cannot
 acquire the fix through their broken updater. CI embeds its build ID before ad-hoc signing,
-and publishes a build-specific release tag without changing the app's version.
+and publishes normal `v<version>` release tags without changing the app's version. Existing
+tags and releases are preserved; later same-version builds stay in Actions artifacts.
 Electron packaging also points at this repository, so a future signed feed cannot select upstream.
 
 References: [Electron autoUpdater](https://www.electronjs.org/docs/latest/api/auto-updater),

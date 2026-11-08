@@ -85,16 +85,22 @@ export class ForkUpdates extends Updates {
         tag_name?: string; draft?: boolean; prerelease?: boolean
         assets?: { name: string; browser_download_url: string }[]
       }
-      const tag = release?.tag_name?.match(/^v(\d+\.\d+\.\d+)-fork\.(\d+)$/)
+      const tag = release?.tag_name?.match(/^v(\d+\.\d+\.\d+)(?:-fork\.(\d+))?$/)
       const asset = release?.assets?.find(asset => asset.name === 'codync-macos.dmg')
-      const newer = tag && Number.isSafeInteger(Number(tag[2])) && Number(tag[2]) > this.build.runId
+      const current = app.getVersion().split('.').map(Number)
+      const published = tag?.[1]?.split('.').map(Number) ?? []
+      const difference = published.findIndex((part, index) => part !== current[index])
+      const newerVersion = difference >= 0 && published[difference]! > current[difference]!
+      // Keep old build-tag releases readable during the transition; normal releases compare app versions.
+      const newerBuild = !!tag && tag[1] === app.getVersion() && Number.isSafeInteger(Number(tag[2])) && Number(tag[2]) > this.build.runId
+      const newer = newerVersion || newerBuild
       const validURL = asset?.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`)
       this.releaseDownload = newer && validURL && !release?.draft && !release?.prerelease ? asset!.browser_download_url : null
       const now = Date.now()
       prefs.set('updatesLastCheck', now)
       this.publishForkState({
         checking: false, lastCheck: now,
-        availableVersion: this.releaseDownload ? `${tag![1]} (build ${tag![2]})` : null,
+        availableVersion: this.releaseDownload ? tag![1]! : null,
       })
       if (manual && !this.releaseDownload) this.emit('upToDate')
     } catch (error) {
