@@ -1,22 +1,6 @@
 package com.codync.android
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.codync.android.design.*
+import androidx.compose.runtime.*
 import java.net.URI
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.jsonObject
@@ -31,10 +15,13 @@ internal fun workspaceLink(destination: String): String? = try {
 } catch (_: Exception) { null }
 
 @Composable internal fun WorkspaceTextPreview(botId: String, path: String, store: AppStore) {
-    var text by remember(path) { mutableStateOf<String?>(null) }
-    var name by remember(path) { mutableStateOf(path.substringAfterLast('/')) }
-    var failure by remember(path) { mutableStateOf<String?>(null) }
-    LaunchedEffect(botId, path) {
+    var text by remember(botId, path) { mutableStateOf<String?>(null) }
+    var name by remember(botId, path) { mutableStateOf(path.substringAfterLast('/')) }
+    var failure by remember(botId, path) { mutableStateOf<String?>(null) }
+    var attempt by remember(botId, path) { mutableStateOf(0) }
+    LaunchedEffect(botId, path, attempt) {
+        text = null
+        failure = null
         try {
             val response = store.hostQuery("previewWorkspaceFile", body("botId" to botId, "path" to path)).jsonObject
             name = response.getValue("name").jsonPrimitive.content
@@ -42,18 +29,5 @@ internal fun workspaceLink(destination: String): String? = try {
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message ?: "Couldn't open this file." }
     }
-    val markdown = name.endsWith(".md", true) || name.endsWith(".markdown", true)
-    val horizontal = rememberScrollState()
-    Column(Modifier.fillMaxSize().background(Palette.background)) {
-        ModalHeader(name)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(if (markdown) Modifier else Modifier.horizontalScroll(horizontal)).padding(20.dp)) {
-            val content = text
-            when {
-                content != null && markdown -> MarkdownText(content)
-                content != null -> Text(content, style = Type.footnote.monospaced, color = Palette.text)
-                failure != null -> Text(failure.orEmpty(), color = Palette.secondary)
-                else -> Spinner()
-            }
-        }
-    }
+    TextPreviewBody("$botId:$path", name, text, failure) { attempt += 1 }
 }

@@ -1,24 +1,8 @@
 package com.codync.android
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.*
 import com.codync.android.core.SharedFile
 import com.codync.android.core.Attachment
-import com.codync.android.design.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,8 +21,11 @@ import java.security.MessageDigest
 
 @Composable private fun TextFilePreview(id: String, name: String, size: Long, supported: Boolean, sha256: String?, load: suspend () -> java.io.File) {
     var text by remember(id) { mutableStateOf<String?>(null) }
-    var failed by remember(id) { mutableStateOf(false) }
-    LaunchedEffect(id) {
+    var failure by remember(id) { mutableStateOf<String?>(null) }
+    var attempt by remember(id) { mutableStateOf(0) }
+    LaunchedEffect(id, attempt) {
+        text = null
+        failure = null
         try {
             require(supported)
             val cached = load()
@@ -56,20 +43,7 @@ import java.security.MessageDigest
                 decoded
             }
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { failed = true }
+        catch (_: Exception) { failure = "Couldn't open this file. The file must be valid UTF-8 text up to 1 MiB and pass its integrity checks." }
     }
-    val markdown = name.endsWith(".md", true) || name.endsWith(".markdown", true)
-    val horizontal = rememberScrollState()
-    Column(Modifier.fillMaxSize().background(Palette.background)) {
-        ModalHeader(name)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(if (markdown) Modifier else Modifier.horizontalScroll(horizontal)).padding(20.dp)) {
-            val content = text
-            when {
-                content != null && markdown -> MarkdownText(content)
-                content != null -> Text(content, style = Type.footnote.monospaced, color = Palette.text)
-                failed -> Text(tr("Couldn't open this file."), color = Palette.secondary)
-                else -> Spinner()
-            }
-        }
-    }
+    TextPreviewBody(id, name, text, failure) { attempt += 1 }
 }

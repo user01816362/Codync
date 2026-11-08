@@ -15,6 +15,16 @@ pub struct FilePreviewSheet {
     pub scroll: usize,
     pub max_scroll: Cell<usize>,
     pub page: Cell<usize>,
+    pub source: bool,
+    pub wrap: bool,
+    request: PreviewRequest,
+}
+
+#[derive(Clone)]
+enum PreviewRequest {
+    Workspace { bot: String, path: String },
+    Shared { entry: String, file: crate::chat::files::SharedFile },
+    Upload { bot: String, upload: String, size: u64 },
 }
 
 fn supported(name: &str, size: u64) -> bool {
@@ -121,16 +131,7 @@ impl App {
     }
 
     pub(in crate::tui) fn open_workspace_preview(&mut self, bot: &str, path: String) {
-        let id = uuid::Uuid::new_v4().to_string();
-        self.client.preview_workspace(bot.to_owned(), path.clone(), id.clone(), self.tx.clone());
-        self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
-            id,
-            name: path,
-            content: None,
-            scroll: 0,
-            max_scroll: Cell::default(),
-            page: Cell::default(),
-        }));
+        self.push_file_preview(path.clone(), PreviewRequest::Workspace { bot: bot.to_owned(), path });
     }
 
     pub(in crate::tui) fn open_file_preview(&mut self, entry: &str, data: &Value) {
@@ -144,16 +145,7 @@ impl App {
             self.flash("No text file up to 1 MiB to preview; use f to download");
             return;
         };
-        let id = uuid::Uuid::new_v4().to_string();
-        self.client.preview_file(entry.to_owned(), file.clone(), id.clone(), self.tx.clone());
-        self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
-            id,
-            name: file.name,
-            content: None,
-            scroll: 0,
-            max_scroll: Cell::default(),
-            page: Cell::default(),
-        }));
+        self.push_file_preview(file.name.clone(), PreviewRequest::Shared { entry: entry.to_owned(), file });
     }
 
     pub(in crate::tui) fn open_upload_preview(&mut self, bot: &str, data: &Value) {
@@ -161,22 +153,65 @@ impl App {
             self.flash("No text attachment up to 1 MiB to preview; use f to download");
             return;
         };
+        self.push_file_preview(
+            name.to_owned(),
+            PreviewRequest::Upload { bot: bot.to_owned(), upload: upload.to_owned(), size },
+        );
+    }
+
+    fn request_preview(&self, request: &PreviewRequest, id: &str) {
+        match request {
+            PreviewRequest::Workspace { bot, path } => {
+                self.client.preview_workspace(bot.clone(), path.clone(), id.to_owned(), self.tx.clone());
+            }
+            PreviewRequest::Shared { entry, file } => {
+                self.client.preview_file(entry.clone(), file.clone(), id.to_owned(), self.tx.clone());
+            }
+            PreviewRequest::Upload { bot, upload, size } => {
+                self.client.preview_upload(bot.clone(), upload.clone(), *size, id.to_owned(), self.tx.clone());
+            }
+        }
+    }
+
+    fn push_file_preview(&mut self, name: String, request: PreviewRequest) {
         let id = uuid::Uuid::new_v4().to_string();
-        self.client.preview_upload(bot.to_owned(), upload.to_owned(), size, id.clone(), self.tx.clone());
+        self.request_preview(&request, &id);
         self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
             id,
-            name: name.to_owned(),
+            name,
             content: None,
             scroll: 0,
             max_scroll: Cell::default(),
             page: Cell::default(),
+            source: false,
+            wrap: true,
+            request,
         }));
     }
 
-    pub(in crate::tui) fn file_preview_key(mut view: FilePreviewSheet, key: KeyEvent) -> Option<Overlay> {
+    pub(in crate::tui) fn file_preview_key(&mut self, mut view: FilePreviewSheet, key: KeyEvent) -> Option<Overlay> {
         let half = (view.page.get() / 2).max(1);
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return None,
+            KeyCode::Char('v') => {
+                view.source = !view.source;
+                view.scroll = 0;
+            }
+            KeyCode::Char('w') => {
+                view.wrap = !view.wrap;
+                view.scroll = 0;
+            }
+            KeyCode::Char('c') => {
+                if let Some(Ok(text)) = &view.content {
+                    super::super::app::copy(text);
+                }
+            }
+            KeyCode::Char('r') if view.content.is_some() => {
+                view.id = uuid::Uuid::new_v4().to_string();
+                view.content = None;
+                view.scroll = 0;
+                self.request_preview(&view.request, &view.id);
+            }
             KeyCode::Down | KeyCode::Char('j') => view.scroll = (view.scroll + 1).min(view.max_scroll.get()),
             KeyCode::Up | KeyCode::Char('k') => view.scroll = view.scroll.saturating_sub(1),
             KeyCode::PageDown => view.scroll = (view.scroll + half).min(view.max_scroll.get()),

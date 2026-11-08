@@ -132,7 +132,7 @@ impl App {
             Overlay::Agent(a) => self.agent_key(a, k),
             Overlay::Fields(f) => self.fields_key(f, k),
             Overlay::Skill(s) => self.skill_key(s, k),
-            Overlay::FilePreview(s) => Self::file_preview_key(s, k),
+            Overlay::FilePreview(s) => self.file_preview_key(s, k),
             Overlay::Analytics(s) => s.key(k),
             Overlay::Network(n) => self.network_key(n, k),
             // A phone that scanned the code waits for this computer to let it in.

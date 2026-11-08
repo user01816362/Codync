@@ -12,3 +12,5 @@
 
 .sidechat-group { display: flex; flex-direction: column; gap: 16px; }
 .sidechat-group-heading { display: flex; justify-content: space-between; color: var(--tertiary); font-size: 12px; font-weight: 500; }
+
+.file-preview-toolbar { flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; padding: 0 16px 8px; }

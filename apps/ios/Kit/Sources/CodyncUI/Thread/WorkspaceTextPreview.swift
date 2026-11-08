@@ -22,33 +22,25 @@ struct WorkspaceTextPreview: View {
     @Environment(BotStore.self) private var model
     @State private var result: Response?
     @State private var failure: String?
+    @State private var attempt = 0
 
     private struct Request: Encodable { let botId: String; let path: String }
     private struct Response: Decodable { let name: String; let text: String }
 
     var body: some View {
         let name = result?.name ?? (path as NSString).lastPathComponent
-        let markdown = name.lowercased().hasSuffix(".md") || name.lowercased().hasSuffix(".markdown")
-        VStack(spacing: 0) {
-            ModalHeader(name)
-            ScrollView(markdown ? .vertical : [.vertical, .horizontal]) {
-                Group {
-                    if let result {
-                        if markdown {
-                            MarkdownText(result.text)
-                        } else {
-                            Text(result.text).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
-                        }
-                    } else if let failure {
-                        Text(failure).foregroundStyle(Palette.secondary)
-                    } else { Spinner() }
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
-            }
+        TextPreviewBody(name: name, text: result?.text, failure: failure) {
+            attempt += 1
         }
-        .background(Palette.background)
-        .task(id: path) {
+        .id("\(botId):\(path)")
+        .task(id: "\(botId):\(path):\(attempt)") {
+            result = nil
+            failure = nil
             guard let client = model.live else { failure = L10n.tr("Computer is offline"); return }
-            do { result = try await client.call("previewWorkspaceFile", Request(botId: botId, path: path)) }
+            do {
+                let loaded: Response = try await client.call("previewWorkspaceFile", Request(botId: botId, path: path))
+                if !Task.isCancelled { result = loaded }
+            }
             catch { if !Task.isCancelled { failure = L10n.tr("Couldn't open this file.") + " " + error.localizedDescription } }
         }
     }

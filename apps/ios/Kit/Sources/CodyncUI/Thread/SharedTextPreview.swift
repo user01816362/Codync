@@ -10,6 +10,7 @@ struct SharedTextPreview: View {
     @Environment(BotStore.self) private var model
     @State private var text: String?
     @State private var failed = false
+    @State private var attempt = 0
 
     init(file: SharedFile, entryId: String) {
         name = file.name; id = file.id; size = file.size
@@ -22,25 +23,13 @@ struct SharedTextPreview: View {
     }
 
     var body: some View {
-        let markdown = name.lowercased().hasSuffix(".md") || name.lowercased().hasSuffix(".markdown")
-        VStack(spacing: 0) {
-            ModalHeader(name)
-            ScrollView(markdown ? .vertical : [.vertical, .horizontal]) {
-                Group {
-                    if let text {
-                        if markdown {
-                            MarkdownText(text)
-                        } else {
-                            Text(text).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
-                        }
-                    } else if failed {
-                        Text(L10n.tr("Couldn't open this file.")).foregroundStyle(Palette.secondary)
-                    } else { Spinner() }
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
-            }
+        TextPreviewBody(name: name, text: text, failure: failed ? L10n.tr("Couldn't open this file. The file must be valid UTF-8 text up to 1 MiB and pass its integrity checks.") : nil) {
+            attempt += 1
         }
-        .background(Palette.background)
-        .task(id: id) {
+        .id(id)
+        .task(id: "\(id):\(attempt)") {
+            text = nil
+            failed = false
             guard SharedFile.canPreview(name: name, size: size), let data = await load(model), Int64(data.count) == size,
                   let decoded = String(data: data, encoding: .utf8), !decoded.contains("\0") else {
                 if !Task.isCancelled { failed = true }

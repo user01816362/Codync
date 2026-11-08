@@ -88,7 +88,9 @@ cards. Desktop uses a side panel, or a sheet in a narrow window; iPhone and Andr
 Markdown renders as a document and source stays selectable plain text. Contents are checked against
 the saved size and SHA-256 and must be valid UTF-8 without NUL characters. The viewer never executes
 file content. Unsupported and larger files remain downloadable. In the terminal, select the file message and press `o` to preview the first supported shared file;
-`f` still downloads it.
+`f` still downloads it. Text previews offer Markdown Read/Source, copy, source line wrapping and retry.
+Terminal keys are `v` (read/source), `w` (wrap), `c` (copy) and `r` (retry).
+These controls reuse the existing authorized transfer; they do not grant access to another directory.
 
 This feature adds no previews of other file types, folder packaging, background
 transfers, persistent resume or Watch UI. Existing bots do not publish workspace files

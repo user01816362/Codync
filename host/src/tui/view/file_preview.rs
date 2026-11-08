@@ -18,17 +18,26 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
         return;
     }
     hline(buf, inner.x, inner.bottom() - 2, inner.width, t.dim.patch(t.panel));
-    put(buf, inner.x, inner.bottom() - 1, inner.width, " ↑↓ scroll · esc close", t.dim.patch(t.panel));
+    put(
+        buf,
+        inner.x,
+        inner.bottom() - 1,
+        inner.width,
+        " ↑↓ scroll · v read/source · w wrap · c copy · r retry · esc close",
+        t.dim.patch(t.panel),
+    );
     let body = Rect::new(inner.x, inner.y, inner.width, inner.height - 2);
     let width = usize::from(body.width);
     let lines = match &view.content {
         None => vec![Line::from(Span::styled(" Loading…", t.dim))],
         Some(Err(error)) => vec![Line::from(Span::styled(format!(" {error}"), t.red))],
         Some(Ok(text))
-            if view.name.to_lowercase().ends_with(".md") || view.name.to_lowercase().ends_with(".markdown") =>
+            if !view.source
+                && (view.name.to_lowercase().ends_with(".md") || view.name.to_lowercase().ends_with(".markdown")) =>
         {
             md::render(text, width, 1)
         }
+        Some(Ok(text)) if !view.wrap => text.lines().map(|line| Line::raw(line.to_owned())).collect(),
         Some(Ok(text)) => text
             .lines()
             .flat_map(|line| md::wrap(&[Span::raw(line.to_owned())], width, &[Span::raw(" ")], &[Span::raw(" ")]))
