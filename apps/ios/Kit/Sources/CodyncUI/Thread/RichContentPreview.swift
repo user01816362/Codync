@@ -20,48 +20,64 @@ struct RichContentPreview: View {
         return CGFloat(min(360, max(64, source.components(separatedBy: "\n").count * 18 + 20)))
     }
 
+    private var layoutHandler: (@MainActor (CGFloat) -> Void)? {
+        guard inlineMath else { return nil }
+        return { height in measuredHeight = height }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !inlineMath { HStack {
-                Text(language.isEmpty ? "text" : language).font(.caption).foregroundStyle(Palette.secondary).lineLimit(1)
-                Spacer()
-                if canPreview {
-                    Button(preview ? "Code" : "Preview") { withAnimation { showSource = preview } }
-                        .buttonStyle(.plain).font(.caption).foregroundStyle(Palette.secondary)
-                        .accessibilityLabel(preview ? "Show code" : "Show preview")
-                }
-                if preview && !markdown {
-                    IconButton("Expand preview", systemImage: "arrow.up.left.and.arrow.down.right") { expanded = true }
-                }
-                IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
-            }
-            .padding(.leading, 10).padding(.trailing, 4) }
-            if !preview {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    Text(source).font(.system(.footnote, design: .monospaced))
-                        .foregroundStyle(Palette.text).textSelection(.enabled).padding(10)
-                }
-            } else if markdown {
-                AnyView(MarkdownText(source, allowMarkdownPreview: false)).padding(12)
-            } else if let html = RichRenderer.html(source: source, language: language) {
-                RichContentWebView(html: html, layout: inlineMath ? { measuredHeight = $0 } : nil)
-                    .frame(height: inlineMath ? measuredHeight : height)
-            } else {
-                Text("Preview couldn’t load. Choose Code to view the source.").font(.caption).padding(12)
-            }
+            if !inlineMath { toolbar }
+            content
         }
-        .background(inlineMath ? .clear : Palette.codeBackground, in: RoundedRectangle(cornerRadius: 8))
-        .codyncSheet(isPresented: $expanded) {
-            VStack(spacing: 0) {
-                ModalHeader("Preview") {
-                    IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
-                }
-                if let html = RichRenderer.html(source: source, language: language) {
-                    RichContentWebView(html: html).frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }.background(Palette.background)
+        .background(inlineMath ? Color.clear : Palette.codeBackground, in: RoundedRectangle(cornerRadius: 8))
+        .codyncSheet(isPresented: $expanded) { expandedPreview }
+    }
+
+    private var toolbar: some View {
+        HStack {
+            Text(language.isEmpty ? "text" : language).font(.caption).foregroundStyle(Palette.secondary).lineLimit(1)
+            Spacer()
+            if canPreview {
+                Button(preview ? "Code" : "Preview") { withAnimation { showSource = preview } }
+                    .buttonStyle(.plain).font(.caption).foregroundStyle(Palette.secondary)
+                    .accessibilityLabel(preview ? "Show code" : "Show preview")
+            }
+            if preview && !markdown {
+                IconButton("Expand preview", systemImage: "arrow.up.left.and.arrow.down.right") { expanded = true }
+            }
+            IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
+        }
+        .padding(.leading, 10).padding(.trailing, 4)
+    }
+
+    @ViewBuilder private var content: some View {
+        if !preview {
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(source).font(.system(.footnote, design: .monospaced))
+                    .foregroundStyle(Palette.text).textSelection(.enabled).padding(10)
+            }
+        } else if markdown {
+            AnyView(MarkdownText(source, allowMarkdownPreview: false)).padding(12)
+        } else if let html = RichRenderer.html(source: source, language: language) {
+            RichContentWebView(html: html, layout: layoutHandler)
+                .frame(height: inlineMath ? measuredHeight : height)
+        } else {
+            Text("Preview couldn’t load. Choose Code to view the source.").font(.caption).padding(12)
         }
     }
+
+    private var expandedPreview: some View {
+        VStack(spacing: 0) {
+            ModalHeader("Preview") {
+                IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
+            }
+            if let html = RichRenderer.html(source: source, language: language) {
+                RichContentWebView(html: html).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }.background(Palette.background)
+    }
+
 }
 
 private enum RichRenderer {
