@@ -217,7 +217,10 @@ pub enum Submit {
     Import,
     /// A handoff card's text (the card's entry id).
     Handoff(String),
-    Queued { bot: String, entry: String },
+    Queued {
+        bot: String,
+        entry: String,
+    },
     /// A bot's section (its id): a name, or empty for none.
     Section(String),
     /// A section's new name (its current one), or empty to remove it.
