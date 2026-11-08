@@ -21,7 +21,7 @@ public struct MarkdownText: View, Equatable {
         }.prefix(8).map { $0.offset })
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                MarkdownBlock(block: block, allowMarkdownPreview: allowMarkdownPreview, inlineMath: mathIndices.contains(index))
+                MarkdownBlock(block: block, allowMarkdownPreview: allowMarkdownPreview, inlineMath: mathIndices.contains(index)).equatable()
             }
         }
         .textSelection(.enabled)
@@ -42,7 +42,7 @@ public struct MarkdownText: View, Equatable {
 }
 
 /// One block of a reply.
-private struct MarkdownBlock: View {
+private struct MarkdownBlock: View, Equatable {
     let block: MarkdownBlocks.Block
     let allowMarkdownPreview: Bool
     let inlineMath: Bool

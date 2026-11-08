@@ -78,6 +78,7 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
     </HStack>
     {quoteError && <div role="alert">{quoteError}</div>}
     <Bubble className="sidechat-scroll selectable" items={() => []} quote={sourceEntryId && 'file' in preview ? selected => {
+      if (!store.client) { setQuoteError('Computer is offline'); return }
       const text = Array.from(selected.trim()).slice(0, 4000).join('')
       void store.client?.call<{ chatId: string; quote: ReplyQuote }>('quoteFile', { entryId: sourceEntryId, fileId: preview.file.id, text }).then(value => {
         quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part)

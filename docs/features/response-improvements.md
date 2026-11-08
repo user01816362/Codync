@@ -15,7 +15,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
 | 9 | Diagram expansion, fit/zoom and scrolling with existing offline bundles | Implemented; CI pending |
 | 9b | Bounded inline formulas in plain prose, preserving native styled/link/code paragraphs | Implemented; CI pending |
-| 10 | Incremental Markdown presentation and adapter-specific streaming finality | Planned |
+| 10 | Incremental Markdown presentation and adapter-specific streaming finality | Block reuse implemented; generic ACP finality unavailable in the current protocol |
 | 11 | Inspect numbered report sources with title, URL, open and copy actions | Implemented; CI pending |
 
 Persistent group task ownership/reassignment is a separate host-model proposal, not a setting on today's group rounds. Custom group icons, storage overview and artifact selection bridges are optional later improvements. Existing model settings, memory, skills, routines, sections, reactions, collaboration controls and artifact Library are reused rather than duplicated. A renderer replacement needs measured correctness, accessibility and performance benefits across affected clients before selection.
@@ -101,3 +101,9 @@ Phone collaboration request and reply selections now preserve the exchange ID an
 Text snapshots explicitly shared in a saved chat message can be quoted through the existing reply composer. Desktop uses the selection context menu; phones offer Select text / Quote. The host resolves the saved message, checks that the file ID belongs to its files or attachments, and derives the author and filename from storage. Sending revalidates the same source. Excerpts remain bounded to 4,000 characters and are identified to the agent as user-selected content, not instructions from the file. Errors retain the original preview and source instead of inserting unattributed text into the draft.
 
 The preview affordance covers shared snapshots and uploads opened from their saved message. Library uploads and live-workspace previews without that source entry do not invent one; their text remains selectable/copyable. This does not grant arbitrary file access or prove that a rendered selection is a verbatim file substring.
+
+## Streaming presentation and finality
+
+Desktop keeps unchanged Markdown blocks through its existing block comparison; iPhone now explicitly skips unchanged blocks with Equatable views, and Android retains parsed blocks with its existing source-keyed cache. Appending text updates the same explicit streaming entry and retains block positions, including an unfinished code fence. This is block reuse, not a claim that parsing is constant-time or that arbitrary Markdown can be finalized before later input arrives.
+
+The current ACP protocol does not provide a reliable final-answer boundary for ordinary message chunks. Its message-ID proposal explicitly documents ambiguous boundaries; proposal fields must not be treated as a deployed finality guarantee. Consequently ordinary ACP chunks remain trace content, thought chunks remain separate, and the existing explicit `stream_message` contract is the supported live-chat delivery path. An adapter-specific final-answer mapping requires that adapter's documented signal before enabling it. See the [ACP message-ID proposal](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/message-id.mdx). Stop, reconnect and assistive-technology interactions still require device validation.
