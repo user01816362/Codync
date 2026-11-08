@@ -2,6 +2,7 @@ import CodyncKit
 import SwiftUI
 
 struct RichReportView: View {
+    @State private var inspected: InspectedSource?
     let report: RichReport
     let submit: (String) -> Void
     @State private var answers: [String: String] = [:]
@@ -74,11 +75,26 @@ struct RichReportView: View {
         }
         .foregroundStyle(Palette.text)
         .textSelection(.enabled)
+                .codyncSheet(item: $inspected) { item in
+                    VStack(alignment: .leading, spacing: 16) {
+                        ModalHeader("Source \(item.number)")
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(item.title).font(.headline)
+                            Text(item.url.absoluteString).font(.footnote).textSelection(.enabled)
+                            Text(L10n.tr("Supplied by the agent. Listing a source does not independently verify its claims."))
+                                .font(.caption).foregroundStyle(Palette.secondary)
+                            Link("Open source", destination: item.url).buttonStyle(SecondaryButtonStyle())
+                            Button("Copy URL") { Pasteboard.copy(item.url.absoluteString) }.buttonStyle(SecondaryButtonStyle())
+                        }.padding(.horizontal, 20).padding(.bottom, 24)
+                    }.background(Palette.background)
+                }
     }
 
     @ViewBuilder private func sourceLink(_ source: RichReport.Source, number: Int) -> some View {
         if let url = URL(string: source.url), ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
-            Link("[\(number)] \(source.title)", destination: url).font(.caption).underline()
+            Button("[\(number)] \(source.title)") { inspected = InspectedSource(number: number, title: source.title, url: url) }
+                .buttonStyle(.plain).font(.caption).underline()
+
         }
     }
 
@@ -86,4 +102,11 @@ struct RichReportView: View {
         guard let number = Double(value), number.isFinite, maximum > 0 else { return 0 }
         return min(1, max(0, number / maximum))
     }
+}
+
+private struct InspectedSource: Identifiable {
+    let number: Int
+    let title: String
+    let url: URL
+    var id: Int { number }
 }

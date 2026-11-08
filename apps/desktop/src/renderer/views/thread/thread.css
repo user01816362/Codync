@@ -486,3 +486,5 @@
 .rich-report-timeline { padding-inline-start: 12px; }
 .rich-report a { text-decoration: underline; }
 .rich-report summary { cursor: pointer; }
+
+.rich-report-source { text-align: start; text-decoration: underline; padding: 4px 0; margin-inline-end: 8px; max-width: 100%; overflow-wrap: anywhere; }

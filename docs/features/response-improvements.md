@@ -16,7 +16,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 9 | Diagram expansion, fit/zoom and scrolling with existing offline bundles | Implemented; CI pending |
 | 9b | Inline formula layout across native text renderers | Planned |
 | 10 | Incremental Markdown presentation and adapter-specific streaming finality | Planned |
-| 11 | Citation/source navigation using existing reports and supplied source metadata | Planned |
+| 11 | Inspect numbered report sources with title, URL, open and copy actions | Implemented; CI pending |
 
 Persistent group task ownership/reassignment is a separate host-model proposal, not a setting on today's group rounds. Custom group icons, storage overview and artifact selection bridges are optional later improvements. Existing model settings, memory, skills, routines, sections, reactions, collaboration controls and artifact Library are reused rather than duplicated. A renderer replacement needs measured correctness, accessibility and performance benefits across affected clients before selection.
 
@@ -75,3 +75,7 @@ XLSX parsing is not shipped by this batch. It requires a separately chosen workb
 Graphical rich previews expose Expand preview using the existing sheet. The same bounded renderer and source copy action remain in use. Mermaid adds local Zoom in, Zoom out and Fit controls, a zoom percentage, scroll-to-pan and keyboard `+`, `-`, `0` on its focusable viewport. These controls run only inside the isolated preview and add no network or application bridge. Zoom is bounded from 0.1× to 8×. The canonical template and all three packaged copies carry identical control logic; vendored library bytes and versions are unchanged.
 
 Terminal keeps the readable source rather than a graphical viewport. Existing fenced and standalone display math remain supported. Inline formula layout within native flowing text is not delivered by this batch and must not be implied by expanding a math preview.
+
+## Source inspection
+
+Existing numbered report citations and the Sources list now open the same source-inspection sheet on graphical clients. It preserves the source number, title and full selectable URL, with explicit Open source and Copy URL actions. No source is fetched in the background and no independent verification is claimed. The existing host report schema, source bounds and HTTP(S) link restrictions remain unchanged. Terminal report fallback already shows numbered titles/URLs and remains readable without a graphical sheet. Plain Markdown links remain ordinary links; no citation metadata is invented from them.

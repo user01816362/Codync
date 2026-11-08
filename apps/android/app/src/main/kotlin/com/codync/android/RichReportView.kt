@@ -8,6 +8,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.selection.SelectionContainer
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -18,6 +22,8 @@ import kotlinx.serialization.json.*
 /** Native, inert report sections. Only explicit HTTP(S) source links leave the app. */
 @Composable internal fun RichReportView(report: JsonObject, submit: (String) -> Unit) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    var inspected by remember(report) { mutableStateOf<Pair<Int, JsonObject>?>(null) }
     val sources = (report["sources"] as? JsonArray).orEmpty().take(30)
     Column(Modifier.padding(16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(report.string("title"), style = Type.headline, color = Palette.text)
@@ -61,7 +67,7 @@ import kotlinx.serialization.json.*
                         for (citation in (section["citations"] as? JsonArray).orEmpty()) {
                             val number = (citation as? JsonPrimitive)?.intOrNull ?: continue
                             val source = sources.getOrNull(number - 1) as? JsonObject ?: continue
-                            ReportSource(source, number, uriHandler::openUri)
+                            ReportSource(source, number) { inspected = number to source }
                         }
                     }
                 }
@@ -71,16 +77,28 @@ import kotlinx.serialization.json.*
             Text("Sources supplied by the agent", style = Type.caption2, color = Palette.secondary)
             for ((index, element) in sources.withIndex()) {
                 val source = element as? JsonObject ?: continue
-                ReportSource(source, index + 1, uriHandler::openUri)
+                ReportSource(source, index + 1) { inspected = index + 1 to source }
+            }
+        }
+    }
+    CodyncSheet(inspected, { inspected = null }) { item ->
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            ModalHeader("Source ${item.first}")
+            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(item.second.string("title"), style = Type.headline, color = Palette.text)
+                SelectionContainer { Text(item.second.string("url"), style = Type.footnote, color = Palette.text) }
+                Text(tr("Supplied by the agent. Listing a source does not independently verify its claims."), style = Type.caption, color = Palette.secondary)
+                SecondaryButton("Open source") { uriHandler.openUri(item.second.string("url")) }
+                SecondaryButton("Copy URL") { context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Source", item.second.string("url"))) }
             }
         }
     }
 }
 
-@Composable private fun ReportSource(source: JsonObject, number: Int, open: (String) -> Unit) {
+@Composable private fun ReportSource(source: JsonObject, number: Int, inspect: () -> Unit) {
     val url = source.string("url")
     if (url.startsWith("https://", true) || url.startsWith("http://", true)) {
-        Text("[$number] ${source.string("title")}", Modifier.clickable(role = Role.Button) { open(url) },
+        Text("[$number] ${source.string("title")}", Modifier.clickable(role = Role.Button) { inspect() },
             style = Type.caption2, color = Palette.text)
     }
 }

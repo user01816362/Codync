@@ -1,9 +1,13 @@
 import { Button } from '../../components/Controls'
+import { ModalHeader, Sheet } from '../../components/Overlay'
+import { VStack } from '../../components/Stack'
+import { Text } from '../../components/Text'
 import { useState } from 'react'
 import type { RichReport } from '@shared/models'
 
 /** Host-validated, inert native content. The message text remains the copy/old-client fallback. */
 export function RichReportView({ report, submit }: { report: RichReport; submit: (text: string) => void }) {
+  const [sourceDetail, setSourceDetail] = useState<{ number: number; title: string; url: string } | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [sent, setSent] = useState<Set<number>>(new Set())
   const [closed, setClosed] = useState<Set<number>>(new Set())
@@ -31,11 +35,23 @@ export function RichReportView({ report, submit }: { report: RichReport; submit:
           }}>{sent.has(index) ? 'Sent' : 'Send answers'}</Button>}
           {!!section.citations?.length && <p>{section.citations.map(citation => {
             const source = report.sources?.[citation - 1]
-            return source && /^https?:\/\//i.test(source.url) ? <a key={citation} href={source.url} onClick={event => { event.preventDefault(); window.codync.app.openExternal(source.url) }}>[{citation}] {source.title} </a> : null
+            return source && /^https?:\/\//i.test(source.url) ? <button key={citation} className="rich-report-source" onClick={() => setSourceDetail({ number: citation, ...source })}>[{citation}] {source.title}</button> : null
           })}</p>}
         </div>}
       </section>
     })}
-    {!!report.sources?.length && <details><summary>Sources supplied by the agent</summary>{report.sources.slice(0, 30).map((source, i) => /^https?:\/\//i.test(source.url) ? <p key={i}><a href={source.url} onClick={event => { event.preventDefault(); window.codync.app.openExternal(source.url) }}>{i + 1}. {source.title}</a></p> : null)}</details>}
+    {!!report.sources?.length && <details><summary>Sources supplied by the agent</summary>{report.sources.slice(0, 30).map((source, i) => /^https?:\/\//i.test(source.url) ? <p key={i}><button className="rich-report-source" onClick={() => setSourceDetail({ number: i + 1, ...source })}>{i + 1}. {source.title}</button></p> : null)}</details>}
+    <Sheet open={sourceDetail !== null} onClose={() => setSourceDetail(null)} width={480}>
+      {sourceDetail && <VStack gap={16}>
+        <ModalHeader title={`Source ${sourceDetail.number}`} />
+        <VStack gap={12} style={{ padding: '0 20px 20px' }}>
+          <Text weight="semibold">{sourceDetail.title}</Text>
+          <Text size="footnote" className="selectable" style={{ overflowWrap: 'anywhere' }}>{sourceDetail.url}</Text>
+          <Text tone="secondary" size="caption">Supplied by the agent. Listing a source does not independently verify its claims.</Text>
+          <Button onClick={() => window.codync.app.openExternal(sourceDetail.url)}>Open source</Button>
+          <Button onClick={() => window.codync.app.copy(sourceDetail.url)}>Copy URL</Button>
+        </VStack>
+      </VStack>}
+    </Sheet>
   </div>
 }
