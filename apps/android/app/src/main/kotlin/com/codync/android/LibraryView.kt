@@ -107,10 +107,10 @@ import com.kyant.shapes.RoundedRectangle
 @Composable private fun FileRow(item: LibraryItem.FileItem, botId: String, state: AppState, store: AppStore, preview: () -> Unit) {
     val download = state.fileDownloads[item.file.id]
     val busy = download is FileDownloadState.Downloading
-    LibraryRow(Modifier.plainButton { if (item.file.showsAsText) preview() else if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file) },
+    LibraryRow(Modifier.plainButton { if (item.file.canOpenPreview) preview() else if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file) },
         { Symbol(AttachmentIcon.symbol(item.file.name), size = 22.dp, tint = Palette.secondary) }) {
         NameAndDetail(item.file.name, (state.bots.firstOrNull { it.id == botId }?.name ?: "") + " · " + detail(item.file, download))
-        if (item.file.showsAsText) IconButton(if (busy) "Cancel download" else "Download", if (busy) "xmark" else "arrow.down.to.line") {
+        if (item.file.canOpenPreview) IconButton(if (busy) "Cancel download" else "Download", if (busy) "xmark" else "arrow.down.to.line") {
             if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file)
         }
     }
@@ -121,7 +121,7 @@ import com.kyant.shapes.RoundedRectangle
     if (file.isImage) LibraryRow(Modifier.plainButton(action = openImage), {
         AttachmentImage(file, botId, 144, state, store, Modifier.size(36.dp).clip(RoundedRectangle(8.dp)), ContentScale.Crop)
     }) { NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size)) }
-    else LibraryRow(if (file.showsAsText) Modifier.plainButton(action = openText) else Modifier.semantics(mergeDescendants = true) {}, { Symbol(AttachmentIcon.symbol(file.name), size = 22.dp, tint = Palette.secondary) }) {
+    else LibraryRow(if (file.canOpenPreview) Modifier.plainButton(action = openText) else Modifier.semantics(mergeDescendants = true) {}, { Symbol(AttachmentIcon.symbol(file.name), size = 22.dp, tint = Palette.secondary) }) {
         NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size))
     }
 }

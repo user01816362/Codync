@@ -28,6 +28,22 @@ public struct SharedFile: Codable, Hashable, Sendable, Identifiable {
         return name.contains(".") && size >= 0 && size <= 1024 * 1024 && extensions.contains(suffix)
     }
 
+    public var showsAsPreview: Bool { Self.canOpenPreview(name: name, size: size) }
+
+    public static func canOpenPreview(name: String, size: Int64) -> Bool {
+        canPreview(name: name, size: size) || mediaKind(name: name, size: size) != nil
+    }
+
+    public static func mediaKind(name: String, size: Int64) -> String? {
+        guard size >= 0, size <= 32 * 1024 * 1024 else { return nil }
+        switch (name as NSString).pathExtension.lowercased() {
+        case "pdf": return "pdf"
+        case "mp3", "m4a", "wav", "ogg": return "audio"
+        case "mp4", "m4v", "mov", "webm": return "video"
+        default: return nil
+        }
+    }
+
     public func validate() throws {
         guard size >= 0, size <= 100 * 1024 * 1024,
               sha256.count == 64, sha256.allSatisfy({ "0123456789abcdef".contains($0) }),

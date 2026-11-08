@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Attachment, SharedFile } from '@shared/models'
+import { mediaMime } from '../../../shared/text-preview'
+import { MediaFilePreview } from './MediaFilePreview'
 import { sha256Hex } from '../../../shared/files'
 import { IconButton } from '../../components/Controls'
 import { HStack } from '../../components/Stack'
@@ -17,6 +19,11 @@ export const previewKey = (preview: PreviewFile) => JSON.stringify('path' in pre
   : 'entryId' in preview ? [preview.botId, preview.entryId, preview.file.id] : [preview.botId, preview.file.id])
 
 export function FilePreview({ preview, close }: { preview: PreviewFile; close: () => void }) {
+  if (!('path' in preview) && mediaMime(preview.file)) return <MediaFilePreview preview={preview} close={close} />
+  return <TextFilePreview preview={preview} close={close} />
+}
+
+function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () => void }) {
   const store = useStore()
   const tr = useTr()
   const [result, setResult] = useState<{ text: string } | { error: string } | null>(null)

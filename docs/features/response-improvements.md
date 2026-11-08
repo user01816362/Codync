@@ -8,7 +8,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 2 | Extend the existing Library with Files filtering/counts, text previews, source labels and retry; retain downloads | Implemented; CI pending |
 | 3 | Phone message selection/reply parity through existing metadata | Implemented; CI pending |
 | 3b | Structured file excerpts and collaboration selections with source context | Planned |
-| 4 | Bounded PDF/audio/video preview adapters using existing authenticated transfers | Planned |
+| 4 | Bounded local PDF/audio/video adapters using verified transfers; terminal download fallback | Implemented; CI/device checks pending |
 | 5 | Read-only CSV/TSV tables; assess XLSX separately with decompression/cell limits | Planned |
 | 6 | Read-only workspace directory navigation within host-authorized roots | Planned |
 | 7 | Queued-only text editing through the actor, preserving files/replies | Implemented; CI pending |
@@ -52,3 +52,11 @@ On iPhone a selected reply uses normal authenticated delivery instead of the old
 Queue rows on desktop and phones offer Edit queued message. The terminal uses `e` on a queued message and its existing multiline field sheet. The host serializes the edit with dispatch: a message already taken from the queue is refused, without creating a replacement send. A timed-out request is skipped if the actor has not begun handling it. Text is bounded to 64 KiB and cannot be empty. Attachments and reply metadata remain attached. Because this editor does not track pasted substrings, edited text is conservatively marked as pasted for memory attribution.
 
 Group queue editing is not offered. An older host can reject the new method without losing the original message. Durable queue pause/reorder and richer host-reported waiting reasons remain separate work; Send now and Remove retain their existing behavior.
+
+## PDF and media previews
+
+File cards and Library rows open supported PDF, audio and video snapshots up to 32 MiB through the existing file preview. Supported extensions are PDF, MP3, M4A, WAV, OGG, MP4, M4V, MOV and WebM. Decoding/playback support depends on the platform's installed codecs. Failed or unsupported previews retain the existing download path. Live workspace binary paths are not newly authorized by this feature.
+
+Shared files are checked against saved size and SHA-256; uploads use their bounded authenticated transfer. Desktop creates revocable local object URLs with fixed MIME types and uses built-in PDF/media viewing. Only blob frames/objects are added to its content policy; remote frame origins are not added. The chat window enables its bundled PDF plugin while retaining the renderer sandbox and context isolation. Phone PDF viewers use native rendering; iPhone and Android refuse more than 500 pages. Android renders one page at a time with a maximum 2048-pixel edge. Native player controls require user playback; no remote agent URL or generated HTML is sent to the player. iPhone playback uses a temporary file removed when closing the viewer. Desktop object URLs are revoked on closure/reload. Terminal keeps downloading binary files rather than attempting graphical playback.
+
+Native PDF/media interactions and codec failures need device testing. Source/CI validation alone does not establish viewer accessibility, playback behavior, decoder memory usage or PDF annotation/link behavior on every OS.

@@ -12,7 +12,7 @@ import { useStore } from '../../store/context'
 import { AttachmentImage, AttachmentViewer, attachmentSymbol, byteCount } from '../thread/Attachments'
 import { downloadAction, downloadDetail } from '../thread/FileDownloadCard'
 import { useFilePreview } from '../thread/FilePreview'
-import { canPreview } from '../../../shared/text-preview'
+import { canOpenPreview } from '../../../shared/text-preview'
 import { artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
 
 /**
@@ -146,7 +146,7 @@ function FileRow({ botId, entryId, file }: { botId: string; entryId: string; fil
       leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}
       trailing={<IconButton title={downloadAction(state)} icon={busy ? 'xmark' : 'arrow.down.to.line'} onClick={() => (busy ? store.fileDownloads.cancel(file.id) : void store.fileDownloads.save(store.client, entryId, file))} />}
     >
-      {openPreview && canPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, entryId, file })}>
+      {openPreview && canOpenPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, entryId, file })}>
         <Name name={file.name} detail={detail} failed={state?.kind === 'failed'} />
       </button> : <Name name={file.name} detail={detail} failed={state?.kind === 'failed'} />}
     </Row>
@@ -159,7 +159,7 @@ function AttachmentRow({ botId, file, view }: { botId: string; file: Attachment;
   if (!isImageName(file.name)) {
     return (
       <Row leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}>
-        {openPreview && canPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, file })}>
+        {openPreview && canOpenPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, file })}>
           <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />
         </button> : <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />}
       </Row>

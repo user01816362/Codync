@@ -12,11 +12,13 @@ import java.security.MessageDigest
 
 /** A small verified snapshot, rendered without executing any file contents. */
 @Composable internal fun SharedTextPreview(file: SharedFile, entryId: String, store: AppStore) {
-    TextFilePreview(file.id, file.name, file.size, file.showsAsText, file.sha256) { store.sharedImage(entryId, file) }
+    if (mediaPreviewKind(file.name, file.size) != null) MediaFilePreview(file.id, file.name, file.size, file.sha256) { store.sharedImage(entryId, file) }
+    else TextFilePreview(file.id, file.name, file.size, file.showsAsText, file.sha256) { store.sharedImage(entryId, file) }
 }
 
 @Composable internal fun AttachmentTextPreview(file: Attachment, botId: String, store: AppStore) {
-    TextFilePreview(file.id, file.name, file.size, file.showsAsText, null) { store.attachment(botId, file) }
+    if (mediaPreviewKind(file.name, file.size) != null) MediaFilePreview(file.id, file.name, file.size, null) { store.attachment(botId, file) }
+    else TextFilePreview(file.id, file.name, file.size, file.showsAsText, null) { store.attachment(botId, file) }
 }
 
 @Composable private fun TextFilePreview(id: String, name: String, size: Long, supported: Boolean, sha256: String?, load: suspend () -> java.io.File) {
@@ -47,3 +49,6 @@ import java.security.MessageDigest
     }
     TextPreviewBody(id, name, text, failure) { attempt += 1 }
 }
+
+internal val SharedFile.canOpenPreview: Boolean get() = showsAsText || mediaPreviewKind(name, size) != null
+internal val Attachment.canOpenPreview: Boolean get() = showsAsText || mediaPreviewKind(name, size) != null

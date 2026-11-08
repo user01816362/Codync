@@ -48,11 +48,11 @@ import com.kyant.shapes.RoundedRectangle
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Symbol(AttachmentIcon.symbol(file.name), size = 24.dp, tint = Palette.secondary)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(file.name, modifier = if (file.showsAsText) Modifier.plainButton { openText() } else Modifier,
+            Text(file.name, modifier = if (file.canOpenPreview) Modifier.plainButton { openText() } else Modifier,
                 style = Type.subheadline.semibold, color = Palette.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(detail(file, download), style = Type.caption2, color = Palette.secondary)
         }
-        if (file.showsAsText) IconButton("Open", "doc.text") { openText() }
+        if (file.canOpenPreview) IconButton("Open", "doc.text") { openText() }
         Box(Modifier.size(36.dp).plainButton { if (busy) store.cancelFile(file.id) else store.saveFile(entry.id, entry.botId, file) }
             .semantics { contentDescription = (if (busy) "Cancel download " else "Download ") + file.name }, contentAlignment = Alignment.Center) {
             Symbol(if (busy) "xmark" else "arrow.down.to.line", size = 20.dp, tint = Palette.text)

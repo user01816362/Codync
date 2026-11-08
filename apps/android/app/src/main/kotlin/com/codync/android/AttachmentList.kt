@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
         for (file in attachments) {
             if (file.isImage) AttachmentImage(file, botId, 720, state, store, Modifier.sizeIn(maxWidth = 220.dp, maxHeight = 280.dp)
                 .clip(RoundedRectangle(16.dp)).plainButton { viewing = file }.semantics { contentDescription = file.name })
-            else AttachmentCard(file, if (file.showsAsText) Modifier.plainButton { viewingText = file } else Modifier)
+            else AttachmentCard(file, if (file.canOpenPreview) Modifier.plainButton { viewingText = file } else Modifier)
         }
     }
     AttachmentImageSheet(viewing, botId, state, store) { viewing = null }

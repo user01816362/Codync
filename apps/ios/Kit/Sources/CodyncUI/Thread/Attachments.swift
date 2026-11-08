@@ -108,7 +108,7 @@ struct AttachmentList: View {
                         .accessibilityLabel(file.name)
                         .accessibilityAddTraits(.isButton)
                 } else {
-                    if SharedFile.canPreview(name: file.name, size: file.size) {
+                    if SharedFile.canOpenPreview(name: file.name, size: file.size) {
                         Button { Motion.animate { textFile = file } } label: { card(file) }.buttonStyle(.plain)
                     } else { card(file) }
                 }

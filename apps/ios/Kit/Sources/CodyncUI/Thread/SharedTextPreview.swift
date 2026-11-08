@@ -23,6 +23,12 @@ struct SharedTextPreview: View {
     }
 
     var body: some View {
+        if let kind = SharedFile.mediaKind(name: name, size: size) {
+            MediaFilePreview(name: name, size: size, kind: kind) { await load(model) }
+        } else { textPreview }
+    }
+
+    private var textPreview: some View {
         TextPreviewBody(name: name, text: text, failure: failed ? L10n.tr("Couldn't open this file. The file must be valid UTF-8 text up to 1 MiB and pass its integrity checks.") : nil) {
             attempt += 1
         }

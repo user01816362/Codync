@@ -82,7 +82,7 @@ struct LibraryView: View {
             }
         case .file(let file, let entryId):
             Button {
-                if file.showsAsText { textFile = LibraryTextFile(file: file, entryId: entryId) }
+                if file.showsAsPreview { textFile = LibraryTextFile(file: file, entryId: entryId) }
                 else { download(file, entryId: entryId) }
             } label: {
                 LibraryRow(title: file.name, detail: (model.bots[botId]?.name ?? "") + " · " + FileDownloadCard.detail(model.fileDownloads.states[file.id], size: file.size)) {
@@ -107,7 +107,7 @@ struct LibraryView: View {
                 LibraryRow(title: file.name, detail: L10n.tr("You") + " · " + ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file)) {
                     symbol(AttachmentIcon.symbol(file.name))
                 }
-            }.buttonStyle(.plain).disabled(!SharedFile.canPreview(name: file.name, size: file.size))
+            }.buttonStyle(.plain).disabled(!SharedFile.canOpenPreview(name: file.name, size: file.size))
         }
     }
 

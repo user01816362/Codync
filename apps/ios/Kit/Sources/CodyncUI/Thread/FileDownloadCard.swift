@@ -36,7 +36,7 @@ struct FileDownloadCard: View {
         return HStack(spacing: 12) {
             Image(systemName: AttachmentIcon.symbol(file.name)).font(.system(size: 24)).foregroundStyle(Palette.secondary)
             VStack(alignment: .leading, spacing: 3) {
-                if file.showsAsText {
+                if file.showsAsPreview {
                     Button { Motion.animate { viewingText = true } } label: {
                         Text(file.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.text).lineLimit(2)
                     }.buttonStyle(.plain)
@@ -46,7 +46,7 @@ struct FileDownloadCard: View {
                 Text(Self.detail(state, size: file.size)).font(.caption2).foregroundStyle(Palette.secondary)
             }
             Spacer(minLength: 0)
-            if file.showsAsText { IconButton("Open", systemImage: "doc.text") { Motion.animate { viewingText = true } } }
+            if file.showsAsPreview { IconButton("Open", systemImage: "doc.text") { Motion.animate { viewingText = true } } }
             Button {
                 Motion.animate {
                     if case .downloading = state { model.fileDownloads.cancel(file.id) }
