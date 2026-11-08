@@ -117,14 +117,14 @@ struct SidechatExchange: View {
             if expanded {
             Text(exchange.text).font(.subheadline).foregroundStyle(Palette.text).textSelection(.enabled)
                 .contextActions { [MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") {
-                    selection = QuoteSelectionTarget(text: exchange.text, author: name(exchange.source, exchange: exchange))
+                    selection = QuoteSelectionTarget(text: exchange.text, author: name(exchange.source, exchange: exchange), part: "request")
                 }] }
             if let reply = exchange.reply, !reply.isEmpty {
                 Text(L10n.tr("Reply from {name}").replacingOccurrences(of: "{name}", with: name(exchange.target, exchange: exchange)))
                     .font(.footnote.weight(.medium)).foregroundStyle(Palette.secondary)
                 Text(reply).font(.subheadline).foregroundStyle(Palette.secondary).textSelection(.enabled)
                     .contextActions { [MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") {
-                        selection = QuoteSelectionTarget(text: reply, author: name(exchange.target, exchange: exchange))
+                        selection = QuoteSelectionTarget(text: reply, author: name(exchange.target, exchange: exchange), part: "reply")
                     }] }
             }
             }
@@ -139,7 +139,9 @@ struct SidechatExchange: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .codyncSheet(item: $selection) { target in
-            QuoteSelectionSheet(text: target.text, author: target.author) { model.prependQuote($0, to: exchange.chatId) }
+            QuoteSelectionSheet(text: target.text, author: target.author, structured: true) {
+                model.selectReply(exchange, text: $0, part: target.part ?? "request")
+            }
         }
     }
 }
