@@ -65,8 +65,15 @@ fn field_help(app: &App, f: &Form, agent_name: &str) -> Option<(String, Style)> 
             let choice = app.approval(f);
             [choice.note.unwrap_or_default(), tr(choice.detail).into_owned()].join(" ").trim().to_owned()
         }
-        Field::Compaction if f.compaction.is_none() => tr("Claude Code and Codex bots only").into_owned(),
+
         Field::Compaction => {
+            let usage = app.bots.get(&f.bot_id).and_then(|bot| bot.context_usage).map_or_else(
+                || "Context not reported by this agent.".to_owned(),
+                |(used, size)| format!("Last reported context: {used} / {size}."),
+            );
+            if f.compaction.is_none() {
+                return Some((usage, t.secondary));
+            }
             let about = tr(
                 "Auto leaves it to the agent, which summarizes once the chat fills up. The others have Codync do it sooner.",
             );
@@ -74,7 +81,7 @@ fn field_help(app: &App, f: &Form, agent_name: &str) -> Option<(String, Style)> 
                 || tr("Sizes show after the bot's next reply").into_owned(),
                 |s| format!("{} {}K–{}K", tr("Or type a size in K:"), s.min / 1000, s.max / 1000),
             );
-            [about.into_owned(), sizes].join(" ")
+            [usage, about.into_owned(), sizes].join(" ")
         }
         Field::Team => {
             "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.".to_owned()

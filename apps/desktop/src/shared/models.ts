@@ -79,6 +79,7 @@ export interface Bot {
   compaction: CompactionThreshold | null
   /** The sizes the chat's window allows; null until its agent has told the window. */
   compactionTokens: CompactionSizes | null
+  contextUsage: { used: number; size: number; reportedAt: number } | null
   /** Moves whenever memory changes, so an open memory screen fetches it again. */
   memoryRev: number
   autoName: boolean
@@ -140,6 +141,7 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     harnessMemoryShared: raw.harnessMemoryShared ?? false,
     compaction: raw.compaction ?? null,
     compactionTokens: raw.compactionTokens ?? null,
+    contextUsage: raw.contextUsage ?? null,
     memoryRev: raw.memoryRev ?? 0,
     autoName: raw.autoName ?? false,
     createdAt,

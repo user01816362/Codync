@@ -82,6 +82,11 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
                 Box(Modifier.fillMaxWidth().padding(top = 20.dp)) {
                     when (tab) {
                         DetailsTab.Details -> Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(tr("Reported context"), style = Type.subheadline, color = Palette.text)
+                                Text(bot.contextUsage?.let { "${it.used} / ${it.size}" } ?: tr("Not reported by this agent"), style = Type.subheadline, color = Palette.secondary)
+                                bot.contextUsage?.let { Text(java.text.DateFormat.getTimeInstance().format(java.util.Date(it.reportedAt)), style = Type.caption, color = Palette.secondary) }
+                            }
                             if (bot.devServers.isNotEmpty()) DevServersSection(bot, store)
                             BotSettingsForm(state, store, draft, { draft = it }, FormPart.Often, error = saveError)
                             state.screen?.let { ComputerCard(it, draft.computer, online) { on -> draft = draft.copy(computer = on) } }

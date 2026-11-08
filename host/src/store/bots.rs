@@ -94,11 +94,12 @@ impl Store {
         // Its conversations as compaction tracks them, their summaries, its window and cache life
         // (`agent::bot::compaction`).
         c.execute(
-            "DELETE FROM kv WHERE k GLOB ?1 OR k GLOB ?2 OR k = ?3 OR k = ?4",
+            "DELETE FROM kv WHERE k GLOB ?1 OR k GLOB ?2 OR k = ?3 OR k = ?4 OR k = ?5",
             [
                 format!("compaction.{id}.*"),
                 format!("compaction.summary.{id}.*"),
                 format!("context.window.{id}"),
+                format!("context.usage.{id}"),
                 format!("cache.life.{id}"),
             ],
         )?;

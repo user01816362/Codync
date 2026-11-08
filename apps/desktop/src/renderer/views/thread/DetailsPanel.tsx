@@ -62,6 +62,12 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
             <div key={tab} className="details-tab fade-in">
               {tab === 'details' ? (
                 <>
+                  {bot ? <section className="details-section">
+                    <Text className="details-section-title">{tr('Reported context')}</Text>
+                    <Text as="div" size="callout" tone="secondary">{bot.contextUsage
+                      ? `${bot.contextUsage.used.toLocaleString()} / ${bot.contextUsage.size.toLocaleString()} · ${new Date(bot.contextUsage.reportedAt).toLocaleTimeString()}`
+                      : tr('Not reported by this agent')}</Text>
+                  </section> : null}
                   {bot ? <DevServersSection bot={bot} /> : null}
                   <BotSettingsPanel botId={botId} part="often" />
                   {bot ? <ComputerUse bot={bot} /> : null}

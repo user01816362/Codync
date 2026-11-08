@@ -66,6 +66,7 @@ pub struct Bot {
     pub compaction: Option<codync_mem::compaction::Threshold>,
     /// The sizes it may take; `None` until the agent has told its window.
     pub compaction_sizes: Option<codync_mem::compaction::Sizes>,
+    pub context_usage: Option<(u64, u64)>,
     /// Agents that carry on, in order, when its own can't answer (`agent::fallback`).
     pub fallbacks: Vec<crate::store::Fallback>,
     /// The bot may set its own fallbacks.
@@ -213,6 +214,7 @@ impl Bot {
                 .or_else(|| (v["harnessMemoryShared"] == true).then_some(OwnMemory::Shared)),
             compaction: serde_json::from_value(v["compaction"].clone()).ok().flatten(),
             compaction_sizes: serde_json::from_value(v["compactionTokens"].clone()).ok().flatten(),
+            context_usage: v["contextUsage"]["used"].as_u64().zip(v["contextUsage"]["size"].as_u64()),
             fallbacks: serde_json::from_value(v["fallbacks"].clone()).unwrap_or_default(),
             self_fallbacks: v["selfFallbacks"].as_bool().unwrap_or(true),
             agent_step: v["agentStep"]["agent"].as_str().map(str::to_owned),

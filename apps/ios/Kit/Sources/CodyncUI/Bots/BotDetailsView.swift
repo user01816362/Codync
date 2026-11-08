@@ -121,6 +121,13 @@ struct BotDetailsView: View {
         switch tab {
         case .details:
             VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.tr("Reported context")).font(.subheadline.weight(.semibold))
+                    if let usage = bot?.contextUsage {
+                        Text("\(usage.used.formatted()) / \(usage.size.formatted())").font(.subheadline)
+                        Text(Date(milliseconds: usage.reportedAt), style: .time).font(.caption)
+                    } else { Text(L10n.tr("Not reported by this agent")).font(.subheadline) }
+                }.foregroundStyle(Palette.secondary)
                 if let bot, !bot.devServers.isEmpty { DevServersSection(bot: bot) }
                 if let draft = Binding($draft) {
                     BotSettingsForm(draft: draft, error: saveError, scrolls: false, part: .often)

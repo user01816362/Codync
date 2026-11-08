@@ -234,3 +234,9 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
   memory; routines, rooms and other bots can't.
 
 A reply stays in its chat's session, and its quote stays out of what memory takes as the user's words; see [groups and replies](groups-and-replies.md). Group and delegated requests don't feed dreaming.
+
+## Reported context usage
+
+Bot details show the last agent-reported used tokens and window size, with its report time on graphical clients. The terminal compaction field's help shows the last reported values. Missing reports remain unknown; this is separate from billing usage and is not an estimate from chat text.
+
+The host records valid usage for the bot's primary session only. Snapshots require the same stored session, backend and model, so an old session or changed model cannot keep displaying the previous report. A report requires a nonzero window, used no greater than the window, and JavaScript-safe integer bounds. Data is removed with the bot. Agent-supplied reporting is not independently measured, and the time is the host's receipt time. Compaction behavior stays with the existing agent/host policy.

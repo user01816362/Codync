@@ -12,7 +12,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 5 | Read-only CSV/TSV tables; assess XLSX separately with decompression/cell limits | Planned |
 | 6 | Read-only workspace directory navigation within host-authorized roots | Planned |
 | 7 | Edit queued messages and waiting reasons; host-owned reorder/pause where supported | Planned |
-| 8 | Per-chat reported context usage and compaction state; unknown remains unknown | Planned |
+| 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
 | 9 | Inline math and diagram expansion/zoom with existing rendering bundles | Planned |
 | 10 | Incremental Markdown presentation and adapter-specific streaming finality | Planned |
 | 11 | Citation/source navigation using existing reports and supplied source metadata | Planned |

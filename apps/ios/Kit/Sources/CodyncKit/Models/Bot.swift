@@ -73,6 +73,7 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     public var compaction: CompactionThreshold?
     /// The sizes `compaction` may take; nil until the agent has told its context window.
     public var compactionTokens: TokenRange?
+    public var contextUsage: ContextUsage?
     /// Moves whenever memory changes, so an open memory screen fetches it again.
     public var memoryRev: Int64?
     /// Created without a name: the host names it after its first few conversations.
@@ -154,6 +155,7 @@ extension Bot {
         harnessMemoryShared = try c.decodeIfPresent(Bool.self, forKey: .harnessMemoryShared)
         compaction = try c.decodeIfPresent(CompactionThreshold.self, forKey: .compaction)
         compactionTokens = try? c.decodeIfPresent(TokenRange.self, forKey: .compactionTokens)
+        contextUsage = try? c.decodeIfPresent(ContextUsage.self, forKey: .contextUsage)
         memoryRev = try c.decodeIfPresent(Int64.self, forKey: .memoryRev)
         autoName = try c.decodeIfPresent(Bool.self, forKey: .autoName) ?? false
         createdAt = try c.decodeIfPresent(Int64.self, forKey: .createdAt) ?? 0
@@ -169,4 +171,10 @@ extension Bot {
         lastMessage = try c.decodeIfPresent(String.self, forKey: .lastMessage)
         lastAt = try c.decodeIfPresent(Int64.self, forKey: .lastAt) ?? createdAt
     }
+}
+
+public struct ContextUsage: Codable, Hashable, Sendable {
+    public let used: Int64
+    public let size: Int64
+    public let reportedAt: Int64
 }

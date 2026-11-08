@@ -55,6 +55,7 @@ data class Bot(
     val compaction: Compaction? = null,
     /** The sizes its agent's window allows; null until the agent has told its window. */
     val compactionTokens: CompactionTokens? = null,
+    val contextUsage: ContextUsage? = null,
     /** Moves whenever memory changes, so an open memory screen fetches it again. */
     val memoryRev: Long? = null,
     val autoName: Boolean = false,
@@ -147,3 +148,5 @@ object HostClient {
         return bot
     }
 }
+
+@Serializable data class ContextUsage(val used: Long, val size: Long, val reportedAt: Long)

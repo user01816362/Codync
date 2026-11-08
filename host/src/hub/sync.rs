@@ -19,6 +19,7 @@ impl Hub {
         v["compaction"] = if compacts { v["compaction"].take() } else { Value::Null };
         let window = compacts.then(|| crate::agent::bot::context_window(&self.store, &cfg.id)).flatten();
         v["compactionTokens"] = json!(window.and_then(codync_mem::compaction::sizes));
+        v["contextUsage"] = crate::chat::context_usage::snapshot(&self.store, row).unwrap_or(Value::Null);
         if !cfg.is_group() {
             v["harnessMemoryShared"] = crate::agent::own_memory::shared(cfg).into();
             v["sharedMemory"] = crate::chat::memory::shared(cfg).into();
