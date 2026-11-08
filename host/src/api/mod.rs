@@ -99,7 +99,8 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     }
     if method == "quoteFile" {
         let entry = hub.store.entry(str_arg(&b, "entryId")?).ok_or_else(|| anyhow::anyhow!("unknown message"))?;
-        let selected = serde_json::json!({"text": str_arg(&b, "text")?, "part": format!("file:{}", str_arg(&b, "fileId")?)});
+        let selected =
+            serde_json::json!({"text": str_arg(&b, "text")?, "part": format!("file:{}", str_arg(&b, "fileId")?)});
         let quote = crate::chat::replies::selection(&hub.store, &entry.bot_id, &entry.id, &selected)?;
         return Ok(serde_json::json!({"chatId": entry.bot_id, "quote": quote}));
     }
