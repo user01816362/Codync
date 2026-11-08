@@ -25,7 +25,10 @@ pub async fn read(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
 }
 
 pub(super) fn roots(hub: &Hub) -> Result<Vec<(String, PathBuf)>> {
-    Ok(hub.store.bots()?.into_iter()
+    Ok(hub
+        .store
+        .bots()?
+        .into_iter()
         .filter(|row| !row.deleted && !row.config.is_group() && !row.config.cwd.is_empty())
         .map(|row| (row.config.id, PathBuf::from(row.config.cwd)))
         .collect())
@@ -33,7 +36,11 @@ pub(super) fn roots(hub: &Hub) -> Result<Vec<(String, PathBuf)>> {
 
 /// Absolute links can be forwarded between bots. Resolve only registered workspaces,
 /// never a filesystem-wide search or a guess by basename. Relative links retain their author.
-pub(super) fn workspace<'a>(roots: &'a [(String, PathBuf)], author: &str, path: &Path) -> Result<&'a (String, PathBuf)> {
+pub(super) fn workspace<'a>(
+    roots: &'a [(String, PathBuf)],
+    author: &str,
+    path: &Path,
+) -> Result<&'a (String, PathBuf)> {
     if path.is_absolute() {
         roots
             .iter()
@@ -114,9 +121,12 @@ fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
 #[cfg(windows)]
 fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
     use std::os::windows::ffi::OsStringExt as _;
+    use std::os::windows::fs::{MetadataExt as _, OpenOptionsExt as _};
     use std::os::windows::io::AsRawHandle as _;
-    use std::os::windows::fs::{OpenOptionsExt as _, MetadataExt as _};
-    use windows_sys::Win32::Storage::FileSystem::{GetFinalPathNameByHandleW, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_ATTRIBUTE_REPARSE_POINT};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
+        GetFinalPathNameByHandleW,
+    };
 
     // Reject alternate data streams and Windows device names before opening anything.
     for part in relative.components() {
@@ -133,10 +143,15 @@ fn open_workspace_file(root: &Path, relative: &Path) -> Result<std::fs::File> {
             "invalid workspace path"
         );
     }
-    let file = std::fs::OpenOptions::new().read(true)
+    let file = std::fs::OpenOptions::new()
+        .read(true)
         .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
-        .open(root.join(relative)).context("opening workspace file")?;
-    ensure!(file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0, "symbolic links cannot be previewed");
+        .open(root.join(relative))
+        .context("opening workspace file")?;
+    ensure!(
+        file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+        "symbolic links cannot be previewed"
+    );
     let mut buffer = vec![0u16; 32768];
     // SAFETY: the file owns a live Windows handle and the buffer has the stated capacity.
     let len = unsafe { GetFinalPathNameByHandleW(file.as_raw_handle().cast(), buffer.as_mut_ptr(), 32768, 0) };

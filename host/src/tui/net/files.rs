@@ -70,8 +70,8 @@ impl Client {
     pub fn preview_directory(&self, bot: String, path: String, hidden: bool, id: String, tx: UnboundedSender<Msg>) {
         let client = self.clone();
         tokio::spawn(async move {
-            let result = client.call("listWorkspaceFiles", &json!({"botId": bot, "path": path, "showHidden": hidden}))
-                .await;
+            let result =
+                client.call("listWorkspaceFiles", &json!({"botId": bot, "path": path, "showHidden": hidden})).await;
             let _ = tx.send(Msg::WorkspaceDirectory { id, result });
         });
     }

@@ -137,9 +137,10 @@ impl App {
             self.flash("A group has no workspace; open one of its bots instead");
             return;
         }
-        self.push_file_preview("Workspace files".into(), PreviewRequest::Directory {
-            bot: bot.to_owned(), path: ".".into(), hidden: false,
-        });
+        self.push_file_preview(
+            "Workspace files".into(),
+            PreviewRequest::Directory { bot: bot.to_owned(), path: ".".into(), hidden: false },
+        );
     }
 
     pub(in crate::tui) fn open_workspace_preview(&mut self, bot: &str, path: String) {
@@ -217,8 +218,12 @@ impl App {
                 return Some(Overlay::FilePreview(view));
             }
             if matches!(key.code, KeyCode::Enter | KeyCode::Char('o'))
-                && let Some(item) = view.directory.as_ref().and_then(|v| v["entries"].as_array())
-                    .and_then(|rows| rows.get(view.scroll)).cloned()
+                && let Some(item) = view
+                    .directory
+                    .as_ref()
+                    .and_then(|v| v["entries"].as_array())
+                    .and_then(|rows| rows.get(view.scroll))
+                    .cloned()
             {
                 let path = item["path"].as_str().unwrap_or_default().to_owned();
                 if item["kind"] == "directory" {
@@ -229,7 +234,9 @@ impl App {
                     view.content = None;
                     view.scroll = 0;
                     self.request_preview(&view.request, &view.id);
-                } else if item["kind"] == "file" && supported(item["name"].as_str().unwrap_or_default(), item["size"].as_u64().unwrap_or(u64::MAX)) {
+                } else if item["kind"] == "file"
+                    && supported(item["name"].as_str().unwrap_or_default(), item["size"].as_u64().unwrap_or(u64::MAX))
+                {
                     self.overlays.push(Overlay::FilePreview(view));
                     self.open_workspace_preview(&bot, path);
                     return None;
@@ -252,8 +259,11 @@ impl App {
             }
             KeyCode::Char('c') => {
                 if let Some(directory) = &view.directory {
-                    let path = directory["entries"].as_array().and_then(|rows| rows.get(view.scroll))
-                        .and_then(|entry| entry["path"].as_str()).unwrap_or(".");
+                    let path = directory["entries"]
+                        .as_array()
+                        .and_then(|rows| rows.get(view.scroll))
+                        .and_then(|entry| entry["path"].as_str())
+                        .unwrap_or(".");
                     super::super::app::copy(path);
                 } else if let Some(Ok(text)) = &view.content {
                     super::super::app::copy(text);

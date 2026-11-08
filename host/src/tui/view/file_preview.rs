@@ -40,8 +40,17 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
             let label = format!("{mark} {}{suffix}", item["name"].as_str().unwrap_or_default());
             put(buf, body.x, body.y + u(offset - first), body.width, &label, t.text.patch(t.panel));
         }
-        if rows.is_empty() { put(buf, body.x, body.y, body.width, "This folder is empty.", t.dim); }
-        put(buf, inner.x, inner.bottom() - 1, inner.width, "↑↓ select · ↵ open · H hidden · r retry · esc close", t.dim.patch(t.panel));
+        if rows.is_empty() {
+            put(buf, body.x, body.y, body.width, "This folder is empty.", t.dim);
+        }
+        put(
+            buf,
+            inner.x,
+            inner.bottom() - 1,
+            inner.width,
+            "↑↓ select · ↵ open · H hidden · r retry · esc close",
+            t.dim.patch(t.panel),
+        );
         return;
     }
     let lines = match &view.content {
