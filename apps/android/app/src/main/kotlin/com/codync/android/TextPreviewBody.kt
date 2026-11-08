@@ -22,8 +22,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 
 /** One presentation for verified attachments and host-confined workspace text. */
-@Composable internal fun TextPreviewBody(id: String, name: String, text: String?, failure: String?, store: AppStore, retry: () -> Unit) {
+@Composable internal fun TextPreviewBody(id: String, name: String, text: String?, failure: String?, store: AppStore, quote: ((String) -> Unit)? = null, retry: () -> Unit) {
     val context = LocalContext.current
+    var selectingQuote by remember(id) { mutableStateOf(false) }
     var source by remember(id) { mutableStateOf(false) }
     var wrap by remember(id) { mutableStateOf(true) }
     var table by remember(id) { mutableStateOf<String?>(null) }
@@ -43,10 +44,17 @@ import kotlinx.serialization.json.booleanOrNull
         }
     }
     val markdown = name.endsWith(".md", true) || name.endsWith(".markdown", true)
+    if (selectingQuote) CodyncSheet(true, { selectingQuote = false }) {
+        QuoteSelectionSheet(QuoteSelectionTarget(text.orEmpty(), name), structured = true) {
+            quote?.invoke(it)
+            selectingQuote = false
+        }
+    }
     Column(Modifier.fillMaxSize().background(Palette.background)) {
         ModalHeader(name)
         Row(Modifier.fillMaxWidth().animateContentSize().padding(horizontal = 16.dp).padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            if (quote != null) IconButton("Select text / Quote", "arrowshape.turn.up.left", enabled = text != null) { selectingQuote = true }
             if (markdown || tabular) Text(tr(if (source) "Read" else "Source"),
                 Modifier.plainButton { source = !source }.padding(8.dp), style = Type.caption, color = Palette.secondary)
             if (!markdown && !tabular || source) IconButton(if (wrap) "Disable line wrapping" else "Wrap lines", "text.alignleft") { wrap = !wrap }

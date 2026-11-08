@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { Entry, ReplyQuote } from '@shared/models'
 
 /** Reuse the reply composer without modifying either the source message or the text draft. */
-export function quoteSelection(entry: Pick<Entry, 'id' | 'botId' | 'kind' | 'data'>, selected: string, author?: string, part?: 'request' | 'reply') {
+export function quoteSelection(entry: Pick<Entry, 'id' | 'botId' | 'kind' | 'data'>, selected: string, author?: string, part?: 'request' | 'reply' | `file:${string}`) {
   const text = Array.from(selected.trim()).slice(0, 4000).join('')
   if (!text) return
   const quote: ReplyQuote = { id: entry.id, author: author ?? (entry.kind === 'user' ? 'user' : entry.data.author ?? entry.botId), text, selected: true, ...(part ? { part } : {}) }

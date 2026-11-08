@@ -30,6 +30,19 @@ fun AppStore.selectReply(exchange: BotExchange, text: String, part: String) {
     mutableState.update { it.copy(selectedReply = exchange.chatId to quote) }
 }
 
+suspend fun AppStore.selectFileReply(entryId: String, fileId: String, text: String) {
+    val passage = buildString { text.trim().codePoints().limit(4000).forEach { appendCodePoint(it) } }
+    val result = hostQuery("quoteFile", buildJsonObject {
+        put("entryId", entryId); put("fileId", fileId); put("text", passage)
+    }).jsonObject
+    val value = result.getValue("quote").jsonObject
+    val quote = ReplyQuote(id = value.getValue("id").jsonPrimitive.content,
+        author = value.getValue("author").jsonPrimitive.content,
+        text = value.getValue("text").jsonPrimitive.content, selected = true,
+        part = value.getValue("part").jsonPrimitive.content)
+    mutableState.update { it.copy(selectedReply = result.getValue("chatId").jsonPrimitive.content to quote) }
+}
+
 fun AppStore.consumeSelectedReply() {
     mutableState.update { it.copy(selectedReply = null) }
 }

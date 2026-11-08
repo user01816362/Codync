@@ -7,7 +7,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 1 | Existing text preview: Markdown Read/Source, copy, wrap, retry, clear errors; desktop, phones and terminal | Desktop, iOS and host checks passed; intermediate packaging cancelled by request |
 | 2 | Extend the existing Library with Files filtering/counts, text previews, source labels and retry; retain downloads | Implemented; CI pending |
 | 3 | Phone message selection/reply parity through existing metadata | Implemented; CI pending |
-| 3b | Structured file excerpts and collaboration selections with source context | Planned |
+| 3b | Structured shared-file excerpts and collaboration selections with source context | Implemented for shared snapshots/collaboration; uploaded/live-file excerpts pending |
 | 4 | Bounded local PDF/audio/video adapters using verified transfers; terminal download fallback | Implemented; CI/device checks pending |
 | 5 | Shared host CSV/TSV formatting with Source fallback; XLSX remains a separate dependency decision | Implemented; CI pending |
 | 6 | Read-only workspace directory navigation within host-authorized roots | Implemented; CI/platform checks pending |
@@ -95,3 +95,9 @@ Supported text files up to 1 MiB open the existing read-only preview. Links and 
 ## Collaboration excerpts
 
 Phone collaboration request and reply selections now preserve the exchange ID and distinguish the request author from the reply author. They reuse the normal reply bar and existing host-validated `request`/`reply` selection contract, matching desktop. They no longer insert a formatted block into the draft. Shared-file excerpts remain separate from conversation excerpts and require validated file identity before they can claim an origin.
+
+## Shared-file excerpts
+
+Text snapshots explicitly shared in a saved chat message can be quoted through the existing reply composer. Desktop uses the selection context menu; phones offer Select text / Quote. The host resolves the saved message, checks that the file ID belongs to its files or attachments, and derives the author and filename from storage. Sending revalidates the same source. Excerpts remain bounded to 4,000 characters and are identified to the agent as user-selected content, not instructions from the file. Errors retain the original preview and source instead of inserting unattributed text into the draft.
+
+The current preview affordance is for shared-file snapshots with a saved source entry ID. Upload-only and live-workspace previews without that source entry do not invent one; their text remains selectable/copyable. This does not grant arbitrary file access or prove that a rendered selection is a verbatim file substring.

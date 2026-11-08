@@ -1,3 +1,5 @@
+import { Bubble } from './Bubble'
+export { Bubble } from './Bubble'
 import { quoteSelection } from './selection-quote'
 import { RichReportView } from './RichReportView'
 import { FileDownloadCard } from './FileDownloadCard'
@@ -7,7 +9,7 @@ import { groupBotReactions, isEditable, isGroup, isReplyable, type Bot, type Ent
 import { BotAvatar } from '../../components/Avatar'
 import { Button, IconButton } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
-import { AnchoredMenu, useContextMenu, type MenuItem, type ReactionPick } from '../../components/Menu'
+import { AnchoredMenu, type ReactionPick } from '../../components/Menu'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { messagePreview } from '../../lib/message-preview'
@@ -116,27 +118,6 @@ export function QuoteRow({ quote, className }: { quote: ReplyQuote; className?: 
 }
 
 /** A message's text with a right-click menu (with quick reactions on top). */
-export function Bubble({ className, items, reactions, children, quote }: { className: string; items: () => MenuItem[]; reactions?: ReactionPick; children: React.ReactNode; quote?: (selected: string) => void }) {
-  const menu = useContextMenu()
-  const body = useRef<HTMLDivElement>(null)
-  const selected = useRef('')
-  return (
-    <>
-      <div ref={body} className={className} onContextMenu={event => {
-        const selection = window.getSelection()
-        selected.current = selection && body.current?.contains(selection.anchorNode) && body.current?.contains(selection.focusNode) ? selection.toString() : ''
-        menu.onContextMenu(event)
-      }}>
-        {children}
-      </div>
-      <AnchoredMenu open={menu.open} onClose={menu.close} point={menu.point} items={() => [
-        ...(quote && selected.current.trim() ? [{ title: 'Quote selection', icon: 'arrowshape.turn.up.left', action: () => quote?.(selected.current) }] : []),
-        ...items(),
-      ]} reactions={reactions} />
-    </>
-  )
-}
-
 /** The centered time label between runs of messages. */
 export function TimeSeparator({ date }: { date: number }) {
   const tr = useTr()

@@ -235,7 +235,7 @@ export function groupBotReactions(reactions: BotReaction[]): { emoji: string; bo
 export interface ReplyQuote {
   /** A passage selected by the user, with the original message retained as its source. */
   selected?: boolean
-  part?: 'request' | 'reply'
+  part?: 'request' | 'reply' | `file:${string}`
   id: string
   /** `user`, or the bot that wrote it. */
   author: string

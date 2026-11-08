@@ -6,10 +6,12 @@ struct TextPreviewBody: View {
     let name: String
     let text: String?
     let failure: String?
+    var quote: ((String) -> Void)? = nil
     let retry: () -> Void
     @Environment(BotStore.self) private var model
     @State private var table: String?
     @State private var tableNotice: String?
+    @State private var selectingQuote = false
     @State private var source = false
     @State private var wrap = true
 
@@ -25,6 +27,10 @@ struct TextPreviewBody: View {
             ModalHeader(name)
             HStack(spacing: 4) {
                 Spacer(minLength: 0)
+                if quote != nil {
+                    IconButton("Select text / Quote", systemImage: "arrowshape.turn.up.left") { selectingQuote = true }
+                        .disabled(text == nil)
+                }
                 if markdown || tabular {
                     Button(source ? "Read" : "Source") {
                         withAnimation(Motion.layout) { source.toggle() }
@@ -60,6 +66,9 @@ struct TextPreviewBody: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
             }
         }.background(Palette.background)
+        .codyncSheet(isPresented: $selectingQuote) {
+            QuoteSelectionSheet(text: text ?? "", author: name, structured: true) { quote?($0) }
+        }
         .task(id: text) {
             table = nil
             tableNotice = nil

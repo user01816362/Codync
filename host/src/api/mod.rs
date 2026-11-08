@@ -97,6 +97,12 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     {
         market::vault::unlock(hub.clone()).await?;
     }
+    if method == "quoteFile" {
+        let entry = hub.store.entry(str_arg(&b, "entryId")?).ok_or_else(|| anyhow::anyhow!("unknown message"))?;
+        let selected = serde_json::json!({"text": str_arg(&b, "text")?, "part": format!("file:{}", str_arg(&b, "fileId")?)});
+        let quote = crate::chat::replies::selection(&hub.store, &entry.bot_id, &entry.id, &selected)?;
+        return Ok(serde_json::json!({"chatId": entry.bot_id, "quote": quote}));
+    }
     if method == "formatTable" {
         return crate::chat::table_preview::format(str_arg(&b, "name")?, str_arg(&b, "text")?);
     }

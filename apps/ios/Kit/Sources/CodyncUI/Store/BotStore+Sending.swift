@@ -25,6 +25,17 @@ extension BotStore {
                               kind: "notice", turn: 0, data: data, createdAt: exchange.createdAt, updatedAt: exchange.createdAt)
     }
 
+    func selectFileReply(entryId: String, fileId: String, text: String) async throws {
+        struct FileQuote: Decodable { let chatId: String; let quote: ReplyQuote }
+        guard let client = live else { throw URLError(.notConnectedToInternet) }
+        let passage = String(String.UnicodeScalarView(text.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars.prefix(4000)))
+        let result: FileQuote = try await client.call("quoteFile", ["entryId": entryId, "fileId": fileId, "text": passage])
+        var data = EntryData()
+        data.selectedQuote = result.quote
+        selectedReply = Entry(id: result.quote.id, seq: 0, botId: result.chatId, rev: 0,
+                              kind: "agent", turn: 0, data: data, createdAt: 0, updatedAt: 0)
+    }
+
     func prependQuote(_ text: String, to botId: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         setComposerDraft(text + composerDraft(for: botId), for: botId)

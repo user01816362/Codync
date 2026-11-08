@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { Attachment, SharedFile } from '@shared/models'
+import type { Attachment, SharedFile, ReplyQuote } from '@shared/models'
 import { mediaMime } from '../../../shared/text-preview'
 import { useTablePreview } from './use-table-preview'
 import { MediaFilePreview } from './MediaFilePreview'
@@ -9,6 +9,8 @@ import { HStack } from '../../components/Stack'
 import { ModalHeader } from '../../components/Overlay'
 import { useTr } from '../../lib/use-language'
 import { useStore } from '../../store/context'
+import { Bubble } from './Bubble'
+import { quoteSelection } from './selection-quote'
 import { MarkdownText } from './Markdown'
 import './sidechat.css'
 
@@ -28,6 +30,7 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
   const store = useStore()
   const tr = useTr()
   const [result, setResult] = useState<{ text: string } | { error: string } | null>(null)
+  const [quoteError, setQuoteError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [source, setSource] = useState(false)
   const [wrap, setWrap] = useState(true)
@@ -72,12 +75,19 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
       <IconButton title="Copy" icon="square.on.square" disabled={text === null} onClick={() => { if (text !== null) window.codync.app.copy(text) }} />
       <IconButton title="Retry" icon="arrow.clockwise" disabled={!result} onClick={() => setAttempt(value => value + 1)} />
     </HStack>
-    <div className="sidechat-scroll selectable" aria-busy={!result}>
+    {quoteError && <div role="alert">{quoteError}</div>}
+    <Bubble className="sidechat-scroll selectable" items={() => []} quote={'entryId' in preview ? selected => {
+      const text = Array.from(selected.trim()).slice(0, 4000).join('')
+      void store.client?.call<{ chatId: string; quote: ReplyQuote }>('quoteFile', { entryId: preview.entryId, fileId: preview.file.id, text }).then(value => {
+        quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part)
+        close()
+      }).catch((error: unknown) => setQuoteError(error instanceof Error ? error.message : String(error)))
+    } : undefined}>
       {table.tabular && !source && table.result && ('error' in table.result
         ? <div role="status">{table.result.error}</div>
         : table.result.truncated ? <div role="status">Table preview truncated. Source shows the full text.</div> : null)}
       {!result ? tr('Loading') : 'error' in result ? <div role="alert">{result.error}</div> : !source && (markdown || tableText !== null) ? <MarkdownText text={tableText ?? result.text} /> :
         <pre style={{ whiteSpace: wrap ? 'pre-wrap' : 'pre', overflowWrap: wrap ? 'anywhere' : undefined, overflowX: 'auto', margin: 0 }}>{result.text}</pre>}
-    </div>
+    </Bubble>
   </div>
 }
