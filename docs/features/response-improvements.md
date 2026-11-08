@@ -88,7 +88,7 @@ At most eight such paragraphs per Markdown view are embedded, each at most 4,000
 
 ## Workspace navigation
 
-Bot details now offers Browse workspace on desktop and phones. The terminal uses `W` while a message is selected. Listings use the same host-authorized workspace roots as text previews, with directory navigation, parent/root controls, hidden-file filtering and retry. At most 2,000 directory entries are examined and 500 displayed; truncated results are labeled. Listing order is directories first, then names. A listing is not a disk-wide search or an access grant.
+Bot details now offers Browse workspace on desktop and phones. The terminal uses `W` while a message is selected; inside the browser, `g` returns to the root, `H` toggles hidden entries and `c` copies the selected path. Listings use the same host-authorized workspace roots as text previews, with directory navigation, parent/root controls, hidden-file filtering and retry. At most 2,000 directory entries are examined and 500 displayed; truncated results are labeled. Listing order is directories first, then names. A listing is not a disk-wide search or an access grant.
 
 Supported text files up to 1 MiB open the existing read-only preview. Links and special files cannot be opened through the browser. Unsupported binaries retain the explicit bot-sharing route. Groups have no workspace of their own. Windows enumeration uses the opened directory handle and rejects reparse targets; Unix listing retains the confined directory descriptor. Actual filesystem, touch and keyboard interactions remain unverified on devices.
 

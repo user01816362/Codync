@@ -21,4 +21,3 @@ export function Bubble({ className, items, reactions, children, quote }: { class
     </>
   )
 }
-

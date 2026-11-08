@@ -48,7 +48,11 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
             inner.x,
             inner.bottom() - 1,
             inner.width,
-            "↑↓ select · ↵ open · H hidden · r retry · esc close",
+            if directory["truncated"] == true {
+                "Limited listing · ↵ open · g root · H hidden · r retry · esc close"
+            } else {
+                "↑↓ select · ↵ open · g root · H hidden · r retry · esc close"
+            },
             t.dim.patch(t.panel),
         );
         return;
