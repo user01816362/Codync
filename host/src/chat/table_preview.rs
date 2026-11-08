@@ -1,6 +1,7 @@
 //! Bounded, read-only delimited data formatting. The original source is never modified or evaluated.
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
+use std::fmt::Write as _;
 
 pub fn format(name: &str, text: &str) -> Result<Value> {
     ensure!(text.len() <= 64 * 1024, "table previews are limited to 64 KiB; use Source for the full file");
@@ -68,11 +69,11 @@ pub fn format(name: &str, text: &str) -> Result<Value> {
     let columns = rows.iter().map(Vec::len).max().unwrap_or(0);
     let mut markdown = String::new();
     if columns > 0 {
-        markdown.push_str(&format!("| {} |\n", (1..=columns).map(|n| n.to_string()).collect::<Vec<_>>().join(" | ")));
-        markdown.push_str(&format!("| {} |\n", vec!["---"; columns].join(" | ")));
+        writeln!(markdown, "| {} |", (1..=columns).map(|n| n.to_string()).collect::<Vec<_>>().join(" | "))?;
+        writeln!(markdown, "| {} |", vec!["---"; columns].join(" | "))?;
         for row in rows {
             let cells = (0..columns).map(|i| escape(row.get(i).map_or("", String::as_str))).collect::<Vec<_>>();
-            markdown.push_str(&format!("| {} |\n", cells.join(" | ")));
+            writeln!(markdown, "| {} |", cells.join(" | "))?;
         }
     }
     if markdown.is_empty() {

@@ -111,7 +111,7 @@ fn entries(directory: &std::fs::File) -> Result<(Vec<Item>, bool)> {
             libc::S_IFREG => "file",
             _ => "special",
         };
-        rows.push(Item { name: text.to_owned(), kind, size: info.st_size.max(0) as u64 });
+        rows.push(Item { name: text.to_owned(), kind, size: info.st_size.max(0).cast_unsigned() });
     }
     Ok((rows, true))
 }
@@ -176,7 +176,7 @@ fn entries(directory: &std::fs::File) -> Result<(Vec<Item>, bool)> {
                 } else {
                     "file"
                 };
-                rows.push(Item { name, kind, size: info.EndOfFile.max(0) as u64 });
+                rows.push(Item { name, kind, size: info.EndOfFile.max(0).cast_unsigned() });
                 if rows.len() >= 2000 {
                     return Ok((rows, true));
                 }

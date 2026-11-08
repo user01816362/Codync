@@ -208,10 +208,10 @@ impl App {
 
     pub(in crate::tui) fn file_preview_key(&mut self, mut view: FilePreviewSheet, key: KeyEvent) -> Option<Overlay> {
         if let PreviewRequest::Directory { bot, path, hidden } = view.request.clone() {
-            if matches!(key.code, KeyCode::Char('H') | KeyCode::Char('g')) {
+            if matches!(key.code, KeyCode::Char('H' | 'g')) {
                 let root = key.code == KeyCode::Char('g');
                 let path = if root { ".".to_owned() } else { path };
-                view.name = path.clone();
+                view.name.clone_from(&path);
                 view.request = PreviewRequest::Directory { bot, path, hidden: if root { hidden } else { !hidden } };
                 view.id = uuid::Uuid::new_v4().to_string();
                 view.directory = None;
