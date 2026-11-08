@@ -29,5 +29,5 @@ internal fun workspaceLink(destination: String): String? = try {
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message ?: "Couldn't open this file." }
     }
-    TextPreviewBody("$botId:$path", name, text, failure) { attempt += 1 }
+    TextPreviewBody("$botId:$path", name, text, failure, store) { attempt += 1 }
 }

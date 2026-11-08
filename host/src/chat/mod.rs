@@ -5,6 +5,7 @@ pub mod artifacts;
 pub mod calls;
 pub mod context;
 pub mod context_usage;
+pub mod table_preview;
 pub mod fallbacks;
 pub mod files;
 pub mod group;

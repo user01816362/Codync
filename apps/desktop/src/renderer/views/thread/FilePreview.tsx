@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Attachment, SharedFile } from '@shared/models'
 import { mediaMime } from '../../../shared/text-preview'
+import { useTablePreview } from './use-table-preview'
 import { MediaFilePreview } from './MediaFilePreview'
 import { sha256Hex } from '../../../shared/files'
 import { IconButton } from '../../components/Controls'
@@ -61,16 +62,21 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
   const name = 'path' in preview ? preview.path.split(/[\\/]/).pop() || preview.path : preview.file.name
   const markdown = /\.(md|markdown)$/i.test(name)
   const text = result && 'text' in result ? result.text : null
+  const table = useTablePreview(name, text)
+  const tableText = table.result && 'markdown' in table.result ? table.result.markdown : null
   return <div className="sidechat">
     <ModalHeader title={name} onClose={close} />
     <HStack className="file-preview-toolbar" gap={4}>
-      {markdown && <button className="md-preview-toggle" aria-pressed={source} onClick={() => setSource(!source)}>{tr(source ? 'Read' : 'Source')}</button>}
-      {(!markdown || source) && <IconButton title={tr(wrap ? 'Disable line wrapping' : 'Wrap lines')} icon="text.alignleft" selected={wrap} onClick={() => setWrap(!wrap)} />}
+      {(markdown || table.tabular) && <button className="md-preview-toggle" aria-pressed={source} onClick={() => setSource(!source)}>{tr(source ? 'Read' : 'Source')}</button>}
+      {(!markdown && !table.tabular || source) && <IconButton title={tr(wrap ? 'Disable line wrapping' : 'Wrap lines')} icon="text.alignleft" selected={wrap} onClick={() => setWrap(!wrap)} />}
       <IconButton title="Copy" icon="square.on.square" disabled={text === null} onClick={() => { if (text !== null) window.codync.app.copy(text) }} />
       <IconButton title="Retry" icon="arrow.clockwise" disabled={!result} onClick={() => setAttempt(value => value + 1)} />
     </HStack>
     <div className="sidechat-scroll selectable" aria-busy={!result}>
-      {!result ? tr('Loading') : 'error' in result ? <div role="alert">{result.error}</div> : markdown && !source ? <MarkdownText text={result.text} /> :
+      {table.tabular && !source && table.result && ('error' in table.result
+        ? <div role="status">{table.result.error}</div>
+        : table.result.truncated ? <div role="status">Table preview truncated. Source shows the full text.</div> : null)}
+      {!result ? tr('Loading') : 'error' in result ? <div role="alert">{result.error}</div> : !source && (markdown || tableText !== null) ? <MarkdownText text={tableText ?? result.text} /> :
         <pre style={{ whiteSpace: wrap ? 'pre-wrap' : 'pre', overflowWrap: wrap ? 'anywhere' : undefined, overflowX: 'auto', margin: 0 }}>{result.text}</pre>}
     </div>
   </div>

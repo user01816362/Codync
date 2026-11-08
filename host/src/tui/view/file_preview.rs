@@ -37,6 +37,21 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
         {
             md::render(text, width, 1)
         }
+        Some(Ok(text))
+            if !view.source
+                && (view.name.to_lowercase().ends_with(".csv") || view.name.to_lowercase().ends_with(".tsv")) =>
+        {
+            match crate::chat::table_preview::format(&view.name, text) {
+                Ok(table) => {
+                    let mut lines = md::render(table["markdown"].as_str().unwrap_or_default(), width, 1);
+                    if table["truncated"] == true {
+                        lines.push(Line::raw("Preview truncated; v shows the full source."));
+                    }
+                    lines
+                }
+                Err(error) => vec![Line::raw(format!("{error}; v shows the full source."))],
+            }
+        }
         Some(Ok(text)) if !view.wrap => text.lines().map(|line| Line::raw(line.to_owned())).collect(),
         Some(Ok(text)) => text
             .lines()

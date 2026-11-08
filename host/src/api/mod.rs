@@ -96,6 +96,9 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     {
         market::vault::unlock(hub.clone()).await?;
     }
+    if method == "formatTable" {
+        return crate::chat::table_preview::format(str_arg(&b, "name")?, str_arg(&b, "text")?);
+    }
     if method == "readFile" {
         return files::read(hub, &b).await;
     }

@@ -9,7 +9,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 3 | Phone message selection/reply parity through existing metadata | Implemented; CI pending |
 | 3b | Structured file excerpts and collaboration selections with source context | Planned |
 | 4 | Bounded local PDF/audio/video adapters using verified transfers; terminal download fallback | Implemented; CI/device checks pending |
-| 5 | Read-only CSV/TSV tables; assess XLSX separately with decompression/cell limits | Planned |
+| 5 | Shared host CSV/TSV formatting with Source fallback; XLSX remains a separate dependency decision | Implemented; CI pending |
 | 6 | Read-only workspace directory navigation within host-authorized roots | Planned |
 | 7 | Queued-only text editing through the actor, preserving files/replies | Implemented; CI pending |
 | 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
@@ -60,3 +60,11 @@ File cards and Library rows open supported PDF, audio and video snapshots up to 
 Shared files are checked against saved size and SHA-256; uploads use their bounded authenticated transfer. Desktop creates revocable local object URLs with fixed MIME types and uses built-in PDF/media viewing. Only blob frames/objects are added to its content policy; remote frame origins are not added. The chat window enables its bundled PDF plugin while retaining the renderer sandbox and context isolation. Phone PDF viewers use native rendering; iPhone and Android refuse more than 500 pages. Android renders one page at a time with a maximum 2048-pixel edge. Native player controls require user playback; no remote agent URL or generated HTML is sent to the player. iPhone playback uses a temporary file removed when closing the viewer. Desktop object URLs are revoked on closure/reload. Terminal keeps downloading binary files rather than attempting graphical playback.
 
 Native PDF/media interactions and codec failures need device testing. Source/CI validation alone does not establish viewer accessibility, playback behavior, decoder memory usage or PDF annotation/link behavior on every OS.
+
+## Delimited table previews
+
+CSV and TSV text previews request the same host formatter on desktop and phones; the terminal uses that formatter directly. Inputs are limited to 64 KiB for formatted tables, 100 rows, 20 columns and 256 Unicode characters per cell. Original text previews retain their 1 MiB limit and remain accessible through Source. The host formats client-supplied text already loaded by the authorized preview; the formatting method grants no file access, stores nothing and reads no path.
+
+Quoted fields, doubled quotes, embedded newlines and CRLF records are handled. Malformed quotes produce an explicit error and Source fallback. Cells escape Markdown punctuation and do not execute formulas, links, HTML or macros. Columns use numeric labels: the first record is preserved as data rather than guessed to be a header. Truncation is labeled and never changes the original file. Empty data shows No rows. Large, offline or older-host formatting failures leave Source available. A formatted view requires the connected host on phones/desktop; cached raw text remains readable offline.
+
+XLSX parsing is not shipped by this batch. It requires a separately chosen workbook/decompression implementation, bounded ZIP handling and multiple-sheet semantics, not merely adding its extension to text previews.

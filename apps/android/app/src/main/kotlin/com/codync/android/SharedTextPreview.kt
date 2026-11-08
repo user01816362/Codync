@@ -47,7 +47,7 @@ import java.security.MessageDigest
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { failure = "Couldn't open this file. The file must be valid UTF-8 text up to 1 MiB and pass its integrity checks." }
     }
-    TextPreviewBody(id, name, text, failure) { attempt += 1 }
+    TextPreviewBody(id, name, text, failure, store) { attempt += 1 }
 }
 
 internal val SharedFile.canOpenPreview: Boolean get() = showsAsText || mediaPreviewKind(name, size) != null
