@@ -61,6 +61,8 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var author: String?
     /// user: the message it replies to, as the computer quoted it.
     public var replyTo: ReplyQuote?
+    /// Local composer selection; not a replacement for the stored source message.
+    public var selectedQuote: ReplyQuote?
     /// The user's emoji reactions, oldest first.
     public var reactions: [String]?
     /// The bots' reactions, one per bot, oldest first.
@@ -114,12 +116,16 @@ public struct ReplyQuote: Codable, Hashable, Sendable {
     public var author: String
     public var text: String
     public var artifact: String?
+    public var selected: Bool?
+    public var part: String?
 
-    public init(id: String, author: String, text: String, artifact: String? = nil) {
+    public init(id: String, author: String, text: String, artifact: String? = nil, selected: Bool? = nil, part: String? = nil) {
         self.id = id
         self.author = author
         self.text = text
         self.artifact = artifact
+        self.selected = selected
+        self.part = part
     }
 
     public init(from decoder: any Decoder) throws {
@@ -128,6 +134,19 @@ public struct ReplyQuote: Codable, Hashable, Sendable {
         author = try c.decodeIfPresent(String.self, forKey: .author) ?? ""
         text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
         artifact = try c.decodeIfPresent(String.self, forKey: .artifact)
+        selected = try c.decodeIfPresent(Bool.self, forKey: .selected)
+        part = try c.decodeIfPresent(String.self, forKey: .part)
+    }
+}
+
+/// Only the selected passage is sent; the host resolves its author against the source message.
+public struct ReplySelection: Codable, Hashable, Sendable {
+    public let text: String
+    public let part: String?
+
+    public init(text: String, part: String? = nil) {
+        self.text = text
+        self.part = part
     }
 }
 

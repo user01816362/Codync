@@ -13,8 +13,8 @@ import com.codync.android.design.*
 
 internal data class QuoteSelectionTarget(val text: String, val author: String)
 
-/** Native selection and Copy handles; Quote only updates the editable chat draft. */
-@Composable internal fun QuoteSelectionSheet(target: QuoteSelectionTarget, quote: (String) -> Unit) {
+/** Native selection and Copy handles; structured callers preserve message reply metadata. */
+@Composable internal fun QuoteSelectionSheet(target: QuoteSelectionTarget, structured: Boolean = false, quote: (String) -> Unit) {
     var selected by remember(target) { mutableStateOf("") }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ModalHeader("Select text")
@@ -34,7 +34,7 @@ internal data class QuoteSelectionTarget(val text: String, val author: String)
         })
         SecondaryButton("Quote selected text", Modifier.padding(horizontal = 20.dp, vertical = 16.dp), enabled = selected.isNotBlank()) {
             val passage = buildString { selected.trim().codePoints().limit(4000).forEach { appendCodePoint(it) } }
-            quote(target.author + ":\n" + passage.lineSequence().joinToString("\n") { "> $it" } + "\n\n")
+            quote(if (structured) passage else target.author + ":\n" + passage.lineSequence().joinToString("\n") { "> $it" } + "\n\n")
         }
     }
 }

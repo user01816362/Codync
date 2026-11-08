@@ -12,6 +12,7 @@ struct QuoteSelectionTarget: Identifiable {
 struct QuoteSelectionSheet: View {
     let text: String
     let author: String
+    var structured = false
     let quote: (String) -> Void
     @Environment(\.dismissModal) private var dismiss
     @State private var selected = ""
@@ -24,7 +25,7 @@ struct QuoteSelectionSheet: View {
             Button("Quote selected text") {
                 let passage = String(selected.trimmingCharacters(in: .whitespacesAndNewlines).prefix(4000))
                 guard !passage.isEmpty else { return }
-                quote(author + ":\n" + passage.components(separatedBy: .newlines).map { "> " + $0 }.joined(separator: "\n") + "\n\n")
+                quote(structured ? passage : author + ":\n" + passage.components(separatedBy: .newlines).map { "> " + $0 }.joined(separator: "\n") + "\n\n")
                 dismiss()
             }
             .buttonStyle(SecondaryButtonStyle())

@@ -98,7 +98,8 @@ import com.kyant.shapes.Capsule
     val density = LocalDensity.current
     // The message the composer quotes, until it sends or this chat closes.
     var replyId by rememberSaveable(bot.id) { mutableStateOf<String?>(null) }
-    val replyTo = state.entries.firstOrNull { it.id == replyId && it.botId == bot.id }?.replyQuote
+    var selectedPassage by remember(bot.id) { mutableStateOf<ReplyQuote?>(null) }
+    val replyTo = selectedPassage ?: state.entries.firstOrNull { it.id == replyId && it.botId == bot.id }?.replyQuote
     // The user's sent message open in the box for editing; sending asks the bot again.
     var editingId by rememberSaveable(bot.id) { mutableStateOf<String?>(null) }
     val editing = state.entries.firstOrNull { it.id == editingId && it.botId == bot.id }
@@ -106,8 +107,17 @@ import com.kyant.shapes.Capsule
         editingId?.let { store.editDraft("edit:$it", "") }
         editingId = null
     }
-    val reply = { entry: Entry -> cancelEditing(); replyId = entry.id }
+    LaunchedEffect(state.selectedReply) {
+        state.selectedReply?.takeIf { it.first == bot.id }?.let { (_, quote) ->
+            cancelEditing()
+            replyId = quote.id
+            selectedPassage = quote
+            store.consumeSelectedReply()
+        }
+    }
+    val reply = { entry: Entry -> cancelEditing(); selectedPassage = null; replyId = entry.id }
     val edit = { entry: Entry ->
+        selectedPassage = null
         replyId = null
         store.editDraft("edit:${entry.id}", entry.text)
         editingId = entry.id
@@ -138,7 +148,7 @@ import com.kyant.shapes.Capsule
             else if (viewing == null) key(editingId) {
                 MessageComposer(bot, chatState, store, onCall = if (state.voice == null && state.actualConnection is LinkState.Ready) startCall else null,
                     onInterrupt = if (state.voice?.botId == bot.id && state.voice.state.phase == VoicePhase.Speaking) store::interruptVoice else null,
-                    replyTo = replyTo, cancelReply = { replyId = null },
+                    replyTo = replyTo, cancelReply = { replyId = null; selectedPassage = null },
                     draftKey = editing?.let { "edit:${it.id}" } ?: bot.id, editing = editing, cancelEditing = cancelEditing,
                     queued = queuedMessages(state.chatEntries(bot), bot.isWorking))
             }

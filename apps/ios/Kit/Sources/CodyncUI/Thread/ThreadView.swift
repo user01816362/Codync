@@ -72,6 +72,12 @@ public struct ThreadView: View {
     var conversation: some View {
         chrome(chat)
             .readingConversation(botId)
+            .onChange(of: model.selectedReply) { _, target in
+                guard let target, target.botId == botId else { return }
+                editingMessage = nil
+                replyingTo = target
+                model.selectedReply = nil
+            }
             .onChange(of: model.voiceCallRequest, initial: true) { _, _ in
                 if model.takeVoiceCallRequest(for: botId) { startShortcutCall() }
             }

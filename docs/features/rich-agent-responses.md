@@ -94,3 +94,7 @@ tags and releases are preserved; later same-version builds stay in Actions artif
 download, but do not install automatically. See [updates](../../FORK.md#updates).
 CI status belongs to a particular commit, not this inventory. A successful build does not
 establish real-device interaction, accessibility, provider behavior or Windows runtime validation.
+
+## Phone selected message replies
+
+Ordinary message selections on iPhone and Android now use the same structured reply contract as desktop. The author and excerpt appear in the composer reply bar; sending and retries preserve the source entry and selected text. File excerpts and collaboration selections are still separate work. See [conversation improvement batches](response-improvements.md) for the delivery and validation boundaries.

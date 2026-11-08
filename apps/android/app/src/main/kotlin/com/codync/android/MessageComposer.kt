@@ -224,7 +224,11 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
             AnimatedContent(replyTo?.text?.takeIf { about == null && editing == null }, transitionSpec = { fadeIn(Motion.fade()) togetherWith fadeOut(Motion.fade()) },
                 label = "Reply") { quote ->
                 if (quote != null) Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    QuoteLine(quote, Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(tr(if (replyTo?.selected == true) "Quoted from" else "Replying to") + " " + state.authorName(replyTo?.author.orEmpty()),
+                            style = Type.caption, color = Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        QuoteLine(quote)
+                    }
                     IconButton("Cancel reply", "xmark", action = cancelReply)
                 }
             }

@@ -6,6 +6,14 @@ import os
 private let log = Logger(subsystem: "com.pokai.Codync", category: "BotStore")
 
 extension BotStore {
+    func selectReply(_ entry: Entry, text: String) {
+        let passage = String(String.UnicodeScalarView(text.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars.prefix(4000)))
+        guard !passage.isEmpty else { return }
+        var target = entry
+        target.data.selectedQuote = ReplyQuote(id: entry.id, author: entry.replyQuote.author, text: passage, selected: true)
+        selectedReply = target
+    }
+
     func prependQuote(_ text: String, to botId: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         setComposerDraft(text + composerDraft(for: botId), for: botId)
@@ -95,15 +103,16 @@ extension BotStore {
         upsert(local)
         storage.lastComputerId = computer.id
         if let bot = bots[botId] { onSent?(bot, .sending) }
-        // The relay mailbox holds text only: files, and the call a message was said in, wait for the computer.
-        if canQueue, files.isEmpty, call == nil, let remote = transport as? any RemoteTransport {
+        // The mailbox cannot carry selected reply metadata; those replies use normal delivery without dropping the excerpt.
+        if canQueue, files.isEmpty, call == nil, replyTo?.selected != true, let remote = transport as? any RemoteTransport {
             return enqueue(remote, text: trimmed, botId: botId, replyTo: replyTo?.id, nonce: nonce)
         }
-        return deliver(trimmed, botId: botId, replyTo: replyTo?.id, nonce: nonce, pasted: pasted, call: call)
+        return deliver(trimmed, botId: botId, replyTo: replyTo?.id, nonce: nonce, pasted: pasted, call: call,
+                       replySelection: replyTo?.selected == true ? ReplySelection(text: replyTo?.text ?? "", part: replyTo?.part) : nil)
     }
 
     private func deliver(_ text: String, botId: String, replyTo: String?, nonce: String, pasted: [String] = [],
-                         call: String? = nil) -> Task<SendProgress, Never> {
+                         call: String? = nil, replySelection: ReplySelection? = nil) -> Task<SendProgress, Never> {
         Task {
             do {
                 // Safe to repeat: the computer skips a nonce it already has.
@@ -121,7 +130,7 @@ extension BotStore {
                     }
                     try Task.checkCancellation()
                     return try await client.send(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo, attachments: ids,
-                                                 pasted: pasted, call: call)
+                                                 pasted: pasted, call: call, replySelection: replySelection)
                 }
                 outgoingFiles[nonce] = nil
                 upsert(e)

@@ -61,6 +61,7 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
     /// How a reply quotes this message until the computer's own quote arrives: who wrote it and its
     /// text, or its file names.
     public var replyQuote: ReplyQuote {
+        if let selected = data.selectedQuote { return selected }
         let names = (data.attachments?.map(\.name) ?? []) + (data.files?.map(\.name) ?? [])
         let text = data.text.flatMap { $0.isEmpty ? nil : $0 } ?? names.joined(separator: ", ")
         return ReplyQuote(id: id, author: kind == "user" ? "user" : data.author ?? botId, text: String(text.prefix(500)),

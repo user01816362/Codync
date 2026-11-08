@@ -176,15 +176,15 @@ struct UserBubble: View {
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.leading, 56)
         .codyncSheet(isPresented: $selecting) {
-            QuoteSelectionSheet(text: entry.data.text ?? "", author: "You") { text in
-                model.prependQuote(text, to: entry.botId)
+            QuoteSelectionSheet(text: entry.data.text ?? "", author: "You", structured: true) { text in
+                model.selectReply(entry, text: text)
             }
         }
     }
 
     private var text: some View {
             VStack(alignment: .leading, spacing: 4) {
-                if let quote = entry.data.replyTo { QuoteLine(text: quote.text) }
+                if let quote = entry.data.replyTo { QuoteLine(text: model.authorName(quote.author) + ": " + quote.text) }
                 if let text = entry.data.text, !text.isEmpty {
                     Text(text)
                         .font(.body)
@@ -289,8 +289,8 @@ struct AgentBubble: View {
         .padding(.trailing, 40)
         .codyncSheet(item: $workspace) { target in WorkspaceTextPreview(botId: entry.data.author ?? entry.botId, path: target.path) }
         .codyncSheet(isPresented: $selecting) {
-            QuoteSelectionSheet(text: entry.data.text ?? "", author: model.authorName(entry.data.author ?? entry.botId)) { text in
-                model.prependQuote(text, to: entry.botId)
+            QuoteSelectionSheet(text: entry.data.text ?? "", author: model.authorName(entry.data.author ?? entry.botId), structured: true) { text in
+                model.selectReply(entry, text: text)
             }
         }
     }

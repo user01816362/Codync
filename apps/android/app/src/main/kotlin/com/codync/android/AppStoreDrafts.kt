@@ -14,6 +14,17 @@ import kotlinx.serialization.json.*
 
 // Composer drafts (saved as you type) and the files that go with them.
 
+fun AppStore.selectReply(entry: Entry, text: String) {
+    val passage = buildString { text.trim().codePoints().limit(4000).forEach { appendCodePoint(it) } }
+    if (passage.isEmpty()) return
+    val quote = entry.replyQuote.copy(text = passage, artifact = null, selected = true)
+    mutableState.update { it.copy(selectedReply = entry.botId to quote) }
+}
+
+fun AppStore.consumeSelectedReply() {
+    mutableState.update { it.copy(selectedReply = null) }
+}
+
 fun AppStore.editDraft(botId: String, text: String) {
     if (state.value.loading) return
     val current = state.value.drafts[botId]

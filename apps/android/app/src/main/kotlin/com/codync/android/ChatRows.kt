@@ -241,20 +241,24 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
         if (attachments.isNotEmpty()) AttachmentList(attachments, entry.botId, state, store)
         val quote = entry.replyTo
         if (entry.text.isNotEmpty() || quote != null) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleUser)
-            .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { SelectionContainer { UserText(entry.text, quote) } }) {
+            .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { SelectionContainer { UserText(entry.text, quote, quote?.let { state.authorName(it.author) }) } }) {
                 messageMenu(context, entry, reply, edit, null, select)
-            }) { UserText(entry.text, quote) }
+            }) { UserText(entry.text, quote, quote?.let { state.authorName(it.author) }) }
         SendStatusLine(entry.status)
         if (entry.editedAt != null) Text(tr("Edited"), style = Type.caption2, color = Palette.tertiary)
     }
     CodyncSheet(selection, { selection = null }) { target ->
-        QuoteSelectionSheet(target) { text -> store.appendDraft(entry.botId, text); selection = null }
+        QuoteSelectionSheet(target, structured = true) { text -> store.selectReply(entry, text); selection = null }
     }
 }
 
-@Composable private fun UserText(text: String, quote: ReplyQuote? = null) {
+@Composable private fun UserText(text: String, quote: ReplyQuote? = null, author: String? = null) {
     Column(Modifier.background(Palette.bubbleUser).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (quote != null) QuoteLine(quote.text)
+        if (quote != null) {
+            if (author != null) Text(tr(if (quote.selected == true) "Quoted from" else "Replying to") + " " + author,
+                style = Type.caption, color = Palette.secondary)
+            QuoteLine(quote.text)
+        }
         if (text.isNotEmpty()) Text(text, style = Type.body, color = Palette.text)
     }
 }
@@ -283,7 +287,7 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
         horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (file in send.files) Text(file.name + " · " + formatBytes(file.size), Modifier.clip(RoundedRectangle(14.dp))
             .background(Palette.surface).padding(horizontal = 12.dp, vertical = 8.dp), style = Type.footnote, color = Palette.text)
-        if (send.text.isNotEmpty() || send.replyTo != null) Box(Modifier.clip(RoundedRectangle(18.dp))) { UserText(send.text, send.replyTo) }
+        if (send.text.isNotEmpty() || send.replyTo != null) Box(Modifier.clip(RoundedRectangle(18.dp))) { UserText(send.text, send.replyTo, send.replyTo?.let { state.authorName(it.author) }) }
         when (send.status) {
             SendStatus.Sending -> Text(state.uploadProgress[send.nonce]?.let { "Uploading files · $it%" } ?: "Sending…",
                 style = Type.caption2, color = Palette.tertiary)
@@ -335,7 +339,7 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
             }
     }
     CodyncSheet(selection, { selection = null }) { target ->
-        QuoteSelectionSheet(target) { text -> store.appendDraft(entry.botId, text); selection = null }
+        QuoteSelectionSheet(target, structured = true) { text -> store.selectReply(entry, text); selection = null }
     }
     CodyncSheet(workspacePath, { workspacePath = null }) { path ->
         WorkspaceTextPreview(entry.data["author"]?.jsonPrimitive?.contentOrNull ?: entry.botId, path, store)

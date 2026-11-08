@@ -327,7 +327,11 @@ struct Composer: View {
     /// The quoted message, one line, with a way to drop the reply.
     private func quoteBar(_ target: Entry) -> some View {
         HStack(spacing: 4) {
-            QuoteLine(text: target.replyQuote.text)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.tr(target.replyQuote.selected == true ? "Quoted from" : "Replying to") + " " + model.authorName(target.replyQuote.author))
+                    .font(.caption).foregroundStyle(Palette.secondary)
+                QuoteLine(text: target.replyQuote.text)
+            }
             Spacer(minLength: 0)
             IconButton("Cancel reply", systemImage: "xmark") { replyingTo = nil }
         }

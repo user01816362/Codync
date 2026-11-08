@@ -80,6 +80,8 @@ data class AppState(
     val actualConnection: LinkState = LinkState.Connecting,
     /** The chat open on this computer; at most one computer has one (`AccountStore.openBot`). */
     val selectedBot: String? = null,
+    /** A row selection consumed by the matching conversation composer. */
+    val selectedReply: Pair<String, ReplyQuote>? = null,
     /** A call to start in this bot's chat once it shows ("Talk to Codync"). */
     val callRequest: String? = null,
     val trace: Boolean = false,

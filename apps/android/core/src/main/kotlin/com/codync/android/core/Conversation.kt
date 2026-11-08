@@ -111,7 +111,8 @@ private data class EntryFields(
 @Serializable private data class PermissionChoice(val optionId: String, val name: String, val kind: String)
 /** A quoted message: its entry, who wrote it (`user` or a bot id) and its text, cut short by the computer; `artifact` when it
  *  quotes an artifact card (the message is about that artifact). */
-@Serializable data class ReplyQuote(val id: String = "", val author: String = "", val text: String = "", val artifact: String? = null)
+@Serializable data class ReplyQuote(val id: String = "", val author: String = "", val text: String = "", val artifact: String? = null,
+    val selected: Boolean? = null, val part: String? = null)
 
 @Serializable data class Attachment(val id: String, val name: String, val size: Long) {
     val isImage: Boolean get() = isImageName(name)
@@ -162,7 +163,13 @@ data class PendingSend(
     /** The `send` request for it, with the ids of its uploaded files. */
     fun body(attachments: List<String> = emptyList()): JsonObject = buildJsonObject {
         put("botId", botId); put("text", text); put("clientNonce", nonce)
-        replyTo?.let { put("replyTo", it.id) }
+        replyTo?.let { quote ->
+            put("replyTo", quote.id)
+            if (quote.selected == true) put("replySelection", buildJsonObject {
+                put("text", quote.text)
+                quote.part?.let { put("part", it) }
+            })
+        }
         call?.let { put("call", it) }
         if (attachments.isNotEmpty()) put("attachments", JsonArray(attachments.map(::JsonPrimitive)))
     }
