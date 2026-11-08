@@ -2,13 +2,7 @@
 
 <img src="apps/desktop/resources/icon.svg" width="128" alt="Codync icon">
 
-# Codync — local fork
-
-This is the account-free fork of [leepokai/Codync](https://github.com/leepokai/Codync).
-Use [our releases](https://github.com/user01816362/Codync/releases/latest) for the fork’s
-Apple Silicon Mac app and unsigned iPhone IPA. Start with [FORK.md](FORK.md) for setup,
-privacy differences, update behavior and upstream sync. Our [feature audit](docs/features/rich-agent-responses.md)
-records implemented features, platform differences and checks still outstanding.
+# Codync
 
 **The open-source Grok Bot alternative.**<br>
 Bring your own agent and subscription — Claude Code, Codex, Gemini CLI, Cursor and 40+ more — as teammates you can message from your phone.
@@ -19,20 +13,18 @@ Bring your own agent and subscription — Claude Code, Codex, Gemini CLI, Cursor
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/leepokai)<br>
 <sub>Free, open source, no paid tier. A ⭐ is how others find it; a ☕ keeps it going.</sub>
 
-[![Download for macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/user01816362/Codync/releases/latest/download/codync-macos.dmg)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg)
 [![Download for Windows](https://img.shields.io/badge/Download-Windows_x64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/leepokai/Codync/releases/latest/download/codync-windows-x64.exe)
 [![Download for Linux x86_64](https://img.shields.io/badge/Download-Linux_x86__64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/leepokai/Codync/releases/latest/download/codync-linux-x86_64.AppImage)
 [![Download for Linux ARM64](https://img.shields.io/badge/Download-Linux_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/leepokai/Codync/releases/latest/download/codync-linux-arm64.AppImage)
 
-Fork builds: **Apple Silicon macOS (ad-hoc signed)** and **iPhone (unsigned IPA)** · [Fork downloads](https://github.com/user01816362/Codync/releases/latest)
-
-The Windows, Linux, App Store and Homebrew download links here refer to the **upstream distribution**, not this fork. Android Actions is disabled in this fork. The upstream introduction and installation commands below remain for reference; use [the fork setup guide](FORK.md) to install our builds.
+macOS: Apple Silicon + Intel (DMG) · Windows: x64 installer · Linux: AppImage · [All downloads](https://github.com/leepokai/Codync/releases/latest)
 
 [![App Store](https://img.shields.io/badge/App_Store-iOS-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/app/codync/id6760984418)
 [![Homebrew](https://img.shields.io/badge/Homebrew-codync-FBB040?logo=homebrew&logoColor=white)](https://github.com/leepokai/homebrew-codync)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/KBAX3Qznxh)
 [![WeChat and Lark China](https://img.shields.io/badge/WeChat_/_Lark-China_community-07C160?logo=wechat&logoColor=white)](#community)
-[![Fork release](https://img.shields.io/github/v/release/user01816362/Codync?color=black)](https://github.com/user01816362/Codync/releases/latest)
+[![Release](https://img.shields.io/github/v/release/leepokai/Codync?color=black)](https://github.com/leepokai/Codync/releases/latest)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 <br>
 ![iOS](https://img.shields.io/badge/iOS-18+-black?logo=apple)

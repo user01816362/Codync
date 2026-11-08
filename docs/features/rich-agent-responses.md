@@ -18,9 +18,9 @@ Messages support Markdown and file cards. Agents can publish interactive HTML ar
 - Preserve existing artifacts. Evaluate [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) interoperability separately because sandboxed web apps have different capabilities and risks from a native component catalog.
 - Evaluate [Streamdown](https://github.com/vercel/streamdown) for desktop streaming Markdown and [A2UI](https://github.com/a2ui-project/a2ui) as a protocol reference. Neither removes the need for native phone and terminal support. Compare current versions, licenses, accessibility, security and performance against Codync's implementation before adding dependencies.
 
-## Initial increment (historical)
+## First increment
 
-The existing fenced-code renderers understand nested longer fences, tildes and incomplete fences, retaining code text while stripping the opening indentation. Desktop, iPhone and Android expose a copy control and language label; the terminal continues to copy the whole selected message. That initial code-block change alone did not introduce streaming replies or structured content. Subsequent increments are described in the current coverage table below.
+The existing fenced-code renderers understand nested longer fences, tildes and incomplete fences, retaining code text while stripping the opening indentation. Desktop, iPhone and Android expose a copy control and language label; the terminal continues to copy the whole selected message. This does not introduce streaming final messages, syntax highlighting, citations, charts, or generated UI.
 
 ## Shared text previews
 
@@ -32,7 +32,7 @@ This is a status inventory, not a claim that the whole proposal has shipped.
 
 | Requested capability | Current state | Remaining work |
 |---|---|---|
-| Markdown basics, tables, fenced code | Present in the graphical clients; terminal renders a subset. Code blocks have copy controls and a language label. | Highlighted source previews are implemented in the graphical clients. Markdown conformance and long-message performance still need cross-client interaction checks. |
+| Markdown basics, tables, fenced code | Present in the graphical clients; terminal renders a subset. Code blocks have copy controls and a language label. | Conformance, highlighting and long-message performance need measurement and cross-client fixtures. |
 | File and Markdown preview | Bot-shared and user-uploaded text files up to 1 MiB open in desktop/phone viewers and the terminal. Explicit local Markdown links can request a workspace text preview on Unix and Windows hosts; the terminal opens the first such link. | Workspace preview requires a user action and a control-scoped device; relative reads stay in the author's configured workspace; absolute links resolve to the most specific registered, nondeleted bot workspace, and symlinks are rejected. Windows final handle paths are checked against the canonical workspace; alternate data streams and device paths are rejected. Group-only workspaces are not supported. Plain path mentions are not links. Uploads lack a digest; Fenced source has an optional offline highlighted preview. |
 | Generated images | An agent can publish an image with `send_file` or as an ACP v1 image chunk in its own chat; the host saves a snapshot and clients show supported images up to 20 MiB. | PNG, JPEG and WebP are fully decoded with 8192-pixel side and 128 MiB allocation limits. GIF logical screen dimensions are checked (16 million pixels); animated GIF frames are not fully decoded by the host. ACP frames are limited to 32 MiB before parsing and queued image data to 64 MiB; oversized input ends the connection with an explicit failure. Replayed image notifications are discarded during session/load because the durable snapshots already hold them. Non-image history notifications remain unbounded to avoid deadlocking session replay. Provider/model generation is not supplied by the renderer; group and delegated turns do not publish image chunks. |
 | Live response streaming | An agent can opt in using `stream_message` to start, append, finish or cancel a user-facing reply. Updated clients show its provisional entry; older clients see the final message. ACP text chunks remain nonfinal trace entries. | Automatic streaming of generic ACP chunks is not implemented: they can be narration or duplicate a later message. Real-device reconnect, Stop and accessibility checks remain outstanding. |
@@ -58,7 +58,7 @@ The graphical clients ship identical pinned KaTeX 0.19.1, Mermaid 12.3.0 and hig
 
 ## Validation status
 
-The Build workflow retains macOS desktop checks, the iOS package build and host checks. Windows retains its separate workflow. Android source remains in the repository, but its workflow is manually disabled at the fork owner’s request; do not describe Android as CI-validated by Build. An offline browser rendering check runs in Build; no new test files were added. Local builds, dependency installation and simulator/device checks were not run at the user's request. Compilation and CI results must be reported from the resulting commit; this document does not label unrun interaction, accessibility or performance checks as passed.
+The Build workflow retains macOS desktop checks, the iOS package build and host checks. Android and Windows use their existing separate workflows. An offline browser rendering check runs in Build; no new test files were added. Local builds, dependency installation and simulator/device checks were not run at the user's request. Compilation and CI results must be reported from the resulting commit; this document does not label unrun interaction, accessibility or performance checks as passed.
 
 
 ## Long task titles
@@ -72,25 +72,3 @@ Renderer controls follow the existing app style and the block-level control patt
 ## Forwarded workspace links
 
 A Control-authorized client may open an absolute text-file link that another bot forwarded from a registered bot workspace. The host selects the most specific matching registered workspace; relative links remain scoped to the author. There is no basename search, disk-wide access or new permission prompt. Deleted bots and groups supply no preview roots. Paths outside all registered workspaces remain blocked and should be shared explicitly with `send_file`. Existing traversal, symlink, regular-file, UTF-8 and 1 MiB limits still apply. Desktop and phone workspace previews display the host error so an unavailable file can be distinguished from a rendering failure. Additional folder grants are not implemented.
-
-## Replying to selected text
-
-Desktop **Quote selection** now uses the existing reply bar instead of inserting a Markdown
-blockquote into the draft. It displays **Quoted from [author]** and the selected passage;
-ordinary replies display **Replying to [author]**. The host resolves the original message ID
-and author within the chat and stores the user-selected passage, bounded to 4,000 characters.
-Collaboration quotes identify the request or reply. This is a user-selected excerpt, not
-independently verified source provenance: rendered Markdown can differ from its raw text.
-Retries retain that metadata, and the agent receives the message ID and selected passage.
-
-The iPhone and Android selection sheets still insert a text quote into the draft; their
-selected-text quotes do not yet use desktop's structured reply metadata. Normal replies are
-supported. The terminal's quote action also produces draft text. See [chat messages](chat-messages.md).
-
-## Release and validation boundaries
-
-The source version follows upstream; fork releases add a build ID to the Git tag so fixes at
-the same app version can be discovered. Ad-hoc Mac builds check this fork and offer a DMG
-download, but do not install automatically. See [fork updates](../../FORK.md#updates-from-this-fork).
-CI status belongs to a particular commit, not this inventory. A successful build does not
-establish real-device interaction, accessibility, provider behavior or Windows runtime validation.

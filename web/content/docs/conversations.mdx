@@ -100,19 +100,6 @@ You can reply to any of your messages or any message from the bot. The reply goe
 
 While you reply, the box shows the quote above it and reads "Reply…". The bot gets the quoted text with your reply, so it knows what you mean even when that message is from an earlier session.
 
-### Quoting selected text in this fork
-
-On desktop, select a passage inside a message, right-click and choose **Quote selection**.
-The reply bar shows **Quoted from [name]** and that passage, leaving your draft unchanged.
-Type your response and send it normally, or dismiss the bar to remove the reference.
-The sent reply and the receiving agent retain the author, original message ID and selected
-passage (up to 4,000 characters). You can also quote a request or reply in collaboration activity.
-Ordinary desktop replies show **Replying to [name]**.
-
-On iPhone and Android, **Select text / Quote** opens the selection sheet. **Quote selected text**
-currently inserts an editable text quote into the draft; it does not use desktop's structured
-selected-passage reply bar. Use **Reply** for the normal message-reference flow.
-
 ## Editing a message
 
 You can change a message you sent and have the bot answer the new version. The message keeps its place in the chat; the earlier versions and their answers stay behind it.
@@ -233,16 +220,3 @@ Notices and approvals the bot waits for go to the error output. The exit code sa
 Code blocks show their language when provided. Use the copy button to copy a block without the Markdown fence. The terminal copies the selected message with its existing copy action.
 
 Bot-shared Markdown and source files up to 1 MiB can be opened from their file cards. Markdown is rendered in the viewer; source is shown as text. Other files can still be downloaded. In the terminal, select the file message and press `o` to preview its first shared text file.
-
-### Collaboration activity in this fork
-
-Settings offers **Hidden**, **Compact** and **Expanded** collaboration activity. Compact is
-the default; expand a conversation or exchange to inspect its details. Hidden changes only
-what you see—bots can still collaborate. The terminal cycles the same display preference
-from its action palette.
-
-File previews also support small user-uploaded text files and explicit Markdown links into
-registered bot workspaces. A forwarded absolute link may target another registered bot's
-workspace. Relative links stay in the author's workspace. Outside paths, symlinks, missing
-files and unsupported or oversized content can be refused; an error is not a blank Markdown
-preview. Ask the bot to share the file explicitly when it cannot be opened as a workspace link.

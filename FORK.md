@@ -17,20 +17,6 @@ account and without the hosted Codync cloud.
 | iPhone / Android | Pairing omits the certificate when the build has no cloud, instead of failing with "Connect to the internet to pair". |
 | CI | `.github/workflows/fork-build.yml` builds an unsigned Apple Silicon macOS app on every push to `main`; the standalone `.github/workflows/ios-ipa.yml` builds an unsigned iPhone IPA. |
 
-## Chat and agent features added in this fork
-
-- Bounded structured reports: expandable sections, comparisons, timelines, bar charts,
-  text-answer forms and source links, with a text fallback for the terminal and older clients.
-- Explicit streamed replies and direct ACP image snapshots in supported own-chat turns.
-- Offline code highlighting, Mermaid and math previews; readable Markdown/file previews.
-- Collaboration visibility controls, bounded mention handoffs and delivery/read-status tools.
-- Desktop selected-text quotes with author and source-message context in the reply bar.
-
-See the [coverage audit](docs/features/rich-agent-responses.md) for limits and platform gaps.
-Phone selected-text quotes still become draft text, image generation depends on the provider,
-and seen acknowledgements do not prove comprehension. Real-device and accessibility checks
-remain outstanding. **Hidden collaboration activity changes presentation, not bot execution.**
-
 ## Download and run the macOS app
 
 1. Open **Releases** and download `codync-macos.zip` (or `codync-macos.dmg`) from the newest
