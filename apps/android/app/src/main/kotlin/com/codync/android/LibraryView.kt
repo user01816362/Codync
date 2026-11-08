@@ -39,14 +39,25 @@ import com.kyant.shapes.RoundedRectangle
 @Composable internal fun LibraryView(bot: Bot, state: AppState, store: AppStore, open: (OpenArtifact) -> Unit) {
     val online = state.actualConnection is LinkState.Ready
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Library))
-    LaunchedEffect(bot.id, online) { if (online) store.loadLibrary(bot.id) }
+    var attempt by remember(bot.id) { mutableStateOf(0) }
+    var filesOnly by remember(bot.id) { mutableStateOf(false) }
+    LaunchedEffect(bot.id, online, attempt) { if (online) store.loadLibrary(bot.id) }
     val items = state.artifacts.library(bot.id, state.library[bot.id].orEmpty())
     var renaming by remember { mutableStateOf<Artifact?>(null) }
+    val fileItems = items.filter { it !is LibraryItem.ArtifactItem }
+    val visible = if (filesOnly) fileItems else items
+    var textFile by remember(bot.id) { mutableStateOf<LibraryItem.FileItem?>(null) }
+    var textAttachment by remember(bot.id) { mutableStateOf<Attachment?>(null) }
     var image by remember { mutableStateOf<Attachment?>(null) }
     Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TabChoice(filesOnly, listOf(false to "All", true to "Files"), { filesOnly = it })
+            Text(fileItems.size.toString(), style = Type.caption, color = Palette.secondary)
+            IconButton("Retry", "arrow.clockwise", enabled = online && "library:${bot.id}" !in state.busy) { attempt += 1 }
+        }
         when {
-            items.isNotEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                for ((period, members) in LibraryPeriod.sections(items)) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            visible.isNotEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                for ((period, members) in LibraryPeriod.sections(visible)) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionHeading(period.title, Modifier.padding(start = 2.dp))
                     Column(Modifier.fillMaxWidth().cardGroup()) {
                         for ((index, item) in members.withIndex()) {
@@ -54,21 +65,23 @@ import com.kyant.shapes.RoundedRectangle
                             when (item) {
                                 is LibraryItem.ArtifactItem -> ArtifactRow(item.artifact, { open(OpenArtifact(bot.id, item.artifact.id, item.artifact.title, item.artifact.entryId)) },
                                     { renaming = item.artifact }) { store.shareArtifact(bot.id, item.artifact.id, item.artifact.title) }
-                                is LibraryItem.FileItem -> FileRow(item, bot.id, state, store)
-                                is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store) { image = item.file }
+                                is LibraryItem.FileItem -> FileRow(item, bot.id, state, store) { textFile = item }
+                                is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store, { image = item.file }) { textAttachment = item.file }
                             }
                         }
                     }
                 }
             }
             "library:${bot.id}" in state.busy -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { Spinner(20.dp) }
-            else -> EmptyLibrary(bot.name)
+            else -> if (filesOnly) Text(tr("No files shared in this chat"), color = Palette.secondary) else EmptyLibrary(bot.name)
         }
     }
     // The artifact as composed: Save closes the dialog (clearing `renaming`) before it renames.
     val target = renaming
     RenameArtifactDialog(target?.title, { renaming = null }) { title -> target?.let { store.renameArtifact(bot.id, it.id, title) } }
     AttachmentImageSheet(image, bot.id, state, store) { image = null }
+    CodyncSheet(textFile, { textFile = null }) { SharedTextPreview(it.file, it.entryId, store) }
+    CodyncSheet(textAttachment, { textAttachment = null }) { AttachmentTextPreview(it, bot.id, store) }
 }
 
 /** One row of the Library: what it is on the left, its name and detail. */
@@ -91,22 +104,25 @@ import com.kyant.shapes.RoundedRectangle
 }
 
 /** A file the bot shared: tapping downloads it to the share sheet, as its card in the chat does (again: cancels). */
-@Composable private fun FileRow(item: LibraryItem.FileItem, botId: String, state: AppState, store: AppStore) {
+@Composable private fun FileRow(item: LibraryItem.FileItem, botId: String, state: AppState, store: AppStore, preview: () -> Unit) {
     val download = state.fileDownloads[item.file.id]
     val busy = download is FileDownloadState.Downloading
-    LibraryRow(Modifier.plainButton { if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file) },
+    LibraryRow(Modifier.plainButton { if (item.file.showsAsText) preview() else if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file) },
         { Symbol(AttachmentIcon.symbol(item.file.name), size = 22.dp, tint = Palette.secondary) }) {
-        NameAndDetail(item.file.name, detail(item.file, download))
+        NameAndDetail(item.file.name, (state.bots.firstOrNull { it.id == botId }?.name ?: "") + " · " + detail(item.file, download))
+        if (item.file.showsAsText) IconButton(if (busy) "Cancel download" else "Download", if (busy) "xmark" else "arrow.down.to.line") {
+            if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file)
+        }
     }
 }
 
 /** A file the user attached: an image opens full size, as in the chat; another file only shows. */
-@Composable private fun AttachmentRow(file: Attachment, botId: String, state: AppState, store: AppStore, openImage: () -> Unit) {
+@Composable private fun AttachmentRow(file: Attachment, botId: String, state: AppState, store: AppStore, openImage: () -> Unit, openText: () -> Unit) {
     if (file.isImage) LibraryRow(Modifier.plainButton(action = openImage), {
         AttachmentImage(file, botId, 144, state, store, Modifier.size(36.dp).clip(RoundedRectangle(8.dp)), ContentScale.Crop)
-    }) { NameAndDetail(file.name, formatBytes(file.size)) }
-    else LibraryRow(Modifier.semantics(mergeDescendants = true) {}, { Symbol(AttachmentIcon.symbol(file.name), size = 22.dp, tint = Palette.secondary) }) {
-        NameAndDetail(file.name, formatBytes(file.size))
+    }) { NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size)) }
+    else LibraryRow(if (file.showsAsText) Modifier.plainButton(action = openText) else Modifier.semantics(mergeDescendants = true) {}, { Symbol(AttachmentIcon.symbol(file.name), size = 22.dp, tint = Palette.secondary) }) {
+        NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size))
     }
 }
 

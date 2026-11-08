@@ -16,37 +16,55 @@ struct LibraryView: View {
     @State private var renaming: Artifact?
     @State private var sharing: ArtifactFile?
     @State private var viewing: Attachment?
+    @State private var textAttachment: Attachment?
+    @State private var textFile: LibraryTextFile?
+    @State private var filesOnly = false
+    @State private var attempt = 0
 
     var body: some View {
         let items = files + model.artifacts.artifacts(of: botId).map(ChatLibraryItem.init)
+        let fileItems = items.filter { if case .artifact = $0.kind { return false }; return true }
+        let visible = filesOnly ? fileItems : items
         VStack(alignment: .leading, spacing: 28) {
+            HStack {
+                TabChoice(selection: $filesOnly, options: [(false, "All"), (true, "Files")])
+                Text("\(fileItems.count)").font(.caption).foregroundStyle(Palette.secondary)
+                Spacer(minLength: 0)
+                IconButton("Retry", systemImage: "arrow.clockwise") { attempt += 1 }.disabled(!loaded)
+            }
             if let error {
                 Text(L10n.tr(error)).font(.caption).foregroundStyle(Palette.danger).textSelection(.enabled)
             }
-            if !items.isEmpty {
-                ForEach(ChatLibraryItem.sections(items), id: \.period) { section in
+            if !visible.isEmpty {
+                ForEach(ChatLibraryItem.sections(visible), id: \.period) { section in
                     CardSection(section.period.rawValue) {
                         ForEach(section.items) { row($0) }
                     }
                 }
-            } else if loaded {
-                empty
-            } else {
+            } else if loaded && error == nil {
+                if filesOnly { Text(L10n.tr("No files shared in this chat")).foregroundStyle(Palette.secondary) }
+                else { empty }
+            } else if !loaded {
                 Spinner(size: 20).frame(maxWidth: .infinity).padding(.top, 40)
             }
         }
         .animation(Motion.reduced(Motion.fade, reduceMotion), value: loaded)
-        .task(id: botId) {
+        .task(id: "\(botId):\(attempt)") {
+            loaded = false
+            error = nil
             do {
-                files = try await model.loadLibrary(botId)
+                let items = try await model.loadLibrary(botId)
+                if !Task.isCancelled { files = items }
             } catch {
-                self.error = error.localizedDescription
+                if !Task.isCancelled { self.error = error.localizedDescription }
             }
-            loaded = true
+            if !Task.isCancelled { loaded = true }
         }
         .codyncSheet(item: $renaming) { ArtifactRenameSheet(artifact: $0) }
         .artifactShareSheet($sharing)
         .codyncSheet(item: $viewing) { AttachmentViewer(file: $0, botId: botId) }
+        .codyncSheet(item: $textAttachment) { SharedTextPreview(attachment: $0, botId: botId) }
+        .codyncSheet(item: $textFile) { SharedTextPreview(file: $0.file, entryId: $0.entryId) }
         .fileExportSheet(model, botId: botId)
     }
 
@@ -63,12 +81,18 @@ struct LibraryView: View {
                  MenuItem("Share artifact", icon: "square.and.arrow.up") { share(artifact) }]
             }
         case .file(let file, let entryId):
-            Button { download(file, entryId: entryId) } label: {
-                LibraryRow(title: file.name, detail: FileDownloadCard.detail(model.fileDownloads.states[file.id], size: file.size)) {
+            Button {
+                if file.showsAsText { textFile = LibraryTextFile(file: file, entryId: entryId) }
+                else { download(file, entryId: entryId) }
+            } label: {
+                LibraryRow(title: file.name, detail: (model.bots[botId]?.name ?? "") + " · " + FileDownloadCard.detail(model.fileDownloads.states[file.id], size: file.size)) {
                     symbol(AttachmentIcon.symbol(file.name))
                 }
             }
             .buttonStyle(.plain)
+            .contextActions {
+                [MenuItem("Download", icon: "arrow.down.to.line") { download(file, entryId: entryId) }]
+            }
         case .attachment(let file, _) where file.isImage:
             Button { viewing = file } label: {
                 LibraryRow(title: file.name) {
@@ -79,10 +103,11 @@ struct LibraryView: View {
             }
             .buttonStyle(.plain)
         case .attachment(let file, _):
-            // Like its chat card, nothing to open on the phone: the agent reads it on the computer.
-            LibraryRow(title: file.name, detail: ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file)) {
-                symbol(AttachmentIcon.symbol(file.name))
-            }
+            Button { textAttachment = file } label: {
+                LibraryRow(title: file.name, detail: L10n.tr("You") + " · " + ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file)) {
+                    symbol(AttachmentIcon.symbol(file.name))
+                }
+            }.buttonStyle(.plain).disabled(!SharedFile.canPreview(name: file.name, size: file.size))
         }
     }
 
@@ -147,4 +172,10 @@ private struct LibraryRow<Leading: View>: View {
         }
         .contentShape(Rectangle())
     }
+}
+
+private struct LibraryTextFile: Identifiable {
+    let file: SharedFile
+    let entryId: String
+    var id: String { "\(entryId):\(file.id)" }
 }

@@ -95,3 +95,9 @@ What it opens goes to the browser by the Viewer's rule (`https`, `http` and `mai
 a click or Return/Space; cards open nothing.
 
 Not yet: public links (Grok Bot's "Anyone with the link"), deleting or pinning an artifact, artifacts in group chats.
+
+## Library file controls
+
+The Library's **All / Files** control filters its existing items; the count is the number of listed uploads and shared files. Supported small text files open the existing preview, including Markdown Read/Source, copy, wrap and retry. Shared-file download actions remain available. **Retry** refreshes the Library. Source detail labels distinguish uploaded files from files shared by the bot. The host bounds the listing to its existing newest 500 file-bearing messages.
+
+In the terminal Library, Enter opens a supported text file, `F` toggles Files filtering and `R` reloads; `f` still downloads and `r` still renames an artifact. Images retain each client's existing image viewer or terminal download behavior.

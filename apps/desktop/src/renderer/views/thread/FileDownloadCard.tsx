@@ -45,11 +45,11 @@ export function FileDownloadCard({ entry, file }: { entry: Entry; file: SharedFi
     <HStack gap={12}>
       <Icon name={attachmentSymbol(file.name)} size={24} color="var(--secondary)" />
       <VStack grow>
-        {openPreview && canPreview(file) ? <button className="file-preview-name" onClick={() => openPreview({ entry, file })} title={file.name}><Text as="span" size="subheadline" weight="semibold" truncate>{file.name}</Text></button> :
+        {openPreview && canPreview(file) ? <button className="file-preview-name" onClick={() => openPreview({ entryId: entry.id, botId: entry.botId, file })} title={file.name}><Text as="span" size="subheadline" weight="semibold" truncate>{file.name}</Text></button> :
           <Text as="div" size="subheadline" weight="semibold" truncate title={file.name}>{file.name}</Text>}
         <Text as="div" size="caption2" tone={state?.kind === 'failed' ? 'danger' : 'secondary'} role={state?.kind === 'failed' ? 'alert' : 'status'} className="file-card-detail">{detail}</Text>
       </VStack>
-      {openPreview && canPreview(file) ? <IconButtonBase title="Open" icon="doc.text" size={36} onClick={() => openPreview({ entry, file })} /> : null}
+      {openPreview && canPreview(file) ? <IconButtonBase title="Open" icon="doc.text" size={36} onClick={() => openPreview({ entryId: entry.id, botId: entry.botId, file })} /> : null}
       <IconButtonBase title={action} icon={busy ? 'xmark' : 'arrow.down.to.line'} size={36} onClick={() => busy ? store.fileDownloads.cancel(file.id) : void store.fileDownloads.save(store.client, entry.id, file)} />
     </HStack>
   </VStack>

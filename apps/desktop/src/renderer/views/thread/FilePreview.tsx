@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { Attachment, Entry, SharedFile } from '@shared/models'
+import type { Attachment, SharedFile } from '@shared/models'
 import { sha256Hex } from '../../../shared/files'
 import { IconButton } from '../../components/Controls'
 import { HStack } from '../../components/Stack'
@@ -9,12 +9,12 @@ import { useStore } from '../../store/context'
 import { MarkdownText } from './Markdown'
 import './sidechat.css'
 
-export type PreviewFile = { entry: Entry; file: SharedFile } | { botId: string; file: Attachment } | { botId: string; path: string }
+export type PreviewFile = { entryId: string; botId: string; file: SharedFile } | { botId: string; file: Attachment } | { botId: string; path: string }
 export const PreviewContext = createContext<((preview: PreviewFile) => void) | null>(null)
 export const useFilePreview = () => useContext(PreviewContext)
 export const previewKey = (preview: PreviewFile) => JSON.stringify('path' in preview
   ? [preview.botId, preview.path]
-  : 'entry' in preview ? [preview.entry.botId, preview.entry.id, preview.file.id] : [preview.botId, preview.file.id])
+  : 'entryId' in preview ? [preview.botId, preview.entryId, preview.file.id] : [preview.botId, preview.file.id])
 
 export function FilePreview({ preview, close }: { preview: PreviewFile; close: () => void }) {
   const store = useStore()
@@ -38,11 +38,11 @@ export function FilePreview({ preview, close }: { preview: PreviewFile; close: (
       setResult({ error: tr('Text previews are limited to 1 MiB. Download the file to open it.') })
       return () => { active = false }
     }
-    const dataPromise = 'entry' in preview ? store.sharedFileData(preview.file, preview.entry.id) : store.attachmentData(preview.file.id, preview.botId, preview.file.size)
+    const dataPromise = 'entryId' in preview ? store.sharedFileData(preview.file, preview.entryId) : store.attachmentData(preview.file.id, preview.botId, preview.file.size)
     void dataPromise.then(async (data) => {
       if (!active) return
       try {
-        if (!data || data.byteLength !== preview.file.size || ('entry' in preview && await sha256Hex(new Uint8Array(data)) !== preview.file.sha256)) throw new Error('invalid')
+        if (!data || data.byteLength !== preview.file.size || ('entryId' in preview && await sha256Hex(new Uint8Array(data)) !== preview.file.sha256)) throw new Error('invalid')
         if (!active) return
         const text = new TextDecoder('utf-8', { fatal: true }).decode(data)
         if (text.includes('\0')) throw new Error('binary')

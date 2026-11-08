@@ -14,7 +14,8 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, l: &Library) {
     let title = name_of(app, &l.bot);
     let inner = frame_box(buf, r, t.text, t.panel, Some((&title, t.text)));
     let inner = page_tabs(buf, inner, Page::Library);
-    match l.items.as_deref() {
+    let visible = l.visible();
+    match visible.as_deref() {
         None => {
             put(buf, inner.x, inner.y, inner.width, &tr("Loading…"), t.dim.patch(t.panel));
         }
@@ -49,7 +50,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, l: &Library) {
             }
         }
     }
-    footer(buf, inner, None, "↵ open an artifact in the browser · f save to Downloads · r rename · esc");
+    let count = l.items.as_ref().map_or(0, |items| {
+        items.iter().filter(|item| !matches!(item, LibraryItem::Artifact(_))).count()
+    });
+    let mode = if l.files_only { "Files" } else { "All" };
+    let help = format!("{mode} · {count} files · ↵ open · F filter · R retry · f download · r rename · esc");
+    footer(buf, inner, None, &help);
 }
 
 /// A row as the chat shows it: `▤ <title>` for an artifact, `▤ name · size` for a file.

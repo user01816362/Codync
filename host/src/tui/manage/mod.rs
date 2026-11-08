@@ -115,6 +115,7 @@ pub struct Library {
     pub bot: String,
     pub items: Option<Vec<LibraryItem>>,
     pub cursor: usize,
+    pub files_only: bool,
 }
 
 pub struct RoutineList {

@@ -4,8 +4,8 @@ Deliver improvements as feature batches, one commit per batch. Start the next im
 
 | Batch | Scope | State |
 | --- | --- | --- |
-| 1 | Existing text preview: Markdown Read/Source, copy, wrap, retry, clear errors; desktop, phones and terminal | Implemented; CI and interaction validation pending |
-| 2 | Conversation Files view backed by existing attachment/shared-file entries, sender and Show in chat | Planned |
+| 1 | Existing text preview: Markdown Read/Source, copy, wrap, retry, clear errors; desktop, phones and terminal | Desktop, iOS and host checks passed; packaging and interaction validation pending |
+| 2 | Extend the existing Library with Files filtering/counts, text previews, source labels and retry; retain downloads | Implemented; CI pending |
 | 3 | Structured file selections and phone quote parity through existing reply metadata | Planned |
 | 4 | Bounded PDF/audio/video preview adapters using existing authenticated transfers | Planned |
 | 5 | Read-only CSV/TSV tables; assess XLSX separately with decompression/cell limits | Planned |
@@ -29,3 +29,11 @@ The file remains read-only; HTML source is not executed. Retry grants no additio
 ## Validation
 
 Local dependency installation, builds and app/simulator launches are prohibited in this session. Source review and whitespace checks run locally; desktop type checking, iOS compilation and host checks run in GitHub Build. Android Actions remain disabled by request. Android changes receive source review but are not build-verified here. Keyboard, screen-reader, touch-selection and real-device interaction checks remain pending and must not be represented as passing because CI is green.
+
+## Batch 2 behavior
+
+The existing Library already indexes published artifacts, bot-shared files and user uploads. Batch 2 extends that view instead of creating a parallel Files store or index. All/Files filtering and counts refer to items returned by the existing Library API, not an unlimited disk inventory. The host currently examines at most the newest 500 file-bearing messages. Existing file and image authorization is unchanged.
+
+Supported text rows open the same preview as message cards. Shared-file downloads remain available alongside previews (desktop/Android) or in the row actions (iPhone). Images retain the existing image viewer. Unsupported binary files do not open in the text renderer. Retry reloads the Library through the same host API. File detail labels distinguish the bot's shared files from the user's uploads where that metadata is known.
+
+Terminal: Enter opens artifacts in the browser or supported text in the preview; `F` toggles All/Files, `R` reloads, `f` downloads and `r` renames an artifact. The existing terminal image behavior remains download-only. The Library is still reached through bot details; group Library navigation and Show in chat are not delivered by this batch. Those need coordinated navigation work rather than a duplicate sidebar or inferred sender metadata.

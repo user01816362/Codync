@@ -67,6 +67,14 @@ impl LibraryItem {
     }
 }
 
+impl Library {
+    pub fn visible(&self) -> Option<Vec<&LibraryItem>> {
+        self.items.as_ref().map(|items| {
+            items.iter().filter(|item| !self.files_only || !matches!(item, LibraryItem::Artifact(_))).collect()
+        })
+    }
+}
+
 impl App {
     pub fn open_library(&mut self) {
         let Some(b) = self.bot().filter(|b| !b.group) else {
@@ -75,7 +83,7 @@ impl App {
         };
         let bot = b.id.clone();
         self.sheet("library", json!({"botId": bot}), Reply::Library(bot.clone()));
-        self.overlays.push(Overlay::Library(Library { bot, items: None, cursor: 0 }));
+        self.overlays.push(Overlay::Library(Library { bot, items: None, cursor: 0, files_only: false }));
     }
 
     pub(in crate::tui) fn library_key(&mut self, mut l: Library, k: KeyEvent) -> Option<Overlay> {
@@ -83,8 +91,9 @@ impl App {
             self.open_page(page);
             return None;
         }
-        let n = l.items.as_ref().map_or(0, Vec::len);
-        let current = l.items.as_ref().and_then(|v| v.get(l.cursor)).cloned();
+        let visible = l.visible();
+        let n = visible.as_ref().map_or(0, Vec::len);
+        let current = visible.as_ref().and_then(|v| v.get(l.cursor)).copied().cloned();
         let bot = l.bot.clone();
         match (k.code, current) {
             (KeyCode::Esc | KeyCode::Char('q' | 'L'), _) => return None,
@@ -93,7 +102,23 @@ impl App {
             (KeyCode::Enter | KeyCode::Char('o'), Some(LibraryItem::Artifact(a))) => {
                 self.fetch_artifact(&bot, &a.id, ArtifactTo::Browser);
             }
-            (KeyCode::Enter | KeyCode::Char('o'), Some(_)) => self.flash("f saves it to Downloads"),
+            (KeyCode::Enter | KeyCode::Char('o'), Some(LibraryItem::File { entry, file, .. })) => {
+                self.overlays.push(Overlay::Library(l));
+                self.open_file_preview(&entry, &json!({"files": [file]}));
+                return None;
+            }
+            (KeyCode::Enter | KeyCode::Char('o'), Some(LibraryItem::Attachment { id, name, size, .. })) => {
+                self.overlays.push(Overlay::Library(l));
+                self.open_upload_preview(&bot, &json!({"attachments": [{"id": id, "name": name, "size": size}]}));
+                return None;
+            }
+            (KeyCode::Char('F'), _) => {
+                l.files_only = !l.files_only;
+                l.cursor = 0;
+            }
+            (KeyCode::Char('R'), _) => {
+                self.sheet("library", json!({"botId": bot}), Reply::Library(bot.clone()));
+            }
             (KeyCode::Char('f'), Some(item)) => self.save_item(&bot, item),
             (KeyCode::Char('r'), Some(LibraryItem::Artifact(a))) => {
                 self.overlays.push(Overlay::Library(l));
@@ -163,8 +188,9 @@ impl App {
             if let Overlay::Library(l) = o
                 && l.bot == bot
             {
-                l.cursor = l.cursor.min(items.len().saturating_sub(1));
                 l.items = Some(items.clone());
+                let count = l.visible().map_or(0, |items| items.len());
+                l.cursor = l.cursor.min(count.saturating_sub(1));
             }
         }
     }
@@ -249,7 +275,7 @@ mod tests {
         .expect("a card parses")
         .1;
         assert_eq!(app.artifact_title(&card).as_deref(), Some("Old"));
-        app.overlays.push(Overlay::Library(Library { bot: "bot".into(), items: None, cursor: 0 }));
+        app.overlays.push(Overlay::Library(Library { bot: "bot".into(), items: None, cursor: 0, files_only: false }));
         let file = json!({"id": "x", "name": "a.csv", "size": 9, "sha256": "0".repeat(64)});
         app.library_loaded(
             "bot",

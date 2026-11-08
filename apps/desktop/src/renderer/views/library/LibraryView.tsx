@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Artifact, LibraryItem } from '@shared/artifacts'
 import { isImageName, type Attachment, type SharedFile } from '@shared/models'
-import { DropdownMenu, IconButton } from '../../components/Controls'
+import { DropdownMenu, IconButton, Spinner, TabChoice } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
@@ -11,6 +11,8 @@ import { useScreenViewed } from '../../store/analytics'
 import { useStore } from '../../store/context'
 import { AttachmentImage, AttachmentViewer, attachmentSymbol, byteCount } from '../thread/Attachments'
 import { downloadAction, downloadDetail } from '../thread/FileDownloadCard'
+import { useFilePreview } from '../thread/FilePreview'
+import { canPreview } from '../../../shared/text-preview'
 import { artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
 
 /**
@@ -23,29 +25,40 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
   const [items, setItems] = useState<LibraryItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [viewing, setViewing] = useState<Attachment | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [attempt, setAttempt] = useState(0)
+  const [filter, setFilter] = useState<'all' | 'files'>('all')
   useScreenViewed('library')
   // Read again when the chat gets an artifact card or a file.
   const shared = store.allEntries(botId).filter((e) => e.data.artifact || e.data.files?.length || e.data.attachments?.length).length
   useEffect(() => {
     let live = true
+    setLoading(true)
+    setError(null)
     store.artifacts.library(store.client, botId).then(
       (items) => live && (setItems(items), setError(null)),
       (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
-    )
+    ).finally(() => { if (live) setLoading(false) })
     return () => {
       live = false
     }
-  }, [store, store.client, botId, shared])
+  }, [store, store.client, botId, shared, attempt])
+  const visible = filter === 'files' ? items.filter(item => item.kind !== 'artifact') : items
   return (
     <VStack gap={20}>
+      <HStack gap={8}>
+        <TabChoice label="Library items" selection={filter} options={[{ id: 'all', label: 'All' }, { id: 'files', label: 'Files' }]} onChange={setFilter} />
+        <Text size="caption" tone="secondary" grow>{items.filter(item => item.kind !== 'artifact').length} {tr('files')}</Text>
+        <IconButton title="Retry" icon="arrow.clockwise" disabled={loading} onClick={() => setAttempt(value => value + 1)} />
+      </HStack>
       {error ? <Text size="caption" tone="danger" role="alert">{error}</Text> : null}
-      {items.length === 0 ? (
+      {loading && items.length === 0 ? <Spinner /> : !error && visible.length === 0 ? (
         <VStack gap={4} className="outlined-card library-empty">
-          <Text size="callout" weight="semibold">{tr('Library is empty')}</Text>
+          <Text size="callout" weight="semibold">{tr(filter === 'files' ? 'No files shared in this chat' : 'Library is empty')}</Text>
           <Text size="callout" tone="secondary">{tr('Artifacts {name} makes and files shared in this chat show here.').replace('{name}', store.bots.get(botId)?.name ?? '')}</Text>
         </VStack>
       ) : (
-        libraryGroups(items).map(({ group, items }) => (
+        libraryGroups(visible).map(({ group, items }) => (
           <section key={group} className="details-section">
             <Text className="details-section-title">{tr(group)}</Text>
             <VStack gap={6}>
@@ -53,7 +66,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
                 item.kind === 'artifact' ? (
                   <ArtifactRow key={item.artifact.id} artifact={store.artifacts.byId.get(item.artifact.id) ?? item.artifact} open={() => openArtifact(item.artifact.id)} onError={setError} />
                 ) : item.kind === 'file' ? (
-                  <FileRow key={item.file.id} entryId={item.entryId} file={item.file} />
+                  <FileRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} />
                 ) : (
                   <AttachmentRow key={item.file.id} botId={botId} file={item.file} view={() => setViewing(item.file)} />
                 ),
@@ -122,33 +135,40 @@ function ArtifactRow({ artifact, open, onError }: { artifact: Artifact; open: ()
 }
 
 /** A file the bot shared: saved like its card in the chat. */
-function FileRow({ entryId, file }: { entryId: string; file: SharedFile }) {
+function FileRow({ botId, entryId, file }: { botId: string; entryId: string; file: SharedFile }) {
+  const openPreview = useFilePreview()
   const store = useStore()
   const state = store.fileDownloads.states.get(file.id)
   const busy = state?.kind === 'downloading'
+  const detail = `${store.bots.get(botId)?.name ?? ''} · ${downloadDetail(state, file)}`
   return (
     <Row
       leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}
       trailing={<IconButton title={downloadAction(state)} icon={busy ? 'xmark' : 'arrow.down.to.line'} onClick={() => (busy ? store.fileDownloads.cancel(file.id) : void store.fileDownloads.save(store.client, entryId, file))} />}
     >
-      <Name name={file.name} detail={downloadDetail(state, file)} failed={state?.kind === 'failed'} />
+      {openPreview && canPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, entryId, file })}>
+        <Name name={file.name} detail={detail} failed={state?.kind === 'failed'} />
+      </button> : <Name name={file.name} detail={detail} failed={state?.kind === 'failed'} />}
     </Row>
   )
 }
 
 /** A file the user sent: an image opens full size, like in the chat. */
 function AttachmentRow({ botId, file, view }: { botId: string; file: Attachment; view: () => void }) {
+  const openPreview = useFilePreview()
   if (!isImageName(file.name)) {
     return (
       <Row leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}>
-        <Name name={file.name} detail={byteCount(file.size)} />
+        {openPreview && canPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, file })}>
+          <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />
+        </button> : <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />}
       </Row>
     )
   }
   return (
     <Row leading={<AttachmentImage source={{ file, botId }} fit="icon" />}>
       <button className="library-row-open" onClick={view}>
-        <Name name={file.name} detail={byteCount(file.size)} />
+        <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />
       </button>
     </Row>
   )
