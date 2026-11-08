@@ -40,6 +40,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
   share: () => void
   close: () => void
 }) {
+  const tr = useTr()
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const group = !!bot && isGroup(bot)
