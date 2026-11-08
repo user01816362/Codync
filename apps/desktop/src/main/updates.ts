@@ -189,7 +189,7 @@ export class Updates extends EventEmitter<{ change: []; upToDate: []; setAutoChe
   }
 
   /** Checks, downloads, or once a release is staged, restarts into it. */
-  check() {
+  check(): void {
     if (!enabled) return
     if (this.state.staged) return void this.install(true)
     if (this.state.downloadPercent !== null) return
@@ -199,7 +199,7 @@ export class Updates extends EventEmitter<{ change: []; upToDate: []; setAutoChe
   }
 
   /** The sidebar's Update badge: restarts into the available release, downloading it first. */
-  installNow() {
+  installNow(): void {
     if (!enabled || !this.state.availableVersion) return
     if (this.state.staged) return void this.install(true)
     this.installWhenDownloaded = true
