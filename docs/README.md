@@ -3,6 +3,19 @@
 Current documentation describes the checked-out implementation. Index last checked against the tree: **2026-10-19**.
 Source review, a passing build, local integration tests and production acceptance are different checks; a feature documented here is not a claim that its deployed service has been verified.
 
+## This fork
+
+Fork documentation reviewed **2026-11-08**. Upstream product descriptions and installation
+commands do not necessarily describe the fork's distributed packages.
+
+| Task | Read |
+|---|---|
+| Install the fork, understand privacy and account differences, or sync upstream | [Fork guide](../FORK.md) |
+| Check rich-response implementation, platform limits and unrun validation | [Rich agent response audit](features/rich-agent-responses.md) |
+| Understand replies, selected passages and collaboration presentation | [Chat messages](features/chat-messages.md) |
+| Configure Tailscale, Cloudflare Tunnel or a private relay | [Fork remote-access guide](../web/content/docs/remote-access.mdx) |
+| Check releases and understand ad-hoc Mac installation limits | [Update guide](../web/content/docs/updates.mdx) |
+
 ## Start here
 
 | Task | Read |
