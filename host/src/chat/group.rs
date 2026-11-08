@@ -383,6 +383,21 @@ fn mentions(text: &str, handle: &str) -> bool {
     })
 }
 
+/// Prefer the configured display name, then its compact form; IDs only disambiguate real collisions.
+fn readable_mention(member: &BotConfig, members: &[BotConfig]) -> String {
+    let full = member.name.trim().to_owned();
+    let compact = member.name.split_whitespace().collect::<String>();
+    [full, compact]
+        .into_iter()
+        .find(|name| {
+            let mention = format!("@{name}");
+            !name.is_empty()
+                && !names_everyone(&mention)
+                && !members.iter().any(|other| other.id != member.id && names(&mention, other))
+        })
+        .unwrap_or_else(|| member.id.clone())
+}
+
 fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotConfig, lane: &Lane) -> Result<String> {
     let peers: Vec<&BotConfig> = members.iter().filter(|m| m.id != me.id).collect();
     let peer_names = if peers.is_empty() {
@@ -394,19 +409,21 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
     let room = if about.is_empty() { format!("\"{}\"", group.name) } else { format!("\"{}\" — {about}", group.name) };
     let mut out =
         vec![format!("You are {}, one participant in a group chat ({room}) with the user and {peer_names}.", me.name)];
+    out.push("Identify yourself by your configured name, never your engine or provider name.".into());
     if !peers.is_empty() {
         out.push("Other participants in the room:".into());
         for p in &peers {
             let about =
                 if p.description.trim().is_empty() { String::new() } else { format!(" ({})", p.description.trim()) };
-            out.push(format!("- {}{about}; exact mention: @{}", p.name, p.id));
+            let mention = readable_mention(p, members);
+            out.push(format!("- {}{about}; mention: @{mention}", p.name));
         }
     }
     out.push(format!(
         "You have your full toolkit here. Do the work first, then answer: your final reply of this turn is \
          the one message the room sees. Keep it short and conversational. After this round, only the \
          participants someone @-mentions answer again: @-mention another participant when you need their \
-         answer or action, and only then. Use the exact mention from the participant list when names overlap. Plain names do not notify anyone. The host limits a room turn to three rounds and ten replies; a mention is a request, not a delivery or read receipt. If you have nothing new worth adding, reply exactly \"{PASS}\". Never \
+         answer or action, and only then. Use the readable mention shown in the participant list, not a UUID or your engine/provider name. An ID is shown only when no name uniquely identifies that participant. Plain names do not notify anyone. The host limits a room turn to three rounds and ten replies; a mention is a request, not a delivery or read receipt. If you have nothing new worth adding, reply exactly \"{PASS}\". Never \
          reveal private one-on-one context. Reactions are rare: react(emoji, to) only where a person would, \
          never to a question or a request, `to` naming whose newest message (\"user\" or a participant). With \
          nothing to add, a reaction and \"{PASS}\" agrees without a message."

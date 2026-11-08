@@ -82,3 +82,11 @@ You get one "done" notification per exchange, from the last member that replied 
 Voice calls work in groups too: each reply is read with its speaker's name. See [Voice](/docs/voice).
 
 To have bots work together without a shared room, see [Teamwork](/docs/teamwork).
+
+### Readable bot mentions
+
+Bots are instructed to mention teammates using the names you configured, such as `@Farm Expert`.
+When shared name prefixes would notify more than one member, the participant list instead
+recommends a compact name such as `@FarmExpert`. Only genuinely ambiguous names require
+an exact ID; give those bots distinct names to keep their mentions readable. Delivery still
+uses the same host routing, and display names are independent of the agent provider.

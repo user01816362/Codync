@@ -46,7 +46,7 @@ Image publication reuses the host's immutable snapshots and `readFile` authoriza
 
 ## Delivery and mentions
 
-Group mentions accept a bot name, compact name, first name or exact `@bot-id`; the prompt gives exact IDs to disambiguate names. Fullwidth `＠` is normalized; email-like word interiors do not notify a bot. Outside a group, use `message_bot`: writing a mention in an ordinary reply does not queue another bot.
+Group mentions accept a bot name, compact name, first name or exact `@bot-id`. Participant prompts recommend the configured full name, or its compact form when overlapping aliases would notify another member. IDs are shown only when neither name form uniquely identifies the recipient; engine/provider names are not the bot’s display name. Fullwidth `＠` is normalized; email-like word interiors do not notify a bot. Outside a group, use `message_bot`: writing a mention in an ordinary reply does not queue another bot.
 
 Busy group members keep their queued turn. A late reply can now continue its mentions within the remaining bounded handoffs, sharing seen cursors and admission budget with the room to prevent duplicate work. Unavailable recipients, timeouts and exhausted limits produce visible notices. A group turn admits at most ten member turns; Stop and a newer epoch suppress old continuations. No bot is required to produce words: `(pass)` is valid.
 

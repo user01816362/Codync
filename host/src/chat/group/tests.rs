@@ -20,6 +20,24 @@ fn said(text: &str) -> Entry {
 }
 
 #[test]
+fn generated_mentions_prefer_readable_names_without_notifying_other_members() {
+    let members = [bot("a", "Farm Expert"), bot("b", "Farm Manager"), bot("c", "Design")];
+    assert_eq!(readable_mention(&members[0], &members), "FarmExpert");
+    assert_eq!(readable_mention(&members[2], &members), "Design");
+    for member in &members {
+        let text = format!("@{} please review", readable_mention(member, &members));
+        let recipients: Vec<_> = members.iter().filter(|other| names(&text, other)).map(|other| &other.id).collect();
+        assert_eq!(recipients, [&member.id]);
+    }
+    let unique = [bot("a", "Farm Expert"), bot("b", "Design")];
+    assert_eq!(readable_mention(&unique[0], &unique), "Farm Expert");
+    let duplicate = [bot("a", "Design"), bot("b", "design")];
+    assert_eq!(readable_mention(&duplicate[0], &duplicate), "a");
+    let reserved = [bot("a", "Everyone"), bot("b", "Design")];
+    assert_eq!(readable_mention(&reserved[0], &reserved), "a");
+}
+
+#[test]
 fn mentions_pick_responders_and_no_mention_means_everyone() {
     let members = [bot("a", "Alice Chen"), bot("b", "Bob"), bot("c", "尼采課")];
     let ids = |m: &[BotConfig], text: &str| -> Vec<String> {
