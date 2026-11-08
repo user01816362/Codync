@@ -45,23 +45,66 @@ struct Item {
     size: u64,
 }
 
-#[cfg(unix)]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn entries(directory: &std::fs::File) -> Result<(Vec<Item>, bool)> {
-    use std::os::fd::AsRawFd as _;
-    let base = if cfg!(target_os = "linux") { "/proc/self/fd" } else { "/dev/fd" };
-    let listing = std::fs::read_dir(format!("{base}/{}", directory.as_raw_fd())).context("listing workspace directory")?;
-    let mut rows = Vec::new();
-    let mut truncated = false;
-    for (index, entry) in listing.enumerate() {
-        if index >= 2000 { truncated = true; break; }
-        let entry = entry?;
-        let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
-        let kind = entry.file_type()?;
-        let kind = if kind.is_symlink() { "link" } else if kind.is_dir() { "directory" } else if kind.is_file() { "file" } else { "special" };
-        let size = if kind == "file" { entry.metadata()?.len() } else { 0 };
-        rows.push(Item { name, kind, size });
+    use std::ffi::CStr;
+    use std::os::fd::{AsRawFd as _, IntoRawFd as _};
+    struct Directory(*mut libc::DIR);
+    impl Drop for Directory {
+        fn drop(&mut self) {
+            // SAFETY: this guard owns the directory stream returned by fdopendir.
+            unsafe { libc::closedir(self.0) };
+        }
     }
-    Ok((rows, truncated))
+    let fd = directory.try_clone()?.into_raw_fd();
+    // SAFETY: fd is a new owned descriptor; successful fdopendir takes ownership.
+    let stream = unsafe { libc::fdopendir(fd) };
+    if stream.is_null() {
+        let error = std::io::Error::last_os_error();
+        // SAFETY: fdopendir did not take ownership on failure.
+        unsafe { libc::close(fd) };
+        return Err(error).context("listing workspace directory");
+    }
+    let stream = Directory(stream);
+    let mut rows = Vec::new();
+    for _ in 0..2000 {
+        // SAFETY: errno is thread-local; this blocking task does not yield between reset and readdir.
+        let (entry, error) = unsafe {
+            #[cfg(target_os = "macos")]
+            let errno = libc::__error();
+            #[cfg(target_os = "linux")]
+            let errno = libc::__errno_location();
+            *errno = 0;
+            let entry = libc::readdir(stream.0);
+            (entry, *errno)
+        };
+        if entry.is_null() {
+            ensure!(error == 0, "listing workspace directory: {}", std::io::Error::from_raw_os_error(error));
+            return Ok((rows, false));
+        }
+        // SAFETY: readdir returns a live NUL-terminated name until the next call on this stream.
+        let name = unsafe { CStr::from_ptr((*entry).d_name.as_ptr()) };
+        let Ok(text) = name.to_str() else { continue };
+        if !valid_name(text) { continue; }
+        let mut info = std::mem::MaybeUninit::<libc::stat>::uninit();
+        // SAFETY: the directory remains open, name is terminated, and info is writable.
+        let status = unsafe { libc::fstatat(directory.as_raw_fd(), name.as_ptr(), info.as_mut_ptr(), libc::AT_SYMLINK_NOFOLLOW) };
+        if status != 0 {
+            let error = std::io::Error::last_os_error();
+            if error.kind() == std::io::ErrorKind::NotFound { continue; }
+            return Err(error).context("reading directory entry");
+        }
+        // SAFETY: successful fstatat initialized the entire stat structure.
+        let info = unsafe { info.assume_init() };
+        let kind = match info.st_mode & libc::S_IFMT {
+            libc::S_IFLNK => "link",
+            libc::S_IFDIR => "directory",
+            libc::S_IFREG => "file",
+            _ => "special",
+        };
+        rows.push(Item { name: text.to_owned(), kind, size: info.st_size.max(0) as u64 });
+    }
+    Ok((rows, true))
 }
 
 #[cfg(windows)]
@@ -113,7 +156,7 @@ fn entries(directory: &std::fs::File) -> Result<(Vec<Item>, bool)> {
     }
 }
 
-#[cfg(not(any(unix, windows)))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
 fn entries(_directory: &std::fs::File) -> Result<(Vec<Item>, bool)> {
     anyhow::bail!("workspace browsing is unavailable on this host")
 }
