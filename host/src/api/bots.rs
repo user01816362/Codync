@@ -287,6 +287,21 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             json!({})
         }
         // A message of the user's waiting for its turn: handled now (`steer`) or taken back (`unqueue`).
+        "editQueued" => {
+            let (bot, id) = (str_arg(&b, "botId")?, str_arg(&b, "entryId")?);
+            let text = str_arg(&b, "text")?.trim();
+            anyhow::ensure!(!text.is_empty() && text.len() <= 64 * 1024, "enter between 1 and 65536 bytes");
+            let entry = hub.store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
+            anyhow::ensure!(entry.bot_id == bot && entry.kind == EntryKind::User.as_str(), "unknown message");
+            let (done, result) = tokio::sync::oneshot::channel();
+            hub.send_cmd(bot, Cmd::EditQueued { entry_id: id.to_owned(), text: text.to_owned(), done })?;
+            let answer = tokio::time::timeout(std::time::Duration::from_secs(10), result)
+                .await
+                .context("queued edit timed out")?
+                .context("queued edit interrupted")?;
+            answer?;
+            json!({})
+        }
         "steer" | "unqueue" => {
             let (bot, entry_id) = (str_arg(&b, "botId")?, str_arg(&b, "entryId")?.to_owned());
             let queued = hub

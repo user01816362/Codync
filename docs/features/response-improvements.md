@@ -11,7 +11,7 @@ Deliver improvements as feature batches, one commit per batch. Each completed ba
 | 4 | Bounded PDF/audio/video preview adapters using existing authenticated transfers | Planned |
 | 5 | Read-only CSV/TSV tables; assess XLSX separately with decompression/cell limits | Planned |
 | 6 | Read-only workspace directory navigation within host-authorized roots | Planned |
-| 7 | Edit queued messages and waiting reasons; host-owned reorder/pause where supported | Planned |
+| 7 | Queued-only text editing through the actor, preserving files/replies | Implemented; CI pending |
 | 8 | Session-bound reported context usage in bot details; reuse existing compaction state | Implemented; CI pending |
 | 9 | Inline math and diagram expansion/zoom with existing rendering bundles | Planned |
 | 10 | Incremental Markdown presentation and adapter-specific streaming finality | Planned |
@@ -46,3 +46,9 @@ On iPhone and Android, selecting a passage in an ordinary user or agent message 
 Desktop already uses this structured message-selection contract. Terminal selection still uses its existing source/quote flow; this batch adds no terminal-native selection interception. File excerpts and collaboration-sidechat selections remain a separate batch. Existing phone sidechat selection continues its previous draft behavior until that batch supplies a validated source-part contract.
 
 On iPhone a selected reply uses normal authenticated delivery instead of the older text-only mailbox contract, which cannot preserve the excerpt. An offline failure stays retryable with its reply metadata; the passage is never silently downgraded to a whole-message reply by the client. Android's pending-send body already travels intact through its delivery path and now includes selection metadata.
+
+## Queued editing
+
+Queue rows on desktop and phones offer Edit queued message. The terminal uses `e` on a queued message and its existing multiline field sheet. The host serializes the edit with dispatch: a message already taken from the queue is refused, without creating a replacement send. A timed-out request is skipped if the actor has not begun handling it. Text is bounded to 64 KiB and cannot be empty. Attachments and reply metadata remain attached. Because this editor does not track pasted substrings, edited text is conservatively marked as pasted for memory attribution.
+
+Group queue editing is not offered. An older host can reject the new method without losing the original message. Durable queue pause/reorder and richer host-reported waiting reasons remain separate work; Send now and Remove retain their existing behavior.

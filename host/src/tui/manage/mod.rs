@@ -27,7 +27,7 @@ mod when;
 
 pub use analytics::AnalyticsSheet;
 pub use dev_servers::{DevServer, DevServerSummary, DevServersSheet, LogsView, summary as dev_server_summary};
-pub use fields::{handoff_fields, section_fields};
+pub use fields::{handoff_fields, queued_fields, section_fields};
 pub use file_preview::FilePreviewSheet;
 pub use gear::{Gear, GearRow};
 pub use icons::icon_fields;
@@ -217,6 +217,7 @@ pub enum Submit {
     Import,
     /// A handoff card's text (the card's entry id).
     Handoff(String),
+    Queued { bot: String, entry: String },
     /// A bot's section (its id): a name, or empty for none.
     Section(String),
     /// A section's new name (its current one), or empty to remove it.

@@ -28,6 +28,11 @@ pub enum Cmd {
     Unqueue {
         entry_id: String,
     },
+    EditQueued {
+        entry_id: String,
+        text: String,
+        done: tokio::sync::oneshot::Sender<Result<()>>,
+    },
     BotRequest(crate::chat::team::BotRequest),
     /// How a request this bot sent came out: a turn of its own, with any others that arrive meanwhile.
     BotReply(crate::chat::team::BotReply),

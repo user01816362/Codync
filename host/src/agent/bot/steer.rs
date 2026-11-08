@@ -203,6 +203,22 @@ impl Actor {
         }
     }
 
+    /// Serialized with dispatch: a message already taken by the running turn cannot be edited here.
+    pub(super) fn edit_queued(&mut self, entry_id: &str, text: &str) -> Result<()> {
+        let at = self.queued_at(entry_id).ok_or_else(|| anyhow!("that message is no longer waiting"))?;
+        let mut entry = self.hub.store.entry(entry_id).ok_or_else(|| anyhow!("unknown message"))?;
+        anyhow::ensure!(entry.bot_id == self.cfg.id && entry.data["status"] == "queued", "message already dispatched");
+        entry.data["text"] = text.into();
+        // Conservative memory attribution: the queue editor does not track typed versus pasted substrings.
+        entry.data["pasted"] = json!([text]);
+        self.hub.set_entry(entry_id, &entry.data).ok_or_else(|| anyhow!("couldn't save the queued message"))?;
+        if let Some(Queued::User { text: queued, .. }) = self.queue.get_mut(at) {
+            *queued = text.to_owned();
+        }
+        self.hub.emit_bot(&self.cfg.id);
+        Ok(())
+    }
+
     /// Deletes the files of a message (its saved `data`) that never went out.
     fn delete_uploads(&self, data: &Value) {
         let ids: Vec<String> = data["attachments"]

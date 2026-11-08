@@ -22,6 +22,11 @@ impl Actor {
             Cmd::Steer { entry_id } => self.steer(entry_id).await,
             Cmd::Steered { entry_id, outcome } => self.steer_answered(&entry_id, &outcome, done_tx).await,
             Cmd::Unqueue { entry_id } => self.unqueue(&entry_id),
+            Cmd::EditQueued { entry_id, text, done } => {
+                if !done.is_closed() {
+                    let _ = done.send(self.edit_queued(&entry_id, &text));
+                }
+            }
             Cmd::Group(turn) => {
                 // The room asks again: this turn answers for any still waiting there.
                 self.queue.retain(|q| !matches!(q, Queued::Group(g) if g.lane == turn.lane));

@@ -5,6 +5,7 @@ import SwiftUI
 /// turn (`steer`) or taken back. An older computer has neither action, so the rows only show.
 struct QueuedMessages: View {
     let entries: [Entry]
+    @State private var editing: Entry?
     @Environment(BotStore.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,6 +30,7 @@ struct QueuedMessages: View {
                 withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { proxy.scrollTo(newest.id, anchor: .bottom) }
             }
         }
+        .codyncSheet(item: $editing) { QueuedMessageEditor(entry: $0) }
         .background(Palette.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .animation(Motion.reduced(Motion.layout, reduceMotion), value: entries.map(\.id))
@@ -44,6 +46,10 @@ struct QueuedMessages: View {
                 .padding(.vertical, model.supportsQueueActions ? 0 : 9)
             if model.supportsQueueActions {
                 Group {
+                    if model.bots[entry.botId]?.isGroup != true {
+                        IconButton("Edit queued message", systemImage: "pencil") { editing = entry }
+                            .disabled(model.answering[entry.id] != nil)
+                    }
                     IconButton("Send now", systemImage: "arrow.turn.down.right") { model.steer(entry) }
                     IconButton("Remove", systemImage: "trash") { model.unqueue(entry) }
                 }

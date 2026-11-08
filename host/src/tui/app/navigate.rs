@@ -280,6 +280,11 @@ impl App {
                     self.unfolded.insert(e.id);
                 }
             }
+            KeyCode::Char('e') if picked.as_ref().is_some_and(|e| e.data["status"] == "queued") => {
+                if let Some(e) = picked {
+                    self.overlays.push(Overlay::Fields(Box::new(crate::tui::manage::queued_fields(&id, &e))));
+                }
+            }
             KeyCode::Char('e') if picked.as_ref().is_some_and(super::Entry::editable) => {
                 if let Some(e) = picked {
                     self.start_editing(&e);

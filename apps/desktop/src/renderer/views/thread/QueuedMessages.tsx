@@ -8,6 +8,8 @@ import { Text } from '../../components/Text'
 import { afterExit } from '../../lib/exit-delay'
 import { messagePreview } from '../../lib/message-preview'
 import { useStore } from '../../store/context'
+import { Sheet } from '../../components/Overlay'
+import { QueuedMessageEditor } from './QueuedMessageEditor'
 import { ComposerReveal } from './Composer'
 import { canSteer, waitingMessages } from './queued-messages'
 import './queued-messages.css'
@@ -43,6 +45,7 @@ export function QueuedMessages({ botId }: { botId: string }) {
 function QueuedRow({ entry, leaving, actions }: { entry: Entry; leaving: boolean; actions: boolean }) {
   const store = useStore()
   const answering = store.answering.has(entry.id)
+  const [editing, setEditing] = useState(false)
   return (
     <div className="queued-row" role="listitem">
       <ComposerReveal open={!leaving}>
@@ -50,12 +53,16 @@ function QueuedRow({ entry, leaving, actions }: { entry: Entry; leaving: boolean
           <Text size="callout" tone="secondary" truncate grow>{messagePreview(quoteOf(entry).text)}</Text>
           {actions ? (
             <>
+              <IconButton title="Edit queued message" icon="pencil" size={26} disabled={answering || store.bots.get(entry.botId)?.kind === 'group'} onClick={() => setEditing(true)} />
               <IconButton title="Send now" icon="arrow.turn.down.right" size={26} disabled={answering} onClick={() => store.steer(entry)} />
               <IconButton title="Remove" icon="trash" size={26} disabled={answering} onClick={() => store.unqueue(entry)} />
             </>
           ) : null}
         </HStack>
       </ComposerReveal>
+      <Sheet open={editing} onClose={() => setEditing(false)} width={480}>
+        <QueuedMessageEditor entry={entry} />
+      </Sheet>
     </div>
   )
 }

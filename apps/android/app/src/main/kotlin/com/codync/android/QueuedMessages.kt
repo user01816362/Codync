@@ -53,6 +53,7 @@ internal val AppState.supportsQueueActions: Boolean
     // The card keeps its last rows while it folds away.
     var shown by remember { mutableStateOf(entries) }
     if (entries.isNotEmpty() && entries != shown) shown = entries
+    var editing by remember { mutableStateOf<Entry?>(null) }
     val actions = state.supportsQueueActions
     val scroll = rememberScrollState()
     val newest = entries.lastOrNull()
@@ -69,18 +70,20 @@ internal val AppState.supportsQueueActions: Boolean
         Column(Modifier.fillMaxWidth().clip(RoundedRectangle(18.dp)).background(Palette.surface).animateContentSize(Motion.layoutSize)
             .heightIn(max = 190.dp).verticalScroll(scroll).padding(vertical = 2.dp)) {
             for (entry in shown) key(entry.id) {
-                QueuedRow(entry, actions, steering = "steer:" + entry.id in state.busy, steer = { store.steer(entry) }, remove = { store.unqueue(entry) })
+                QueuedRow(entry, actions, steering = "steer:" + entry.id in state.busy, steer = { store.steer(entry) }, remove = { store.unqueue(entry) }, edit = { if (state.bots.firstOrNull { it.id == entry.botId }?.kind != "group") editing = entry })
             }
         }
     }
+    CodyncSheet(editing, { editing = null }) { QueuedMessageEditor(it, store) }
 }
 
-@Composable private fun QueuedRow(entry: Entry, actions: Boolean, steering: Boolean, steer: () -> Unit, remove: () -> Unit) {
+@Composable private fun QueuedRow(entry: Entry, actions: Boolean, steering: Boolean, steer: () -> Unit, remove: () -> Unit, edit: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(messagePreview(entry.replyQuote.text), Modifier.weight(1f).padding(vertical = if (actions) 0.dp else 9.dp),
             style = Type.subheadline, color = Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (actions) {
+            IconButton("Edit queued message", "pencil", enabled = !steering, action = edit)
             IconButton("Send now", "arrow.turn.down.right", enabled = !steering, action = steer)
             IconButton("Remove", "trash", enabled = !steering, action = remove)
         }

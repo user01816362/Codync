@@ -85,6 +85,13 @@ impl App {
                 );
             }
             Submit::Import => self.sheet("importConnectors", json!({"config": values["config"]}), Reply::FieldsSaved),
+            Submit::Queued { bot, entry } => {
+                self.sheet(
+                    "editQueued",
+                    json!({"botId": bot, "entryId": entry, "text": values["text"]}),
+                    Reply::FieldsSaved,
+                );
+            }
             Submit::Handoff(entry) => {
                 self.sheet("editHandoff", json!({"entryId": entry, "text": values["text"]}), Reply::FieldsSaved);
             }
@@ -149,4 +156,15 @@ pub fn section_fields(title: &str, note: String, current: Option<&str>, submit: 
         saving: false,
         submit,
     }
+}
+
+/// Uses the existing multiline field sheet, retaining a queued-only intent until Save.
+pub fn queued_fields(bot: &str, entry: &Entry) -> Fields {
+    let mut fields = handoff_fields(entry);
+    fields.title = "Edit queued message".into();
+    fields.note = "Saves only while waiting. Files and reply context stay attached. ⇧↵ new line, ↵ saves.".into();
+    fields.inputs[0].label = "Message".into();
+    fields.inputs[0].ed = Editor::with(entry.data["text"].as_str().unwrap_or_default());
+    fields.submit = Submit::Queued { bot: bot.to_owned(), entry: entry.id.clone() };
+    fields
 }
