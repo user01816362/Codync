@@ -14,6 +14,17 @@ extension BotStore {
         selectedReply = target
     }
 
+    func selectReply(_ exchange: BotExchange, text: String, part: String) {
+        guard part == "request" || part == "reply" else { return }
+        let passage = String(String.UnicodeScalarView(text.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars.prefix(4000)))
+        guard !passage.isEmpty else { return }
+        var data = EntryData()
+        data.selectedQuote = ReplyQuote(id: exchange.id, author: part == "reply" ? exchange.target : exchange.source,
+                                        text: passage, selected: true, part: part)
+        selectedReply = Entry(id: exchange.id, seq: exchange.seq, botId: exchange.chatId, rev: exchange.rev,
+                              kind: "notice", turn: 0, data: data, createdAt: exchange.createdAt, updatedAt: exchange.createdAt)
+    }
+
     func prependQuote(_ text: String, to botId: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         setComposerDraft(text + composerDraft(for: botId), for: botId)

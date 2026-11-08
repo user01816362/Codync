@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.codync.android.design.*
 
-internal data class QuoteSelectionTarget(val text: String, val author: String)
+internal data class QuoteSelectionTarget(val text: String, val author: String, val part: String? = null)
 
 /** Native selection and Copy handles; structured callers preserve message reply metadata. */
 @Composable internal fun QuoteSelectionSheet(target: QuoteSelectionTarget, structured: Boolean = false, quote: (String) -> Unit) {

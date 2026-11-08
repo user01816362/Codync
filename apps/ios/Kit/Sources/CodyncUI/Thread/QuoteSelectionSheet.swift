@@ -6,6 +6,7 @@ struct QuoteSelectionTarget: Identifiable {
     let id = UUID()
     let text: String
     let author: String
+    var part: String? = nil
 }
 
 /// A native selection surface preserves the exact selected source and the platform's Copy menu.

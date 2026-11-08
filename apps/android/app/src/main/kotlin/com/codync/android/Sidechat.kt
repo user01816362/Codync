@@ -116,13 +116,13 @@ import java.util.Date
         }
         if (expanded) {
         SelectionContainer { Text(exchange.text, Modifier.contextActions { listOf(MenuItem("Select text / Quote", icon = "arrowshape.turn.up.left") {
-            selection = QuoteSelectionTarget(exchange.text, name(exchange.source))
+            selection = QuoteSelectionTarget(exchange.text, name(exchange.source), "request")
         }) }, style = Type.body, color = Palette.text) }
         val reply = exchange.reply
         if (!reply.isNullOrEmpty()) {
             Text(tr("Reply from {name}").replace("{name}", name(exchange.target)), style = Type.footnote.semibold, color = Palette.secondary)
             SelectionContainer { Text(reply, Modifier.contextActions { listOf(MenuItem("Select text / Quote", icon = "arrowshape.turn.up.left") {
-                selection = QuoteSelectionTarget(reply, name(exchange.target))
+                selection = QuoteSelectionTarget(reply, name(exchange.target), "reply")
             }) }, style = Type.body, color = Palette.secondary) }
         }
         }
@@ -134,6 +134,9 @@ import java.util.Date
         Text(status, style = Type.footnote, color = if (exchange.outcome is BotExchange.Outcome.Failed) Palette.danger else Palette.tertiary)
     }
     CodyncSheet(selection, { selection = null }) { target ->
-        QuoteSelectionSheet(target) { text -> store.appendDraft(exchange.chatId, text); selection = null }
+        QuoteSelectionSheet(target, structured = true) { text ->
+            store.selectReply(exchange, text, target.part ?: "request")
+            selection = null
+        }
     }
 }

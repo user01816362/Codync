@@ -21,6 +21,15 @@ fun AppStore.selectReply(entry: Entry, text: String) {
     mutableState.update { it.copy(selectedReply = entry.botId to quote) }
 }
 
+fun AppStore.selectReply(exchange: BotExchange, text: String, part: String) {
+    if (part != "request" && part != "reply") return
+    val passage = buildString { text.trim().codePoints().limit(4000).forEach { appendCodePoint(it) } }
+    if (passage.isEmpty()) return
+    val quote = ReplyQuote(id = exchange.id, author = if (part == "reply") exchange.target else exchange.source,
+        text = passage, selected = true, part = part)
+    mutableState.update { it.copy(selectedReply = exchange.chatId to quote) }
+}
+
 fun AppStore.consumeSelectedReply() {
     mutableState.update { it.copy(selectedReply = null) }
 }
