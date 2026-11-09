@@ -182,29 +182,29 @@ impl App {
             }
             Ok(("decideGroupMail", json!({"mailId":row["id"],"approve":action == "approve","handler":resolve_owner()})))
         })();
-        if kind == "tasks" && action == "history" && fields.choice > 0 {
-            if let Some(events) = data["items"][fields.choice - 1]["data"]["groupTask"]["history"].as_array() {
-                let text = events
-                    .iter()
-                    .map(|event| {
-                        format!(
-                            "{} · {} · {}\n{}",
-                            event["at"],
-                            event["status"].as_str().unwrap_or_default(),
-                            event["owner"]
-                                .as_str()
-                                .and_then(|id| self.bots.get(id))
-                                .map_or("Unavailable owner", |bot| bot.name.as_str()),
-                            event["detail"].as_str().unwrap_or_default()
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n\n");
-                crate::tui::app::copy(&text);
-                fields.saving = false;
-                self.flash("Task history copied");
-                return;
-            }
+        if kind == "tasks" && action == "history" && fields.choice > 0
+            && let Some(events) = data["items"][fields.choice - 1]["data"]["groupTask"]["history"].as_array()
+        {
+            let text = events
+                .iter()
+                .map(|event| {
+                    format!(
+                        "{} · {} · {}\n{}",
+                        event["at"],
+                        event["status"].as_str().unwrap_or_default(),
+                        event["owner"]
+                            .as_str()
+                            .and_then(|id| self.bots.get(id))
+                            .map_or("Unavailable owner", |bot| bot.name.as_str()),
+                        event["detail"].as_str().unwrap_or_default()
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            crate::tui::app::copy(&text);
+            fields.saving = false;
+            self.flash("Task history copied");
+            return;
         }
         match result {
             Ok((method, body)) => self.sheet(method, body, Reply::DepartmentSaved { request_id: request_id.clone() }),

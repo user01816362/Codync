@@ -161,10 +161,10 @@ impl Actor {
     /// Queues `item`, and starts it right away when the bot is free.
     async fn enqueue(&mut self, item: Queued, done_tx: &mpsc::UnboundedSender<Done>) {
         self.queue.push_back(item);
-        if self.queue_paused() {
-            if let Err(error) = self.save_managed_queue() {
-                tracing::error!(%error, "couldn't persist paused queue");
-            }
+        if self.queue_paused()
+            && let Err(error) = self.save_managed_queue()
+        {
+            tracing::error!(%error, "couldn't persist paused queue");
         }
         if self.turn.is_none() {
             self.next_in_queue(done_tx).await;
@@ -186,16 +186,16 @@ impl Actor {
                 Queued::Group(turn) if turn.late => self.queue.push_back(Queued::Group(turn)),
                 Queued::User { entry_id, .. } => {
                     if let Some(mut e) = self.hub.store.entry(&entry_id) {
-                        if let Some(task) = e.data["taskId"].as_str() {
-                            if let Err(error) = crate::chat::tasks::finish(
+                        if let Some(task) = e.data["taskId"].as_str()
+                            && let Err(error) = crate::chat::tasks::finish(
                                 &self.hub,
                                 task,
                                 &entry_id,
                                 "failed",
                                 "Stopped by user before dispatch",
-                            ) {
-                                tracing::error!(%error, "couldn't save task cancellation");
-                            }
+                            )
+                        {
+                            tracing::error!(%error, "couldn't save task cancellation");
                         }
                         e.data["status"] = "cancelled".into();
                         self.hub.set_entry(&entry_id, &e.data);

@@ -194,12 +194,10 @@ impl Actor {
         let Some(at) = self.queued_at(entry_id) else { return };
         self.queue.remove(at);
         if let Some(mut e) = self.hub.store.entry(entry_id) {
-            if let Some(task) = e.data["taskId"].as_str() {
-                if let Err(error) =
-                    crate::chat::tasks::finish(&self.hub, task, entry_id, "failed", "Removed from queue")
-                {
-                    tracing::error!(%error, "couldn't record removed task");
-                }
+            if let Some(task) = e.data["taskId"].as_str()
+                && let Err(error) = crate::chat::tasks::finish(&self.hub, task, entry_id, "failed", "Removed from queue")
+            {
+                tracing::error!(%error, "couldn't record removed task");
             }
             e.data["status"] = json!(RequestStatus::Cancelled);
             e.data["removed"] = true.into();

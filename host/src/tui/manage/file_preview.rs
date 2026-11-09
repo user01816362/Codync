@@ -4,6 +4,7 @@ use std::cell::Cell;
 
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::Value;
+use sha2::{Digest as _, Sha256};
 
 use super::super::app::{App, Overlay};
 use super::ctrl;
@@ -195,7 +196,6 @@ impl App {
     fn push_file_preview(&mut self, name: String, request: PreviewRequest) {
         let id = uuid::Uuid::new_v4().to_string();
         self.request_preview(&request, &id);
-        use sha2::{Digest as _, Sha256};
         let key = crate::chat::files::digest_hex(&Sha256::digest(format!("{}:{request:?}", self.url).as_bytes()));
         let preference = preview_preferences().get(&key).copied().unwrap_or([false, true]);
         self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
