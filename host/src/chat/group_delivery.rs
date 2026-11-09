@@ -26,7 +26,10 @@ pub fn tools() -> Vec<Value> {
 }
 
 pub fn handles(name: &str) -> bool {
-    matches!(name, "list_chat_groups" | "read_group_messages" | "post_group_message" | "list_group_tasks" | "read_group_task")
+    matches!(
+        name,
+        "list_chat_groups" | "read_group_messages" | "post_group_message" | "list_group_tasks" | "read_group_task"
+    )
 }
 
 pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
@@ -59,7 +62,11 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
         return Ok(json!({"items":items,"truncated":entries.len() > 20,"limit":20}));
     }
     if name == "read_group_task" {
-        let entry = hub.store.entry(string(args, "taskId")?).filter(|entry| entry.bot_id == target.id && entry.data["groupTask"].is_object()).context("unknown group task")?;
+        let entry = hub
+            .store
+            .entry(string(args, "taskId")?)
+            .filter(|entry| entry.bot_id == target.id && entry.data["groupTask"].is_object())
+            .context("unknown group task")?;
         return Ok(json!({"groupId":target.id,"task":entry.data["groupTask"]}));
     }
     if name == "read_group_messages" {
