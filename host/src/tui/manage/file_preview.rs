@@ -16,6 +16,7 @@ pub struct FilePreviewSheet {
     pub scroll: usize,
     pub max_scroll: Cell<usize>,
     pub page: Cell<usize>,
+    preference_key: String,
     pub query: String,
     pub searching: bool,
     pub source: bool,
@@ -23,7 +24,7 @@ pub struct FilePreviewSheet {
     request: PreviewRequest,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum PreviewRequest {
     Directory { bot: String, path: String, hidden: bool },
     Workspace { bot: String, path: String },
@@ -194,6 +195,9 @@ impl App {
     fn push_file_preview(&mut self, name: String, request: PreviewRequest) {
         let id = uuid::Uuid::new_v4().to_string();
         self.request_preview(&request, &id);
+        use sha2::{Digest as _, Sha256};
+        let key = crate::chat::files::digest_hex(&Sha256::digest(format!("{}:{request:?}", self.url).as_bytes()));
+        let preference = preview_preferences().get(&key).copied().unwrap_or([false, true]);
         self.overlays.push(Overlay::FilePreview(FilePreviewSheet {
             id,
             name,
@@ -204,8 +208,9 @@ impl App {
             page: Cell::default(),
             query: String::new(),
             searching: false,
-            source: false,
-            wrap: true,
+            preference_key: key,
+            source: preference[0],
+            wrap: preference[1],
             request,
         }));
     }
@@ -303,11 +308,13 @@ impl App {
                 view.query.clear();
                 view.source = !view.source;
                 view.scroll = 0;
+                if let Err(error) = save_preview_preferences(&view) { self.flash(&format!("View changed; preference could not be saved: {error}")); }
             }
             KeyCode::Char('w') => {
                 view.query.clear();
                 view.wrap = !view.wrap;
                 view.scroll = 0;
+                if let Err(error) = save_preview_preferences(&view) { self.flash(&format!("View changed; preference could not be saved: {error}")); }
             }
             KeyCode::Char('c') => {
                 if let Some(directory) = &view.directory {
@@ -338,6 +345,25 @@ impl App {
         }
         Some(Overlay::FilePreview(view))
     }
+}
+
+const PREVIEW_PREFERENCES: &str = "tui-text-preview-preferences";
+
+fn preview_preferences() -> std::collections::BTreeMap<String, [bool; 2]> {
+    super::super::choice::read(PREVIEW_PREFERENCES)
+        .filter(|value| value.len() <= 65536)
+        .and_then(|value| serde_json::from_str(&value).ok())
+        .unwrap_or_default()
+}
+
+fn save_preview_preferences(view: &FilePreviewSheet) -> std::io::Result<()> {
+    let mut saved = preview_preferences();
+    if !saved.contains_key(&view.preference_key) && saved.len() >= 100 {
+        saved.pop_first();
+    }
+    saved.insert(view.preference_key.clone(), [view.source, view.wrap]);
+    let value = serde_json::to_string(&saved).map_err(std::io::Error::other)?;
+    super::super::choice::write(PREVIEW_PREFERENCES, &value)
 }
 
 #[cfg(test)]

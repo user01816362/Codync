@@ -10,7 +10,7 @@ use super::buffer::{centered, frame_box, put, u};
 use super::overlay::field_line;
 use super::style::theme;
 
-const HELP: [(&str, &str, &str); 79] = [
+const HELP: [(&str, &str, &str); 83] = [
     ("MOVE", "j k  ↑ ↓", "next / previous bot"),
     ("MOVE", "[ ]", "previous / next bot"),
     ("MOVE", "1…9", "jump to bot 1–9"),
@@ -21,6 +21,10 @@ const HELP: [(&str, &str, &str); 79] = [
     ("MOVE", "^d ^u", "half page down / up"),
     ("MOVE", "g G", "top / bottom"),
     ("CHAT", "i  ↵", "type a message"),
+    ("CHAT", "~", "pause / resume queued messages"),
+    ("CHAT", "( )", "move next queued message earlier / later"),
+    ("MANAGE", "O", "host storage and database compaction"),
+    ("GROUP", "^B ^T ^O ^P", "inbox / tasks / storage / custom icon in group settings"),
     ("CHAT", "y", "allow once"),
     ("CHAT", "a", "always allow"),
     ("CHAT", "n", "reject"),
