@@ -34,6 +34,19 @@ impl App {
 
     pub(super) fn group_key(&mut self, mut g: GroupForm, k: KeyEvent) -> Option<Overlay> {
         let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
+        if ctrl && !g.saving && let Some(id) = g.group_id.clone() {
+            let kind = match k.code { KeyCode::Char('b') => Some("inbox"), KeyCode::Char('t') => Some("tasks"), KeyCode::Char('o') => Some("storage"), _ => None };
+            if k.code == KeyCode::Char('p') && self.custom_icons {
+                self.overlays.push(Overlay::Group(g));
+                self.overlays.push(Overlay::Fields(Box::new(crate::tui::manage::icon_fields(format!("bot:{id}")))));
+                return None;
+            }
+            if let Some(kind) = kind {
+                self.overlays.push(Overlay::Group(g));
+                self.open_department(&id, kind);
+                return None;
+            }
+        }
         let n = self.group_candidates(&g.members).len();
         let about = g.group_id.is_some();
         match k.code {

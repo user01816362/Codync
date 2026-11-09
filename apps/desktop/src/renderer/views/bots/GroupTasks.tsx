@@ -22,7 +22,7 @@ export function GroupTasks({ group }: { group: Bot }) {
   useEffect(() => {
     let active = true
     if (!store.client) { setError('Computer is offline'); return }
-    void store.client.call<{ items: TaskEntry[] }>('groupTasks', { groupId: group.id }).then(value => { if (active) { setItems(value.items); setLoaded(true); setError(null) } }).catch((error: unknown) => { if (active) setError(String(error)) })
+    void store.client.call<{ items: TaskEntry[] }>('groupTasks', { groupId: group.id }).then(value => { if (active) { setItems(value.items); setLoaded(true) } }).catch((error: unknown) => { if (active) setError(String(error)) })
     return () => { active = false }
   }, [group.id, store.client, attempt])
   const run = async (method: string, body: object) => {
@@ -36,7 +36,7 @@ export function GroupTasks({ group }: { group: Bot }) {
     } catch (error: unknown) { setError(String(error)); setAttempt(value => value + 1) }
     finally { setBusy(false) }
   }
-  return <div className="sidechat"><ModalHeader title="Group tasks" subtitle={group.name} trailing={<IconButton title="Refresh tasks" icon="arrow.clockwise" onClick={() => setAttempt(value => value + 1)} />} />
+  return <div className="sidechat"><ModalHeader title="Group tasks" subtitle={group.name} trailing={<IconButton title="Refresh tasks" icon="arrow.clockwise" onClick={() => { setError(null); setAttempt(value => value + 1) }} />} />
     <div className="sidechat-scroll"><VStack gap={20}>
       <Text size="caption" tone="secondary">Assign work to a member. Attempts run in that bot’s chat. Pause waits for cancellation; resuming asks the bot to inspect previous work before continuing.</Text>
       <Field label="Task title"><input className="field-box" value={title} maxLength={160} disabled={busy} onChange={event => { setTitle(event.target.value); setRequestId(crypto.randomUUID()) }} /></Field>

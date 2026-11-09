@@ -25,7 +25,7 @@ import kotlinx.serialization.json.*
     var failure by remember(groupId) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(groupId, attempt) {
-        try { items = store.hostQuery("groupTasks", body("groupId" to groupId)).jsonObject["items"]?.jsonArray; failure = null }
+        try { items = store.hostQuery("groupTasks", body("groupId" to groupId)).jsonObject["items"]?.jsonArray }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message }
     }
@@ -46,7 +46,7 @@ import kotlinx.serialization.json.*
         put("taskId", entry.getValue("id")); put("revision", entry.getValue("rev")); put("action", action); owner?.let { put("owner", it) }
     })
     Column(Modifier.fillMaxSize()) {
-        ModalHeader("Group tasks") { IconButton("Refresh tasks", "arrow.clockwise", enabled = !busy) { attempt += 1 } }
+        ModalHeader("Group tasks") { IconButton("Refresh tasks", "arrow.clockwise", enabled = !busy) { failure = null; attempt += 1 } }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Text(tr("Attempts run in the owner's chat. Pause waits for cancellation; resume asks the bot to inspect earlier work first."), style = Type.caption, color = Palette.secondary)
             Field("Task title") { FieldBox(title, { if (!busy) { title = it; request = java.util.UUID.randomUUID().toString() } }, "Task title") }

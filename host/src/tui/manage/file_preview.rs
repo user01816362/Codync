@@ -255,15 +255,24 @@ impl App {
         }
         if view.searching {
             match key.code {
-                KeyCode::Esc => { view.searching = false; view.query.clear(); }
+                KeyCode::Esc => {
+                    view.searching = false;
+                    view.query.clear();
+                }
                 KeyCode::Enter => view.searching = false,
-                KeyCode::Backspace => { view.query.pop(); }
+                KeyCode::Backspace => {
+                    view.query.pop();
+                }
                 KeyCode::Char(c) if !ctrl(key) && view.query.chars().count() < 200 => view.query.push(c),
                 _ => {}
             }
             if let Some(Ok(text)) = &view.content {
                 let query = view.query.to_lowercase();
-                view.scroll = if query.is_empty() { 0 } else { text.lines().position(|line| line.to_lowercase().contains(&query)).unwrap_or(0) };
+                view.scroll = if query.is_empty() {
+                    0
+                } else {
+                    text.lines().position(|line| line.to_lowercase().contains(&query)).unwrap_or(0)
+                };
             }
             return Some(Overlay::FilePreview(view));
         }
@@ -279,8 +288,14 @@ impl App {
             KeyCode::Char('n') if !view.query.is_empty() => {
                 if let Some(Ok(text)) = &view.content {
                     let query = view.query.to_lowercase();
-                    let matches: Vec<usize> = text.lines().enumerate().filter_map(|(index, line)| line.to_lowercase().contains(&query).then_some(index)).collect();
-                    if let Some(next) = matches.iter().find(|index| **index > view.scroll).or_else(|| matches.first()) { view.scroll = *next; }
+                    let matches: Vec<usize> = text
+                        .lines()
+                        .enumerate()
+                        .filter_map(|(index, line)| line.to_lowercase().contains(&query).then_some(index))
+                        .collect();
+                    if let Some(next) = matches.iter().find(|index| **index > view.scroll).or_else(|| matches.first()) {
+                        view.scroll = *next;
+                    }
                     self.flash(&format!("{} matching lines", matches.len()));
                 }
             }

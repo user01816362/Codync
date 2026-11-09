@@ -9,6 +9,7 @@ mod agent;
 mod analytics;
 mod bot_chat;
 mod dev_servers;
+mod departments;
 mod fields;
 mod file_preview;
 mod gear;
@@ -53,6 +54,7 @@ pub const REACTIONS: [&str; 6] = ["👍", "❤️", "😂", "🎉", "👀", "✅
 /// Replies to the sheets' commands.
 #[derive(Clone)]
 pub enum Reply {
+    Department { group: String, kind: String, request_id: String },
     /// A dev server's log, by the server's id.
     DevServerLogs(String),
     Memory(String),
@@ -212,6 +214,7 @@ pub struct Input {
 }
 
 pub enum Submit {
+    Department { group: String, kind: String, data: Value, request_id: String },
     Icon(String),
     AgentEnv(String),
     Connection(Box<super::connections::Connection>),

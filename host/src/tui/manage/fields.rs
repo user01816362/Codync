@@ -29,6 +29,7 @@ impl App {
             KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if on_choice => {
                 f.choice = (f.choice + 1) % f.choices.len();
                 connector_inputs(&mut f);
+                super::departments::department_choice(&mut f);
                 super::super::connections::option_fields(&mut f);
             }
             _ => {
@@ -56,7 +57,12 @@ impl App {
             .collect();
         f.saving = true;
         f.error = None;
+        if matches!(f.submit, Submit::Department { .. }) {
+            self.submit_department(f, &values);
+            return;
+        }
         match &f.submit {
+            Submit::Department { .. } => unreachable!("department form handled above"),
             Submit::Icon(target) => {
                 let mut body = json!({"target": target, "tinted": f.choice == 1});
                 if f.choice == 2 {

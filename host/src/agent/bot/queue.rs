@@ -376,18 +376,25 @@ impl Actor {
                     if let Some(entry) = self.hub.store.entry(&entry_id)
                         && let Some(task) = entry.data["taskId"].as_str()
                     {
-                        let pending = self.hub.store.entry(task).is_some_and(|saved| {
-                            saved.data["groupTask"]["status"] == "queued"
-                                && saved.data["groupTask"]["runEntry"] == entry_id
-                                && self.hub.store.bot(&saved.bot_id).ok().flatten().is_some_and(|group| {
-                                    !group.deleted && group.config.members.contains(&self.cfg.id)
-                                })
-                        });
+                        let pending =
+                            self.hub.store.entry(task).is_some_and(|saved| {
+                                saved.data["groupTask"]["status"] == "queued"
+                                    && saved.data["groupTask"]["runEntry"] == entry_id
+                                    && self.hub.store.bot(&saved.bot_id).ok().flatten().is_some_and(|group| {
+                                        !group.deleted && group.config.members.contains(&self.cfg.id)
+                                    })
+                            });
                         if !pending {
                             let mut data = entry.data.clone();
                             data["status"] = "cancelled".into();
                             self.hub.set_entry(&entry_id, &data);
-                            if let Err(error) = crate::chat::tasks::finish(&self.hub, task, &entry_id, "failed", "Task paused or owner/group no longer available") {
+                            if let Err(error) = crate::chat::tasks::finish(
+                                &self.hub,
+                                task,
+                                &entry_id,
+                                "failed",
+                                "Task paused or owner/group no longer available",
+                            ) {
                                 tracing::error!(%error, "couldn't close unavailable task");
                             }
                             continue;

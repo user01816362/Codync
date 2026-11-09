@@ -17,6 +17,7 @@ impl App {
             }
         };
         match r {
+            Reply::Department {group,kind,request_id} => self.department_loaded(group,kind,request_id,v),
             Reply::Memory(bot) => {
                 for o in &mut self.overlays {
                     if let Overlay::Memory(m) = o
@@ -262,6 +263,11 @@ impl App {
 
     fn sheet_error(&mut self, r: &Reply, e: String) {
         match r {
+            Reply::Department {request_id,..} => {
+                if let Some(Overlay::Fields(fields)) = self.overlays.last_mut()
+                    && matches!(&fields.submit, Submit::Department {request_id: current,..} if current == request_id)
+                { fields.saving = false; fields.error = Some(e); }
+            }
             Reply::Models(backend) => {
                 self.models.insert(backend.clone(), Some(vec![]));
             }

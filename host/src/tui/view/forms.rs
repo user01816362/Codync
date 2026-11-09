@@ -444,10 +444,10 @@ pub(super) fn group_view(buf: &mut Buffer, area: Rect, app: &App, g: &GroupForm)
         false,
     );
     if about {
-        put(buf, inner.x, inner.y + 2, 8, "About", label(g.field == GroupField::About));
+        put(buf, inner.x, inner.y + 2, 19, "Group instructions", label(g.field == GroupField::About));
         input_line(
             buf,
-            Rect::new(inner.x + 8, inner.y + 2, inner.width.saturating_sub(8), 1),
+            Rect::new(inner.x + 19, inner.y + 2, inner.width.saturating_sub(19), 1),
             inner.y + 2,
             &g.about,
             "What this group works on (optional)",
@@ -494,7 +494,7 @@ pub(super) fn group_view(buf: &mut Buffer, area: Rect, app: &App, g: &GroupForm)
             inner.x,
             by - 1,
             inner.width,
-            tr("Everyone answers in turn unless you @mention someone.").as_ref(),
+            "^B Inbox · ^T Tasks · ^O Storage · ^P Icon",
             t.dim.patch(t.panel),
         );
     }

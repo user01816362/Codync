@@ -355,6 +355,7 @@ impl App {
                     }
                 }
             }
+            KeyCode::Char('O') => { let group = self.selected.clone().unwrap_or_default(); self.open_department(&group, "storage"); },
             KeyCode::Char('~') => self.control_queue("toggle"),
             KeyCode::Char('(') => self.control_queue("earlier"),
             KeyCode::Char(')') => self.control_queue("later"),

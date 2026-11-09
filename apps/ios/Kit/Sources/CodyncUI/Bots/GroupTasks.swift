@@ -17,7 +17,7 @@ struct GroupTasks: View {
     private var members: [Bot] { (model.bots[groupId]?.members ?? []).compactMap { model.bots[$0] } }
     var body: some View {
         VStack(spacing: 0) {
-            ModalHeader("Group tasks") { IconButton("Refresh tasks", systemImage: "arrow.clockwise") { attempt += 1 } }
+            ModalHeader("Group tasks") { IconButton("Refresh tasks", systemImage: "arrow.clockwise") { failure = nil; attempt += 1 } }
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Attempts run in the owner's chat. Pause waits for cancellation; resume asks the bot to inspect earlier work first.").font(.caption).foregroundStyle(Palette.secondary)
@@ -39,7 +39,7 @@ struct GroupTasks: View {
             guard let client = model.live else { failure = "Computer is offline"; return }
             do {
                 let response: Tasks = try await client.call("groupTasks", ["groupId": groupId])
-                if !Task.isCancelled { items = response.items; loaded = true; failure = nil; if owner.isEmpty { owner = members.first?.id ?? "" } }
+                if !Task.isCancelled { items = response.items; loaded = true; if owner.isEmpty { owner = members.first?.id ?? "" } }
             } catch { if !Task.isCancelled { failure = error.localizedDescription } }
         }
     }
