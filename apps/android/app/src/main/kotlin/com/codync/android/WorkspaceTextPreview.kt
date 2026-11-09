@@ -1,6 +1,8 @@
 package com.codync.android
 
 import androidx.compose.runtime.*
+import com.codync.android.design.LocalDismissModal
+import kotlinx.coroutines.launch
 import java.net.URI
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.jsonObject
@@ -15,6 +17,8 @@ internal fun workspaceLink(destination: String): String? = try {
 } catch (_: Exception) { null }
 
 @Composable internal fun WorkspaceTextPreview(botId: String, path: String, store: AppStore) {
+    val scope = rememberCoroutineScope()
+    val dismiss = LocalDismissModal.current
     var text by remember(botId, path) { mutableStateOf<String?>(null) }
     var name by remember(botId, path) { mutableStateOf(path.substringAfterLast('/')) }
     var failure by remember(botId, path) { mutableStateOf<String?>(null) }
@@ -29,5 +33,11 @@ internal fun workspaceLink(destination: String): String? = try {
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message ?: "Couldn't open this file." }
     }
-    TextPreviewBody("$botId:$path", name, text, failure, store) { attempt += 1 }
+    TextPreviewBody("$botId:$path", name, text, failure, store, quote = { selected ->
+        scope.launch {
+            try { store.selectWorkspaceReply(botId, path, selected); dismiss() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { store.showError(error) }
+        }
+    }) { attempt += 1 }
 }

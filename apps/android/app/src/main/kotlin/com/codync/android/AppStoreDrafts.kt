@@ -168,3 +168,9 @@ suspend fun AppStore.selectArtifactReply(botId: String, artifactId: String, text
     val quote = WireJson.decodeFromJsonElement<ReplyQuote>(result.getValue("quote"))
     mutableState.update { it.copy(selectedReply = result.getValue("chatId").jsonPrimitive.content to quote) }
 }
+
+suspend fun AppStore.selectWorkspaceReply(botId: String, path: String, text: String) {
+    val result = hostQuery("quoteWorkspaceFile", body("botId" to botId, "path" to path, "text" to text)).jsonObject
+    val quote = WireJson.decodeFromJsonElement<ReplyQuote>(result.getValue("quote"))
+    mutableState.update { it.copy(selectedReply = result.getValue("chatId").jsonPrimitive.content to quote) }
+}

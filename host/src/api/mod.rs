@@ -123,6 +123,9 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     if method == "decideGroupMail" {
         return crate::chat::group_mail::decide(hub, &b);
     }
+    if method == "quoteWorkspaceFile" {
+        return workspace_preview::quote(hub, &b).await;
+    }
     if method == "quoteArtifactSelection" {
         let bot = str_arg(&b, "botId")?;
         let artifact = crate::chat::artifacts::get(&hub.store, bot, str_arg(&b, "artifactId")?).ok_or_else(|| anyhow::anyhow!("unknown artifact"))?;

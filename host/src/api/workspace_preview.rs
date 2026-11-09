@@ -24,6 +24,32 @@ pub async fn read(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
     .await?
 }
 
+/// Capture a verified, bounded excerpt so later edits do not silently change its provenance.
+pub async fn quote(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
+    use sha2::{Digest as _, Sha256};
+    let preview = read(hub, body).await?;
+    let source = preview["text"].as_str().context("preview is unavailable")?;
+    let passage = str_arg(body, "text")?.trim();
+    ensure!(!passage.is_empty() && passage.chars().count() <= 4000, "select between 1 and 4000 characters");
+    let at = source.find(passage).context("select a literal passage in Source to quote this file accurately")?;
+    let digest = format!("{:x}", Sha256::digest(source.as_bytes()));
+    let chat = str_arg(body, "botId")?;
+    let path = str_arg(body, "path")?;
+    let identity = serde_json::to_vec(&json!([chat,path,digest,passage]))?;
+    let id = format!("workspace-quote:{:x}", Sha256::digest(&identity));
+    let mut snapshot = json!({"author":preview["botId"],"fileName":preview["name"],"workspacePath":path,"text":passage,"sha256":digest});
+    if source.rfind(passage) == Some(at) {
+        let start = source[..at].bytes().filter(|byte| *byte == b'\n').count() + 1;
+        snapshot["startLine"] = start.into();
+        snapshot["endLine"] = (start + passage.trim_end_matches('\n').bytes().filter(|byte| *byte == b'\n').count()).into();
+    }
+    let data = json!({"text":format!("Selected a passage from {}", preview["name"].as_str().unwrap_or("workspace file")),"workspaceQuote":snapshot});
+    let (entry, _) = hub.add_entry_once(&id, &crate::store::Lane::main(chat), crate::store::EntryKind::Notice, 0, &data)?;
+    let selected = json!({"text":passage,"part":"workspace"});
+    let quote = crate::chat::replies::selection(&hub.store, chat, &entry.id, &selected)?;
+    Ok(json!({"chatId":chat,"quote":quote}))
+}
+
 pub(super) fn roots(hub: &Hub) -> Result<Vec<(String, PathBuf)>> {
     Ok(hub
         .store

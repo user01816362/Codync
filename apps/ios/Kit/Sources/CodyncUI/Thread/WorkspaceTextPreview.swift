@@ -20,6 +20,8 @@ struct WorkspaceTextPreview: View {
     let botId: String
     let path: String
     @Environment(BotStore.self) private var model
+    @Environment(\.dismissModal) private var dismiss
+    @State private var quoteFailure: String?
     @State private var result: Response?
     @State private var failure: String?
     @State private var attempt = 0
@@ -29,9 +31,15 @@ struct WorkspaceTextPreview: View {
 
     var body: some View {
         let name = result?.name ?? (path as NSString).lastPathComponent
-        TextPreviewBody(preferenceId: "\(botId):\(path)", name: name, text: result?.text, failure: failure) {
+        TextPreviewBody(preferenceId: "\(botId):\(path)", name: name, text: result?.text, failure: quoteFailure ?? failure, quote: { text in
+            Task {
+                do { try await model.selectWorkspaceReply(botId: botId, path: path, text: text); dismiss() }
+                catch { quoteFailure = error.localizedDescription }
+            }
+        }) {
             attempt += 1
         }
+        .overlay(alignment: .bottom) { if let quoteFailure { Text(quoteFailure).font(.caption).foregroundStyle(Palette.danger).padding() } }
         .id("\(botId):\(path)")
         .task(id: "\(botId):\(path):\(attempt)") {
             result = nil

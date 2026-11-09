@@ -239,7 +239,7 @@ export interface ReplyQuote {
   endLine?: number
   /** A passage selected by the user, with the original message retained as its source. */
   selected?: boolean
-  part?: 'request' | 'reply' | `file:${string}` | `artifact:${string}`
+  part?: 'request' | 'reply' | `file:${string}` | `artifact:${string}` | 'workspace'
   id: string
   /** `user`, or the bot that wrote it. */
   author: string

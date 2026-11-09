@@ -155,7 +155,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | --- | --- |
 | Conversation files | Show in chat navigation, group Library navigation, a date/size-rich file inventory beyond the current bounded Library results |
 | Text preview | Delivered: literal case-insensitive search with numbered matching lines (first 100 shown); Read/Source and wrap preferences retained for up to 100 file identities on each device |
-| File selections | Library upload origins and file/artifact labels implemented. Saved-file selections require literal matching and integrity/size checks; unique passages receive verified line ranges. Live workspace quote origin remains in progress. |
+| File selections | Library upload origins and file/artifact labels implemented. Saved-file selections require literal matching and integrity/size checks; unique passages receive verified line ranges. Live workspace quotes now save a bounded verified excerpt with path, owner, hash and unique line ranges; later file edits do not replace the saved selection. |
 | Queue | Delivered: actor-serialized pause/resume and earlier/later ordering; managed user messages survive restart, with host-reported queue reason. Device interaction still needs validation. |
 | Context | Delivered: compact per-chat reported usage; compaction notices retain a reported before/after drop when received within 60 seconds. No token estimate is invented when the adapter reports none. |
 | Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |

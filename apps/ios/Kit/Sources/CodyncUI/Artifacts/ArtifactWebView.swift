@@ -31,7 +31,7 @@ struct ArtifactWebView: UIViewRepresentable {
         if selectionRequest > 0, coordinator.selectionRequest != selectionRequest, interactive {
             coordinator.selectionRequest = selectionRequest
             view.evaluateJavaScript("(window.getSelection()?.toString() || '').slice(0, 16000)") { result, _ in
-                onQuote?(String((result as? String ?? "").unicodeScalars.prefix(4000)))
+                onQuote?(String(String.UnicodeScalarView((result as? String ?? "").unicodeScalars.prefix(4000))))
             }
         }
         let origin = Self.origin(artifactId)

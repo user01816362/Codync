@@ -94,10 +94,10 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
       })()}
     </div>}
     {quoteError && <div role="alert">{quoteError}</div>}
-    <Bubble className="sidechat-scroll selectable" items={() => []} quote={sourceEntryId && 'file' in preview ? selected => {
+    <Bubble className="sidechat-scroll selectable" items={() => []} quote={('path' in preview || sourceEntryId && 'file' in preview) ? selected => {
       if (!store.client) { setQuoteError('Computer is offline'); return }
       const text = Array.from(selected.trim()).slice(0, 4000).join('')
-      void store.client?.call<{ chatId: string; quote: ReplyQuote }>('quoteFile', { entryId: sourceEntryId, fileId: preview.file.id, text }).then(value => {
+      void store.client?.call<{ chatId: string; quote: ReplyQuote }>('path' in preview ? 'quoteWorkspaceFile' : 'quoteFile', 'path' in preview ? { botId: preview.botId, path: preview.path, text } : { entryId: sourceEntryId, fileId: preview.file.id, text }).then(value => {
         quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part, value.quote)
         close()
       }).catch((error: unknown) => setQuoteError(error instanceof Error ? error.message : String(error)))
