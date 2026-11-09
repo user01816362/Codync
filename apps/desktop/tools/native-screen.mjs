@@ -18,6 +18,7 @@ const derived = join(repo, 'build/dd')
 execFileSync('xcodebuild', [
   'build', '-project', join(repo, 'apps/Codync.xcodeproj'), '-scheme', env === 'dev' ? 'Screen Dev' : 'Screen', '-configuration', configuration,
   '-destination', 'generic/platform=macOS', '-derivedDataPath', derived, '-quiet',
+  ...(process.env.CODYNC_SWIFT_PACKAGE_CACHE ? ['-packageCachePath', process.env.CODYNC_SWIFT_PACKAGE_CACHE] : []),
   'CODE_SIGN_IDENTITY=-', 'CODE_SIGNING_REQUIRED=NO', 'CODE_SIGNING_ALLOWED=NO',
 ], { stdio: 'inherit' })
 const out = join(root, `build/native/${name}.app`)

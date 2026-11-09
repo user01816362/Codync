@@ -17,7 +17,7 @@ packages:
     path: ios/Kit
   WebRTC:
     url: https://github.com/stasel/WebRTC
-    exactVersion: 153.0.0
+    exactVersion: 157.0.0
 configs:
   Debug: debug
   Release: release

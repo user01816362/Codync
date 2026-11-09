@@ -166,6 +166,7 @@ jobs:
 
       - name: Native pieces
         env:
+          CODYNC_SWIFT_PACKAGE_CACHE: ${{ runner.temp }}/swift-package-cache
           # The runner's Rust objcopy cannot load libLLVM. Use Apple's strip below.
           CARGO_PROFILE_RELEASE_STRIP: "none"
         run: |
