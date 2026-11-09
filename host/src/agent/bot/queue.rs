@@ -27,6 +27,12 @@ impl Actor {
                     let _ = done.send(self.edit_queued(&entry_id, &text));
                 }
             }
+            Cmd::QueueControl { action, entry_id, done } => {
+                if !done.is_closed() {
+                    let _ = done.send(self.control_queue(&action, entry_id.as_deref()));
+                    self.next_in_queue(done_tx).await;
+                }
+            }
             Cmd::Group(turn) => {
                 // The room asks again: this turn answers for any still waiting there.
                 self.queue.retain(|q| !matches!(q, Queued::Group(g) if g.lane == turn.lane));
@@ -147,6 +153,11 @@ impl Actor {
     /// Queues `item`, and starts it right away when the bot is free.
     async fn enqueue(&mut self, item: Queued, done_tx: &mpsc::UnboundedSender<Done>) {
         self.queue.push_back(item);
+        if self.queue_paused() {
+            if let Err(error) = self.save_managed_queue() {
+                tracing::error!(%error, "couldn't persist paused queue");
+            }
+        }
         if self.turn.is_none() {
             self.next_in_queue(done_tx).await;
         }
@@ -212,6 +223,12 @@ impl Actor {
         }
         let main = Lane::main(&self.cfg.id);
         while self.turn.is_none() && self.routine_completion.is_none() && !self.queue.is_empty() {
+            if self.queue_paused() && matches!(self.queue.front(), Some(Queued::User { .. })) {
+                let Some(at) = self.queue.iter().position(|item| !matches!(item, Queued::User { .. })) else { return };
+                if let Some(item) = self.queue.remove(at) {
+                    self.queue.push_front(item);
+                }
+            }
             match self.queue.front() {
                 Some(Queued::Routine(_)) => {
                     let Some(Queued::Routine(id)) = self.queue.pop_front() else { unreachable!("front is a routine") };

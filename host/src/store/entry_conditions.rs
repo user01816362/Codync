@@ -20,6 +20,16 @@ impl Store {
         Ok(Some(c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry)?))
     }
 
+    pub fn managed_queue(&self, bot: &str) -> Result<Vec<Entry>> {
+        let c = self.db.locked();
+        let mut query = c.prepare(&format!(
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = 'user'
+             AND json_extract(data, '$.status') = 'queued' AND json_extract(data, '$.durableQueue') = 1
+             ORDER BY COALESCE(json_extract(data, '$.queueOrder'), seq), seq"
+        ))?;
+        Ok(query.query_map([bot], row_entry)?.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn group_inbox(&self, group: &str) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut query = c.prepare(&format!(

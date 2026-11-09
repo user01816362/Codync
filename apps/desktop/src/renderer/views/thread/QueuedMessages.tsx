@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { hidingCalls } from '@shared/calls'
 import { isWorking, quoteOf, type Entry } from '@shared/models'
-import { IconButton } from '../../components/Controls'
+import { IconButton, Button } from '../../components/Controls'
 import { usePresence } from '../../components/Overlay'
 import { HStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
@@ -24,6 +24,21 @@ export function QueuedMessages({ botId }: { botId: string }) {
   const store = useStore()
   const bot = store.bots.get(botId)
   const waiting = waitingMessages(hidingCalls(store.allEntries(botId)), !!bot && isWorking(bot))
+  const [queueState, setQueueState] = useState<{ paused: boolean; reason: string } | null>(null)
+  const [queueError, setQueueError] = useState<string | null>(null)
+  const [controlling, setControlling] = useState(false)
+  const control = async (action: string, entryId?: string) => {
+    if (!store.client || controlling) return
+    setControlling(true)
+    try { setQueueState(await store.client.call('queueControl', { botId, action, entryId })); setQueueError(null) }
+    catch (error: unknown) { setQueueError(error instanceof Error ? error.message : String(error)) }
+    finally { setControlling(false) }
+  }
+  const signature = waiting.map(entry => `${entry.id}:${entry.data.queuePaused}:${entry.data.queueOrder}`).join(',')
+  useEffect(() => {
+    if (!waiting.length || bot?.kind === 'group') return
+    void control('state')
+  }, [botId, signature, store.client])
   const rows = useLeaving(waiting)
   const list = useRevealSent(waiting.at(-1), store.lastSentNonce)
   const tray = usePresence(waiting.length > 0, EXIT_MS)
@@ -32,9 +47,14 @@ export function QueuedMessages({ botId }: { botId: string }) {
   return (
     <div className={`queued-tray ${tray.shown ? 'shown' : ''}`} inert={waiting.length === 0}>
       <div>
+        {bot?.kind !== 'group' && <HStack gap={8}>
+          <Text size="caption" tone="secondary" grow>{queueState?.reason ?? 'Queued messages'}</Text>
+          <Button disabled={controlling} onClick={() => void control(queueState?.paused ? 'resume' : 'pause')}>{queueState?.paused ? 'Resume queue' : 'Pause queue'}</Button>
+        </HStack>}
+        {queueError && <Text role="alert" size="caption" tone="danger">{queueError}</Text>}
         <div ref={list} className="queued-list" role="list" aria-label="Queued messages">
           {rows.map(({ entry, leaving }) => (
-            <QueuedRow key={entry.id} entry={entry} leaving={leaving} actions={actions} />
+            <QueuedRow key={entry.id} entry={entry} leaving={leaving} actions={actions} reorder={bot?.kind === 'group' ? undefined : (action) => void control(action, entry.id)} disabled={controlling} />
           ))}
         </div>
       </div>
@@ -42,7 +62,7 @@ export function QueuedMessages({ botId }: { botId: string }) {
   )
 }
 
-function QueuedRow({ entry, leaving, actions }: { entry: Entry; leaving: boolean; actions: boolean }) {
+function QueuedRow({ entry, leaving, actions, reorder, disabled }: { entry: Entry; leaving: boolean; actions: boolean; reorder?: (action: string) => void; disabled: boolean }) {
   const store = useStore()
   const answering = store.answering.has(entry.id)
   const [editing, setEditing] = useState(false)
@@ -53,6 +73,7 @@ function QueuedRow({ entry, leaving, actions }: { entry: Entry; leaving: boolean
           <Text size="callout" tone="secondary" truncate grow>{messagePreview(quoteOf(entry).text)}</Text>
           {actions ? (
             <>
+              {reorder && <><IconButton title="Move earlier" icon="arrow.up" size={26} disabled={answering || disabled} onClick={() => reorder('earlier')} /><IconButton title="Move later" icon="arrow.down" size={26} disabled={answering || disabled} onClick={() => reorder('later')} /></>}
               <IconButton title="Edit queued message" icon="pencil" size={26} disabled={answering || store.bots.get(entry.botId)?.kind === 'group'} onClick={() => setEditing(true)} />
               <IconButton title="Send now" icon="arrow.turn.down.right" size={26} disabled={answering} onClick={() => store.steer(entry)} />
               <IconButton title="Remove" icon="trash" size={26} disabled={answering} onClick={() => store.unqueue(entry)} />

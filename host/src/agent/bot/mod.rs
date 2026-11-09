@@ -28,6 +28,7 @@ mod lifecycle;
 mod modes;
 mod pi_tools;
 mod queue;
+mod queue_controls;
 mod session;
 mod steer;
 mod stream;
@@ -412,6 +413,7 @@ impl Actor {
     /// `interrupted`: the previous host process stopped a turn in the bot's chat; resume it first.
     async fn run(mut self, mut rx: mpsc::UnboundedReceiver<Cmd>, interrupted: Option<Lane>) {
         self.recover_streams();
+        self.restore_managed_queue();
         let (done_tx, mut done_rx) = mpsc::unbounded_channel::<Done>();
         let mut flush_tick = tokio::time::interval(Duration::from_millis(300));
         if let Some(run) = self.hub.routines.recovery(&self.cfg.id) {

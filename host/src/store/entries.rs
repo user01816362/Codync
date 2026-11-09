@@ -392,7 +392,8 @@ impl Store {
             let c = self.db.locked();
             let mut st = c.prepare(
                 "SELECT id FROM entries WHERE (kind = 'permission' AND json_extract(data, '$.status') = 'pending')
-                  OR (kind = 'user' AND json_extract(data, '$.status') = 'queued')
+                  OR (kind = 'user' AND json_extract(data, '$.status') = 'queued'
+                      AND COALESCE(json_extract(data, '$.durableQueue'), 0) != 1)
                   OR (kind = 'notice' AND json_extract(data, '$.delegationId') IS NOT NULL
                       AND json_extract(data, '$.status') IN ('queued', 'sent'))",
             )?;

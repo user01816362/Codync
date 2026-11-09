@@ -156,7 +156,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | Conversation files | Show in chat navigation, group Library navigation, a date/size-rich file inventory beyond the current bounded Library results |
 | Text preview | Delivered: literal case-insensitive search with numbered matching lines (first 100 shown); Read/Source and wrap preferences retained for up to 100 file identities on each device |
 | File selections | Library-upload/live-workspace origins, filename labels in every reply bar, verified line ranges |
-| Queue | Host-reported wait reasons, durable pause/reorder operations |
+| Queue | Delivered: actor-serialized pause/resume and earlier/later ordering; managed user messages survive restart, with host-reported queue reason. Device interaction still needs validation. |
 | Context | Compact per-chat indicator and reported compaction before/after data; current readout is in bot details |
 | Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
 | Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
@@ -179,3 +179,13 @@ Custom group images reuse the existing bounded host image normalizer and icon sn
 Upload, URL, tint and reset are available in group settings. Icons are saved locally and
 sent to paired clients through existing authenticated state; Codync sign-in is not needed.
 An explicit cloudBackup API option retains the existing optional remote transport.
+
+## Managed queue controls
+
+Queue controls pause future user messages without cancelling the running turn. Earlier/later
+changes only the ordering of waiting user messages, preserving other kinds of scheduled work.
+Messages already being steered are refused. Pausing or reordering opts those waiting messages
+into durable recovery; untouched queues retain the existing restart-cancellation behavior.
+New messages sent to a paused queue are retained too. Stop still cancels pending user messages.
+Explicit Send now remains an override. Terminal: `~` toggles pause, `(`/`)` move the next user
+message earlier/later, and the paused marker is shown beside queued text.

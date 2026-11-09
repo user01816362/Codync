@@ -355,6 +355,9 @@ impl App {
                     }
                 }
             }
+            KeyCode::Char('~') => self.control_queue("toggle"),
+            KeyCode::Char('(') => self.control_queue("earlier"),
+            KeyCode::Char(')') => self.control_queue("later"),
             KeyCode::Char('S') => self.steer_next(),
             KeyCode::Char('D') => self.unqueue_last(),
             KeyCode::Char('*') => self.make_lead(),

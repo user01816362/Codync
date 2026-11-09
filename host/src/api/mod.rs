@@ -14,6 +14,7 @@ mod network;
 mod reach;
 mod remote;
 mod workspace_browser;
+mod queue_controls;
 mod workspace_preview;
 
 pub use events::{events_stream, term_events};
@@ -96,6 +97,9 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
         || matches!(method, "agentAuth" | "agentAuthenticate" | "setAgentEnv")
     {
         market::vault::unlock(hub.clone()).await?;
+    }
+    if method == "queueControl" {
+        return queue_controls::control(hub, &b).await;
     }
     if method == "groupInbox" {
         return crate::chat::group_mail::inbox(hub, str_arg(&b, "groupId")?);

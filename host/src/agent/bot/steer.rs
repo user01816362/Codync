@@ -213,7 +213,7 @@ impl Actor {
         entry.data["pasted"] = json!([text]);
         self.hub.set_entry(entry_id, &entry.data).ok_or_else(|| anyhow!("couldn't save the queued message"))?;
         if let Some(Queued::User { text: queued, .. }) = self.queue.get_mut(at) {
-            text.clone_into(queued);
+            *queued = crate::chat::prompt::of_entry(&self.hub, &self.cfg, &entry.data);
         }
         self.hub.emit_bot(&self.cfg.id);
         Ok(())

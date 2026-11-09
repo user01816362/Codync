@@ -11,7 +11,7 @@ impl App {
     /// `bot`'s queued messages, oldest (the next to go) first.
     pub fn queued(&self, bot: &str) -> Vec<&Entry> {
         let mut v: Vec<&Entry> = self.lane(bot).into_iter().filter(|e| e.queued()).collect();
-        v.sort_by_key(|e| e.seq);
+        v.sort_by_key(|e| e.data["queueOrder"].as_i64().unwrap_or(e.seq));
         v
     }
 
@@ -23,6 +23,17 @@ impl App {
     /// Whether the host takes `S` and `D`: an older one only queues.
     pub fn queue_keys(&self) -> bool {
         crate::compat::at_least(&self.host_version, STEER_SINCE)
+    }
+
+    /// Queue controls operate through the same actor as graphical clients.
+    pub(super) fn control_queue(&mut self, action: &str) {
+        let Some(bot) = self.selected.clone() else { return };
+        let Some(entry) = self.queued(&bot).first().copied() else { self.flash("No message waiting"); return };
+        let action = if action == "toggle" {
+            if entry.data["queuePaused"] == true { "resume" } else { "pause" }
+        } else { action };
+        let body = json!({"botId":bot,"entryId":entry.id,"action":action});
+        self.call("queueControl", body, After::Nothing);
     }
 
     /// `S`: the next queued message goes out now, into the running turn when the agent can take it.

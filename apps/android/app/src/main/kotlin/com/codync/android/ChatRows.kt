@@ -110,7 +110,7 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, busy: B
         if (run.isNotEmpty() && run.last().peerId != exchange.peerId) flush()
         run += exchange
     }
-    for (entry in if (busy) visible.filterNot(Entry::isQueued) else visible) {
+    for (entry in visible.filterNot { it.isQueued && (busy || it.data["queuePaused"]?.jsonPrimitive?.booleanOrNull == true) }) {
         val group = groups[entry.id]
         if (group == null) { show(entry); continue }
         // The chosen version and its answer, kept together where the message first was.

@@ -33,6 +33,11 @@ pub enum Cmd {
         text: String,
         done: tokio::sync::oneshot::Sender<Result<()>>,
     },
+    QueueControl {
+        action: String,
+        entry_id: Option<String>,
+        done: tokio::sync::oneshot::Sender<Result<Value>>,
+    },
     BotRequest(crate::chat::team::BotRequest),
     /// How a request this bot sent came out: a turn of its own, with any others that arrive meanwhile.
     BotReply(crate::chat::team::BotReply),

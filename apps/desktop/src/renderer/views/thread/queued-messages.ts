@@ -17,10 +17,10 @@ const waits = (e: Entry) => e.kind === 'user' && e.data.status === 'queued'
  * the chat. An idle bot takes its next message at once, so the chat keeps showing that one (no flicker).
  */
 export function waitingMessages(entries: Entry[], botWorking: boolean): Entry[] {
-  return botWorking ? entries.filter(waits) : []
+  return entries.filter(e => waits(e) && (botWorking || e.data.queuePaused)).sort((a, b) => (a.data.queueOrder ?? a.seq) - (b.data.queueOrder ?? b.seq))
 }
 
 /** The chat's entries without the ones the queue shows. */
 export function outsideQueue(entries: Entry[], botWorking: boolean): Entry[] {
-  return botWorking ? entries.filter((e) => !waits(e)) : entries
+  return entries.filter(e => !waits(e) || (!botWorking && !e.data.queuePaused))
 }

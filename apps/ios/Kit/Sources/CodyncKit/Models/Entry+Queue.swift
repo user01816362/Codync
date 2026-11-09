@@ -9,11 +9,11 @@ public extension Array where Element == Entry {
     /// While the bot works, the user's waiting messages show above the composer instead of in the chat (sent now
     /// with `steer`, taken back with `unqueue`), oldest first. A bot that isn't working starts them at once.
     func queue(working: Bool) -> [Entry] {
-        working ? filter(\.isQueued).sorted { $0.seq < $1.seq } : []
+        filter { $0.isQueued && (working || $0.data.queuePaused == true) }.sorted { ($0.data.queueOrder ?? Int($0.seq)) < ($1.data.queueOrder ?? Int($1.seq)) }
     }
 
     /// The chat without the messages `queue(working:)` shows above the composer.
     func hidingQueue(working: Bool) -> [Entry] {
-        working ? filter { !$0.isQueued } : self
+        filter { !$0.isQueued || (!working && $0.data.queuePaused != true) }
     }
 }

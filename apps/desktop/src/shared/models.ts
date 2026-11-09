@@ -348,6 +348,8 @@ export interface EntryData {
   final?: boolean
   streaming?: boolean
   /** user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired */
+  queuePaused?: boolean
+  queueOrder?: number
   status?: string
   /** user: taken back from the queue before it went out (`unqueue`); no view reads it (`withoutRemoved`). */
   removed?: boolean
