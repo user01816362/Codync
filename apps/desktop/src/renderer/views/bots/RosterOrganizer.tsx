@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BotAvatar, GroupAvatar } from '../../components/Avatar'
-import { Button, IconButton } from '../../components/Controls'
+import { Button, ChoicePicker, IconButton, SearchField } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { ModalHeader } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
@@ -43,10 +43,12 @@ export function RosterOrganizer({ store }: { store: BotStore }) {
       <VStack gap={16}>
         <Text size="caption" tone="secondary">Sections organize bots and group chats on this computer. They do not change group membership, files or permissions. Pinned chats remain above their sections.</Text>
         <Field label="Section">
-          <input className="field-box" aria-label="Section" list="roster-section-names" placeholder="Choose or name a section" value={section} disabled={busy} onChange={event => setSection(event.target.value)} />
-          <datalist id="roster-section-names">{sectionNames(store.bots.values()).map(name => <option key={name} value={name} />)}</datalist>
+          <input className="field-box" aria-label="Section" placeholder="Choose or name a section" value={section} disabled={busy} onChange={event => setSection(event.target.value)} />
+          {sectionNames(store.bots.values()).length > 0 && <fieldset disabled={busy} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+            <ChoicePicker selection={section} options={sectionNames(store.bots.values()).map(name => ({ id: name, label: name }))} onChange={name => { if (!busy) setSection(name) }} />
+          </fieldset>}
         </Field>
-        <input className="field-box" aria-label="Search chats" placeholder="Search chats" value={query} disabled={busy} onChange={event => setQuery(event.target.value)} />
+        <SearchField value={query} onChange={setQuery} prompt="Search chats" />
         <HStack gap={8}>
           <Button disabled={busy || selected.size === 0 || !section.trim()} onClick={() => void move(section.trim())}>Move selected</Button>
           <Button kind="secondary" disabled={busy || selected.size === 0} onClick={() => void move(null)}>Remove from section</Button>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { Bot } from '@shared/models'
-import { Button, IconButton, Spinner } from '../../components/Controls'
+import { Button, ChoicePicker, IconButton, Spinner } from '../../components/Controls'
 import { ModalHeader } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { Field } from './parts'
 import { errorText } from './drafts'
 
 interface MailItem {
@@ -33,12 +34,13 @@ export function GroupInbox({ group }: { group: Bot }) {
     }).catch((error: unknown) => { if (active) setError(errorText(error)) })
     return () => { active = false }
   }, [store.client, group.id, attempt])
+  const handlerFor = (id: string) => group.members.includes(handlers[id] ?? '') ? handlers[id]! : group.members[0] ?? ''
   const decide = async (item: MailItem, approve: boolean) => {
     if (!store.client || busy) return
     setBusy(item.id)
     setError(null)
     try {
-      await store.client.call('decideGroupMail', { mailId: item.id, approve, handler: handlers[item.id] ?? group.members[0] })
+      await store.client.call('decideGroupMail', { mailId: item.id, approve, handler: handlerFor(item.id) })
       setAttempt(value => value + 1)
     } catch (error: unknown) { setError(errorText(error)) }
     finally { setBusy(null) }
@@ -56,11 +58,11 @@ export function GroupInbox({ group }: { group: Bot }) {
           <Text as="div" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.mail.text}</Text>
           <Text size="caption" tone="secondary">{item.replied ? 'Replied' : item.delivered ? 'Delivered to handler' : item.mail.status === 'approved' ? 'Approved · delivery pending' : item.mail.status === 'rejected' ? 'Rejected' : 'Awaiting your approval'}</Text>
           {item.mail.status === 'pending' ? <>
-            <label><Text size="caption">Handler</Text>
-              <select className="field-box" aria-label="Handler" disabled={busy !== null} value={handlers[item.id] ?? group.members[0] ?? ''} onChange={event => setHandlers(value => ({ ...value, [item.id]: event.target.value }))}>
-                {group.members.map(id => <option key={id} value={id}>{store.bots.get(id)?.name ?? 'Unavailable member'}</option>)}
-              </select>
-            </label>
+            <Field label="Handler">
+              <fieldset disabled={busy !== null} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+                <ChoicePicker selection={handlerFor(item.id)} options={group.members.map(id => ({ id, label: store.bots.get(id)?.name ?? 'Unavailable member' }))} onChange={id => { if (busy === null) setHandlers(value => ({ ...value, [item.id]: id })) }} />
+              </fieldset>
+            </Field>
             <HStack gap={8}>
               <Button disabled={busy !== null || group.members.length === 0} onClick={() => void decide(item, true)}>Approve delivery</Button>
               <Button disabled={busy !== null} onClick={() => void decide(item, false)}>Reject</Button>

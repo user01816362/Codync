@@ -35,7 +35,7 @@ import kotlinx.serialization.json.*
             try {
                 store.hostQuery("decideGroupMail", buildJsonObject {
                     put("mailId", id); put("approve", approve)
-                    (handlers[id] ?: members.firstOrNull()?.id)?.let { put("handler", it) }
+                    (handlers[id]?.takeIf { chosen -> members.any { it.id == chosen } } ?: members.firstOrNull()?.id)?.let { put("handler", it) }
                 })
                 attempt += 1
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -65,11 +65,8 @@ import kotlinx.serialization.json.*
                     Text(tr(if (replied) "Replied" else if (delivered) "Delivered to handler" else if (status == "approved") "Approved · delivery pending" else if (status == "rejected") "Rejected" else "Awaiting your approval"), style = Type.caption, color = Palette.secondary)
                     if (status == "pending") {
                         Text(tr("Handler"), style = Type.caption, color = Palette.secondary)
-                        members.forEach { member ->
-                            LinkButton((if ((handlers[id] ?: members.firstOrNull()?.id) == member.id) "✓ " else "") + member.name) {
-                                if (busy == null) handlers = handlers + (id to member.id)
-                            }
-                        }
+                        ChoicePicker(handlers[id]?.takeIf { chosen -> members.any { it.id == chosen } } ?: members.firstOrNull()?.id.orEmpty(),
+                            members.map { it.id to it.name }, { chosen -> if (busy == null) handlers = handlers + (id to chosen) })
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SecondaryButton("Approve delivery", enabled = busy == null && members.isNotEmpty()) { decide(id, true) }
                             SecondaryButton("Reject", enabled = busy == null) { decide(id, false) }

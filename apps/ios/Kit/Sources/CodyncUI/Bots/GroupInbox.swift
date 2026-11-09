@@ -48,7 +48,7 @@ struct GroupInbox: View {
             Text(L10n.tr(item.replied ? "Replied" : item.delivered ? "Delivered to handler" : item.mail.status == "approved" ? "Approved · delivery pending" : item.mail.status == "rejected" ? "Rejected" : "Awaiting your approval"))
                 .font(.caption).foregroundStyle(Palette.secondary)
             if item.mail.status == "pending" {
-                Picker("Handler", selection: Binding(get: { handlers[item.id] ?? members.first?.id ?? "" }, set: { handlers[item.id] = $0 })) {
+                Picker("Handler", selection: Binding(get: { handler(for: item.id) }, set: { handlers[item.id] = $0 })) {
                     ForEach(members) { Text($0.name).tag($0.id) }
                 }.disabled(busy != nil)
                 HStack {
@@ -62,6 +62,11 @@ struct GroupInbox: View {
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private func handler(for id: String) -> String {
+        if let chosen = handlers[id], members.contains(where: { $0.id == chosen }) { return chosen }
+        return members.first?.id ?? ""
+    }
+
     private func decide(_ item: MailItem, approve: Bool) {
         guard busy == nil, let client = model.live else { return }
         busy = item.id
@@ -69,7 +74,7 @@ struct GroupInbox: View {
         Task {
             defer { busy = nil }
             do {
-                let _: Decision = try await client.call("decideGroupMail", Approval(mailId: item.id, approve: approve, handler: handlers[item.id] ?? members.first?.id))
+                let _: Decision = try await client.call("decideGroupMail", Approval(mailId: item.id, approve: approve, handler: handler(for: item.id)))
                 attempt += 1
             } catch { failure = error.localizedDescription }
         }

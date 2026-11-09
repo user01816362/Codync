@@ -14,7 +14,9 @@ impl Store {
             "UPDATE entries SET rev = ?3, data = ?4, updated_at = ?5 WHERE id = ?1 AND rev = ?2",
             params![id, expected, rev, data.to_string(), now_ms()],
         )?;
-        if changed == 0 { return Ok(None); }
+        if changed == 0 {
+            return Ok(None);
+        }
         Ok(Some(c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry)?))
     }
 
@@ -38,12 +40,20 @@ mod tests {
     #[test]
     fn only_one_client_can_decide_the_same_pending_request() {
         let store = Store::open(std::path::Path::new(":memory:")).expect("store");
-        let pending = store.insert_entry(&Lane::main("group"), EntryKind::Notice, 0,
-            &json!({"groupMail":{"direction":"incoming","status":"pending"}})).expect("pending mail");
+        let pending = store
+            .insert_entry(
+                &Lane::main("group"),
+                EntryKind::Notice,
+                0,
+                &json!({"groupMail":{"direction":"incoming","status":"pending"}}),
+            )
+            .expect("pending mail");
         let approved = json!({"groupMail":{"direction":"incoming","status":"approved","handler":"a"}});
         let rejected = json!({"groupMail":{"direction":"incoming","status":"rejected"}});
         assert!(store.update_entry_if_revision(&pending.id, pending.rev, &approved).expect("approve").is_some());
-        assert!(store.update_entry_if_revision(&pending.id, pending.rev, &rejected).expect("stale rejection").is_none());
+        assert!(
+            store.update_entry_if_revision(&pending.id, pending.rev, &rejected).expect("stale rejection").is_none()
+        );
         assert_eq!(store.entry(&pending.id).expect("saved mail").data, approved);
     }
 
@@ -51,8 +61,14 @@ mod tests {
     fn pending_mail_stays_out_of_group_prompts_and_other_inboxes() {
         let store = Store::open(std::path::Path::new(":memory:")).expect("store");
         let lane = Lane::main("group");
-        let pending = store.insert_entry(&lane, EntryKind::Notice, 0,
-            &json!({"text":"private external request","groupMail":{"direction":"incoming","status":"pending"}})).expect("pending mail");
+        let pending = store
+            .insert_entry(
+                &lane,
+                EntryKind::Notice,
+                0,
+                &json!({"text":"private external request","groupMail":{"direction":"incoming","status":"pending"}}),
+            )
+            .expect("pending mail");
         store.insert_entry(&lane, EntryKind::Notice, 0, &json!({"text":"ordinary notice"})).expect("notice");
         assert!(store.messages_after(&lane, 0, 24).expect("group prompt messages").is_empty());
         let inbox = store.group_inbox("group").expect("inbox");
