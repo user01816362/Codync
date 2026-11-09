@@ -147,3 +147,24 @@ survives as a saved chat entry; scheduling is not a durable exactly-once executi
 The current inbox does not support attachments, multiple replies, forwarding chains,
 automatic bot approvals or standalone department address books. Terminal users can see mail
 notices but do not yet have an interactive inbox approval sheet.
+
+## Remaining recommendation gaps
+
+| Recommendation | What is still missing |
+| --- | --- |
+| Conversation files | Show in chat navigation, group Library navigation, a date/size-rich file inventory beyond the current bounded Library results |
+| Text preview | Find-in-file and persistent per-file view preferences |
+| File selections | Library-upload/live-workspace origins, filename labels in every reply bar, verified line ranges |
+| Queue | Host-reported wait reasons, durable pause/reorder operations |
+| Context | Compact per-chat indicator and reported compaction before/after data; current readout is in bot details |
+| Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
+| Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
+| Optional task lifecycle | Persistent task ownership, pause/resume/reassign and task history |
+| Optional identity | Group custom-icon override; current group avatar remains the member composite |
+| Optional storage | Host-owned disk/storage inventory and safe cleanup semantics |
+| Optional artifact interaction | Validated artifact-selection-to-reply bridge |
+| Validation | Actual app selection/focus, keyboard, screen-reader, reduced-motion and large-content checks |
+
+These are not claimed complete by a green build. PDF/media decoding varies by platform;
+CSV/TSV tables are bounded and do not imply XLSX support. Existing sidebar sections are
+organization only. No dock, account catalog or floating shell is part of these batches.
