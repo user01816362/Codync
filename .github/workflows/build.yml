@@ -39,6 +39,14 @@ jobs:
         working-directory: host
         run: cargo fmt --all --check
 
+      - uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/swift-package-cache/artifacts
+          key: ${{ runner.os }}-webrtc-api-v1-${{ hashFiles('apps/ios/Kit/Package.swift') }}
+
+      - name: Cache the verified WebRTC archive
+        run: python3 .github/scripts/cache-webrtc.py "$RUNNER_TEMP/swift-package-cache"
+
       - name: Install desktop dependencies
         working-directory: apps/desktop
         run: npm ci
@@ -152,7 +160,7 @@ jobs:
         working-directory: apps/ios/Kit
         run: >-
           xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
-          -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
+          -derivedDataPath build/dd -packageCachePath "$RUNNER_TEMP/swift-package-cache" CODE_SIGNING_ALLOWED=NO build
 
       - name: Native pieces
         env:

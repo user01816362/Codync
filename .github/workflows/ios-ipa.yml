@@ -33,12 +33,20 @@ jobs:
           command -v xcodegen >/dev/null || brew install xcodegen
           xcodegen generate --spec apps/project.yml
 
+      - uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/swift-package-cache/artifacts
+          key: ${{ runner.os }}-webrtc-api-v1-${{ hashFiles('apps/ios/Kit/Package.swift') }}
+
+      - name: Cache the verified WebRTC archive
+        run: python3 .github/scripts/cache-webrtc.py "$RUNNER_TEMP/swift-package-cache"
+
       - name: Build the iOS app (unsigned)
         working-directory: apps
         run: |
           xcodebuild -project Codync.xcodeproj -scheme iOS -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
-            -derivedDataPath build/dd \
+            -derivedDataPath build/dd -packageCachePath "$RUNNER_TEMP/swift-package-cache" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
             build
 
