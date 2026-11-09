@@ -475,8 +475,6 @@ impl Actor {
             }
         }
     }
-
-
 }
 
 /// A finished turn alerts once the user's work is done: not when it's `quiet` (their next message

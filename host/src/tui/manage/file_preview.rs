@@ -308,13 +308,17 @@ impl App {
                 view.query.clear();
                 view.source = !view.source;
                 view.scroll = 0;
-                if let Err(error) = save_preview_preferences(&view) { self.flash(&format!("View changed; preference could not be saved: {error}")); }
+                if let Err(error) = save_preview_preferences(&view) {
+                    self.flash(&format!("View changed; preference could not be saved: {error}"));
+                }
             }
             KeyCode::Char('w') => {
                 view.query.clear();
                 view.wrap = !view.wrap;
                 view.scroll = 0;
-                if let Err(error) = save_preview_preferences(&view) { self.flash(&format!("View changed; preference could not be saved: {error}")); }
+                if let Err(error) = save_preview_preferences(&view) {
+                    self.flash(&format!("View changed; preference could not be saved: {error}"));
+                }
             }
             KeyCode::Char('c') => {
                 if let Some(directory) = &view.directory {
