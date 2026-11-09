@@ -72,7 +72,12 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
     let entry = mail(hub, string(args, "mailId")?)?;
     let data = &entry.data["groupMail"];
     let destination = group(hub, &entry.bot_id)?;
-    ensure!(data["senderBot"] == bot || destination.members.contains(&sender.id), "this mail is not addressed to you");
+    let source = string(data, "sourceChat")?;
+    let origin = hub.store.bot(source)?.filter(|row| !row.deleted);
+    let source_member = origin.as_ref().is_some_and(|row| {
+        row.config.id == sender.id || (row.config.is_group() && row.config.members.contains(&sender.id))
+    });
+    ensure!(source_member || destination.members.contains(&sender.id), "this mail is not addressed to you");
     if name == "get_group_mail" {
         return Ok(json!({"mailId":entry.id,"groupId":entry.bot_id,"mail":data,
             "reply":hub.store.entry(&format!("{}:reply", entry.id)).map(|entry| entry.data)}));
@@ -83,8 +88,7 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
     );
     ensure!(hub.store.entry(&format!("{}:delivery", entry.id)).is_some(), "mail has not been delivered yet");
     let text = body(args)?;
-    let source = string(data, "sourceChat")?;
-    let source_row = hub.store.bot(source)?.filter(|row| !row.deleted).context("source conversation is unavailable")?;
+    let source_row = origin.context("source conversation is unavailable")?;
     let display =
         format!("Reply from {} · {}\n\n{text}", destination.name, data["subject"].as_str().unwrap_or_default());
     let reply = json!({"text":display,"final":true,"author":sender.id,"groupPost":{"mailId":entry.id,"sourceChat":destination.id},"mailReply":text});
@@ -99,15 +103,21 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
         saved.bot_id == source && saved.data["mailReply"] == text,
         "this mail already has a different department reply"
     );
+    let mut followup_scheduled = None;
     if added {
         if source_row.config.is_group() {
             super::group::start(hub, &source_row.config, Lane::main(source));
+            followup_scheduled = Some(true);
         } else {
-            hub.send_cmd(source, Cmd::Prompt { text:format!("[Codync: department mail {} received a reply from {}. Continue the user's task; no reply back is required.]\n{text}", entry.id, destination.name), call:None })?;
+            let notified = hub.send_cmd(source, Cmd::Prompt { text:format!("[Codync: department mail {} received a reply from {}. Continue the user's task; no reply back is required.]\n{text}", entry.id, destination.name), call:None });
+            if let Err(error) = &notified {
+                tracing::warn!(mail = %entry.id, %error, "department reply saved, but sender could not be notified");
+            }
+            followup_scheduled = Some(notified.is_ok());
         }
         hub.emit_bot(source);
     }
-    Ok(json!({"status":"delivered","entryId":saved.id,"duplicate":!added}))
+    Ok(json!({"status":"delivered","entryId":saved.id,"duplicate":!added,"followupScheduled":followup_scheduled}))
 }
 
 pub fn inbox(hub: &Hub, group_id: &str) -> Result<Value> {
@@ -210,8 +220,19 @@ mod tests {
     #[test]
     fn nonmembers_can_submit_mail_but_cannot_read_or_post_to_the_group() {
         let hub = hub();
-        assert!(super::super::group_delivery::call(&hub, "sender", "read_group_messages", &json!({"groupId":"department"})).is_err());
-        assert!(super::super::group_delivery::call(&hub, "sender", "post_group_message", &json!({"groupId":"department","text":"hello","requestId":"p1"})).is_err());
+        assert!(
+            super::super::group_delivery::call(&hub, "sender", "read_group_messages", &json!({"groupId":"department"}))
+                .is_err()
+        );
+        assert!(
+            super::super::group_delivery::call(
+                &hub,
+                "sender",
+                "post_group_message",
+                &json!({"groupId":"department","text":"hello","requestId":"p1"})
+            )
+            .is_err()
+        );
         let args = json!({"groupId":"department","subject":"Question","text":"Please advise","requestId":"mail1"});
         let sent = call(&hub, "sender", "send_group_mail", &args).expect("submit");
         let again = call(&hub, "sender", "send_group_mail", &args).expect("retry");
@@ -228,7 +249,13 @@ mod tests {
     #[test]
     fn rejected_mail_cannot_be_approved_or_replied_to_later() {
         let hub = hub();
-        let sent = call(&hub, "sender", "send_group_mail", &json!({"groupId":"department","subject":"Question","text":"Please advise","requestId":"mail2"})).expect("submit");
+        let sent = call(
+            &hub,
+            "sender",
+            "send_group_mail",
+            &json!({"groupId":"department","subject":"Question","text":"Please advise","requestId":"mail2"}),
+        )
+        .expect("submit");
         let id = sent["mailId"].as_str().expect("id");
         decide(&hub, &json!({"mailId":id,"approve":false})).expect("reject");
         assert!(decide(&hub, &json!({"mailId":id,"approve":true,"handler":"handler"})).is_err());
@@ -236,4 +263,27 @@ mod tests {
         assert!(hub.store.entry(&format!("{id}:delivery")).is_none());
         assert!(hub.store.entry(&format!("{id}:reply")).is_none());
     }
+
+    #[test]
+    fn department_mail_access_follows_current_source_membership() {
+        let hub = hub();
+        let mut source: BotConfig = serde_json::from_value(json!({
+            "id":"source","name":"Source","backend":"claude","cwd":"","kind":"group",
+            "members":["sender","outsider"]
+        }))
+        .expect("source group");
+        hub.store.save_bot(&source).expect("save source");
+        let entry = hub.store.insert_entry(&Lane::main("department"), EntryKind::Notice, 0, &json!({
+            "groupMail":{"direction":"incoming","status":"pending","sourceChat":"source","senderBot":"sender"}
+        })).expect("historical department request");
+        let args = json!({"mailId":entry.id});
+        assert!(call(&hub, "sender", "get_group_mail", &args).is_ok());
+        assert!(call(&hub, "outsider", "get_group_mail", &args).is_ok());
+        source.members.retain(|id| id != "sender");
+        hub.store.save_bot(&source).expect("remove original sender");
+        assert!(call(&hub, "sender", "get_group_mail", &args).is_err());
+        assert!(call(&hub, "outsider", "get_group_mail", &args).is_ok());
+        assert!(call(&hub, "handler", "get_group_mail", &args).is_ok());
+    }
+
 }

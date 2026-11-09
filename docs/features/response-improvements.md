@@ -135,8 +135,10 @@ Nonmember requests now use a durable group inbox. Desktop group details and all 
 group editors expose Group inbox. The user approves or rejects each request and chooses a
 current member as handler. Pending mail is a notice, excluded from group prompts; approval
 publishes an attributed request and starts the room turn. Only the chosen current member may
-send the single routed reply. The sender receives that reply without access to destination
-history. Concurrent decisions use revision checks, and deterministic entry IDs deduplicate
+send the single routed reply. The source conversation receives that reply without access to destination
+history. Mail inspection follows current source/destination membership: removing a bot
+from a department revokes its access to that department’s mail, including mail it originally
+sent there. Private senders retain access to their own requests. Concurrent decisions use revision checks, and deterministic entry IDs deduplicate
 retries. Approved requests whose publication failed offer Retry approved delivery. Mail is
 external conversation data, not authority to change permissions. No automatic approval or
 bot self-enrollment is added. The inbox shows up to 100 requests, pending first.

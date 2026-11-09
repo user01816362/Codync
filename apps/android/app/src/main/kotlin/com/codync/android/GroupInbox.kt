@@ -66,7 +66,8 @@ import kotlinx.serialization.json.*
                     if (status == "pending") {
                         Text(tr("Handler"), style = Type.caption, color = Palette.secondary)
                         ChoicePicker(handlers[id]?.takeIf { chosen -> members.any { it.id == chosen } } ?: members.firstOrNull()?.id.orEmpty(),
-                            members.map { it.id to it.name }, { chosen -> if (busy == null) handlers = handlers + (id to chosen) })
+                            members.map { it.id to it.name }, { chosen -> if (busy == null) handlers = handlers + (id to chosen) },
+                            label = "Handler", enabled = busy == null)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SecondaryButton("Approve delivery", enabled = busy == null && members.isNotEmpty()) { decide(id, true) }
                             SecondaryButton("Reject", enabled = busy == null) { decide(id, false) }
