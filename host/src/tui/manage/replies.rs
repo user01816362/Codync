@@ -18,7 +18,8 @@ impl App {
         };
         match r {
             Reply::DepartmentSaved { request_id } => {
-                if matches!(self.overlays.last(), Some(Overlay::Fields(fields)) if matches!(&fields.submit, Submit::Department {request_id: current,..} if current == &request_id)) {
+                if matches!(self.overlays.last(), Some(Overlay::Fields(fields)) if matches!(&fields.submit, Submit::Department {request_id: current,..} if current == &request_id))
+                {
                     self.overlays.pop();
                     self.flash("Saved");
                 }

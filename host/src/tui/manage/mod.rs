@@ -54,7 +54,9 @@ pub const REACTIONS: [&str; 6] = ["👍", "❤️", "😂", "🎉", "👀", "✅
 /// Replies to the sheets' commands.
 #[derive(Clone)]
 pub enum Reply {
-    DepartmentSaved { request_id: String },
+    DepartmentSaved {
+        request_id: String,
+    },
     Department {
         group: String,
         kind: String,

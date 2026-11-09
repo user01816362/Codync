@@ -20,8 +20,9 @@ fn save(hub: &Hub, entry: &Entry, mut data: Value, status: &str, detail: &str) -
     data["groupTask"]["status"] = status.into();
     let mut history = data["groupTask"]["history"].as_array().cloned().unwrap_or_default();
     history.push(json!({"at":now_ms(),"status":status,"owner":data["groupTask"]["owner"],"detail":detail.chars().take(4000).collect::<String>()}));
-    if history.len() > 100 {
+    while history.len() > 100 || serde_json::to_vec(&history)?.len() > 128 * 1024 {
         history.remove(0);
+        data["groupTask"]["historyTruncated"] = true.into();
     }
     data["groupTask"]["history"] = history.into();
     data["text"] = format!("Task: {} — {status}", data["groupTask"]["title"].as_str().unwrap_or_default()).into();
@@ -98,7 +99,10 @@ pub async fn update(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
         let owner = string(&saved.data["groupTask"], "owner")?;
         let run = string(&saved.data["groupTask"], "runEntry")?;
         let (done, result) = tokio::sync::oneshot::channel();
-        hub.send_cmd(owner, Cmd::PauseTask { task_id: saved.id.clone(), entry_id: run.to_owned(), done })?;
+        if let Err(error) = hub.send_cmd(owner, Cmd::PauseTask { task_id: saved.id.clone(), entry_id: run.to_owned(), done }) {
+            save(hub, &saved, saved.data.clone(), "interrupted", "Owner unavailable; cancellation could not be confirmed. Inspect earlier work before resuming.")?;
+            return Err(error);
+        }
         tokio::time::timeout(std::time::Duration::from_secs(10), result)
             .await
             .context("pause confirmation timed out; refresh task status")?
@@ -135,6 +139,9 @@ pub async fn update(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
     if let Err(error) =
         hub.send_cmd(&owner, Cmd::Send { lane: Lane::main(&owner), entry_id: run_id.clone(), text: prompt })
     {
+        let mut failed = message.clone();
+        failed["status"] = "failed".into();
+        hub.set_entry(&run_id, &failed).context("couldn't record failed task dispatch")?;
         finish(hub, &entry.id, &run_id, "failed", &format!("Could not dispatch: {error}"))?;
         return Err(error);
     }

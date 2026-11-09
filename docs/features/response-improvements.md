@@ -104,7 +104,7 @@ repeating actions; it is not rollback or a transaction around provider side effe
 
 Normal Stop and queue removal record failed attempts. Owner removal/group deletion prevents
 queued task dispatch. A host restart marks queued/running tasks interrupted and requires the
-user to resume. History stores up to 100 events per task and 4,000 characters per event detail.
+user to resume. History stores the newest events up to 100 events/128 KiB per task and 4,000 characters per event detail.
 The board lists up to 100 tasks, unfinished first, and refuses more than 100 unfinished
 assignments. Detailed execution remains in the owner's chat; result history is in the source
 group. Completed means the attempt ended normally, not that Codync independently verified the
