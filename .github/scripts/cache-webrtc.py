@@ -7,11 +7,18 @@ from pathlib import Path
 import re
 import sys
 import time
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
 def request(url, accept="application/vnd.github+json"):
-    return urlopen(Request(url, headers={"Accept": accept, "User-Agent": "Codync-CI"}), timeout=120)
+    req = Request(url, headers={"Accept": accept, "User-Agent": "Codync-CI"})
+    token = os.environ.get("GH_TOKEN")
+    if token and urlsplit(url).hostname == "api.github.com":
+        # urllib does not forward unredirected headers to the release-asset CDN.
+        req.add_unredirected_header("Authorization", f"Bearer {token}")
+    return urlopen(req, timeout=120)
 
 
 def metadata(path):
@@ -60,7 +67,7 @@ if __name__ == "__main__":
             main()
             break
         except Exception as error:
-            if attempt == 3:
+            if attempt == 3 or isinstance(error, HTTPError) and error.code in (403, 429):
                 raise
             print(f"WebRTC cache attempt {attempt} failed: {error}; retrying", flush=True)
             time.sleep(10 * attempt)

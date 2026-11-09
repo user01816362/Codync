@@ -45,6 +45,8 @@ jobs:
           key: ${{ runner.os }}-webrtc-api-v1-${{ hashFiles('apps/ios/Kit/Package.swift') }}
 
       - name: Cache the verified WebRTC archive
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/cache-webrtc.py "$RUNNER_TEMP/swift-package-cache"
 
       - name: Install desktop dependencies
