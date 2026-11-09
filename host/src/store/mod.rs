@@ -12,6 +12,7 @@ mod entry_conditions;
 mod memory;
 mod model;
 mod schema;
+mod storage_usage;
 mod workspaces;
 
 pub use devices::{Device, DeviceAccount, DeviceSource, Scope};

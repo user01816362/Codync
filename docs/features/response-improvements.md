@@ -162,7 +162,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
 | Optional task lifecycle | Implemented: group assignments, explicit owner/start, cancellation-aware pause, resume/reassign and bounded history. Restart marks active attempts interrupted rather than replaying side effects. CI and interaction checks pending. |
 | Optional identity | Delivered: existing custom-icon editor exposed for groups; accountless local host storage; default remains the member composite |
-| Optional storage | Host-owned disk/storage inventory and safe cleanup semantics |
+| Optional storage | Implemented: bounded managed-file inventory, SQLite page/reusable-space accounting and explicit database compaction with a temporary-space warning. No automatic file deletion. |
 | Optional artifact interaction | Validated artifact-selection-to-reply bridge |
 | Validation | Actual app selection/focus, keyboard, screen-reader, reduced-motion and large-content checks |
 
@@ -203,3 +203,15 @@ with each detail bounded to 4,000 characters. Active tasks are listed first, up 
 are refused when 100 unfinished assignments exist. Restart marks running/queued tasks interrupted;
 resuming requires the user, so provider side effects are never replayed automatically. Task result
 history appears in the source group; detailed execution remains in the owner's chat.
+
+## Host storage
+
+Host storage is available in conversation details/group settings on graphical clients.
+It reports SQLite allocated/reusable pages and a bounded scan of shared-file, upload and
+artifact roots (10,000 examined entries per category, depth eight; no followed symbolic
+links). Partial/unavailable results are labeled; this is not whole-disk usage. Logs,
+project files, caches and SQLite journals are excluded. Compact database uses SQLite VACUUM,
+preserving live rows and files, with explicit confirmation and a warning that temporary
+free space up to twice the database size may be required. It runs off the async runtime but
+serializes database access. No file is classified as garbage from the Library's bounded
+history, and no workspace or shared file is deleted. See SQLite's [VACUUM documentation](https://www.sqlite.org/lang_vacuum.html).

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Sheet } from '../../components/Overlay'
+import { StorageOverview } from '../bots/StorageOverview'
 import { GroupInbox } from '../bots/GroupInbox'
 import { WorkspaceBrowser } from '../bots/WorkspaceBrowser'
 import { useFilePreview } from './FilePreview'
@@ -46,6 +47,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
   close: () => void
 }) {
   const tr = useTr()
+  const [storage, setStorage] = useState(false)
   const [inbox, setInbox] = useState(false)
   const [browsingWorkspace, setBrowsingWorkspace] = useState(false)
   const preview = useFilePreview()
@@ -63,6 +65,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
       </div>
       <div className="details-scroll">
         {bot ? <Identity bot={bot} /> : null}
+        <button className="member-row press" onClick={() => setStorage(true)}><Icon name="externaldrive" size={18} /> Host storage</button>
         {bot && group ? (
           <>
             <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
@@ -98,6 +101,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           </>
         )}
       </div>
+      <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}>{bot && group ? <GroupInbox group={bot} /> : null}</Sheet>
       <Sheet open={browsingWorkspace} onClose={() => setBrowsingWorkspace(false)} width={600} height={640}>
         <WorkspaceBrowser botId={botId} open={(owner, path) => { setBrowsingWorkspace(false); preview?.({ botId: owner, path }) }} />

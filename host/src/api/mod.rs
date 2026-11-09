@@ -12,6 +12,7 @@ mod http;
 mod marketplace;
 mod network;
 mod queue_controls;
+mod storage_usage;
 mod reach;
 mod remote;
 mod workspace_browser;
@@ -97,6 +98,9 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
         || matches!(method, "agentAuth" | "agentAuthenticate" | "setAgentEnv")
     {
         market::vault::unlock(hub.clone()).await?;
+    }
+    if method == "storageOverview" || method == "compactStorage" {
+        return storage_usage::overview(hub, method == "compactStorage", &b).await;
     }
     if method == "groupTasks" {
         return crate::chat::tasks::list(hub, str_arg(&b, "groupId")?);

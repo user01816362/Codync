@@ -44,6 +44,7 @@ import com.codync.android.design.*
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var query by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
+    var storage by remember { mutableStateOf(false) }
     var tasks by remember { mutableStateOf(false) }
     var library by remember { mutableStateOf(false) }
     var artifact by remember { mutableStateOf<OpenArtifact?>(null) }
@@ -72,6 +73,7 @@ import com.codync.android.design.*
                 else GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
             }
             draft.id?.let { CustomIconEditor("bot:$it", state, store) }
+            SecondaryButton("Host storage") { storage = true }
             if (draft.id != null) SecondaryButton("Group tasks") { tasks = true }
             if (draft.id != null) SecondaryButton("Library") { library = true }
             if (draft.id != null) SecondaryButton("Group inbox") { inbox = true }
@@ -105,6 +107,7 @@ import com.codync.android.design.*
             LinkButton("Delete group chat", color = Palette.danger) { confirmDelete = true }
         }
     }
+    CodyncSheet(storage, { storage = false }) { StorageOverview(store) }
     CodyncSheet(tasks, { tasks = false }) { draft.id?.let { GroupTasks(it, state, store) } }
     CodyncSheet(library, { library = false }) {
         state.bots.firstOrNull { it.id == draft.id }?.let { group ->

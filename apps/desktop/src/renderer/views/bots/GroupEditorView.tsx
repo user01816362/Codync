@@ -8,6 +8,7 @@ import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { CustomIconEditor } from './CustomIconEditor'
+import { StorageOverview } from './StorageOverview'
 import { GroupTasks } from './GroupTasks'
 import { GroupInbox } from './GroupInbox'
 import { errorText } from './drafts'
@@ -28,6 +29,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const [about, setAbout] = useState(group.description)
   const [members, setMembers] = useState<string[]>(group.members)
   const [query, setQuery] = useState('')
+  const [storage, setStorage] = useState(false)
   const [tasks, setTasks] = useState(false)
   const [inbox, setInbox] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -67,6 +69,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           <div className="group-identity">
             <BotOrGroupAvatar bot={current ?? group} members={picked} size={84} />
           </div>
+          <button className="member-row press" onClick={() => setStorage(true)}><Icon name="externaldrive" size={20} /> Host storage</button>
           <CustomIconEditor target={`bot:${group.id}`} />
           <Field label={tr('Name')}>
             <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
@@ -124,6 +127,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           ) : null}
         </div>
       </div>
+      <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
       <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}><GroupTasks group={current ?? group} /></Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}><GroupInbox group={current ?? group} /></Sheet>
       <DeleteBotDialog bot={confirmDelete} onClose={() => setConfirmDelete(null)} onDeleted={dismiss} />
