@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.codync.android.core.Bot
@@ -65,14 +64,16 @@ import com.codync.android.design.*
             verticalArrangement = Arrangement.spacedBy(28.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
-                PlainTextField(draft.name, { draft = draft.copy(name = it) }, Modifier.fillMaxWidth().padding(top = 6.dp), defaultName, singleLine = true,
-                    style = Type.title2.semibold.copy(textAlign = TextAlign.Center))
-                PlainTextField(draft.description, { draft = draft.copy(description = it) }, Modifier.fillMaxWidth(), "What this group works on",
-                    style = Type.subheadline.copy(textAlign = TextAlign.Center, color = Palette.secondary), maxLines = 4)
+            }
+            Field("Name") {
+                FieldBox(draft.name, { draft = draft.copy(name = it) }, defaultName)
+            }
+            Field("Group instructions", "What this group works on. Each member keeps its own instructions.") {
+                FieldBox(draft.description, { draft = draft.copy(description = it) }, "What this group works on", minLines = 3, maxLines = 8)
             }
             Column(Modifier.fillMaxWidth().animateContentSize(Motion.layoutSize)) {
                 Text("Members", Modifier.padding(bottom = 4.dp), style = Type.subheadline.semibold, color = Palette.secondary)
-                for (bot in picked) MemberRow(bot, state.bots) { IconButton("Remove ${bot.name}", "xmark") { toggle(bot.id) } }
+                for (bot in picked) MemberRow(bot, state.bots) { IconButton("Remove ${bot.name}", "xmark", enabled = !saving && draft.members.size > 1) { toggle(bot.id) } }
                 if (adding) {
                     Box(Modifier.padding(vertical = 6.dp)) {
                         FieldBox(query, { query = it }, "Search bots", fill = Palette.surface, imeAction = ImeAction.Done,

@@ -8,7 +8,7 @@ import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { errorText } from './drafts'
-import { AutoTextArea } from './parts'
+import { AutoTextArea, Field } from './parts'
 import './bots.css'
 import { useTr } from '../../lib/use-language'
 
@@ -61,16 +61,23 @@ export function GroupEditorView({ group }: { group: Bot }) {
         <div className="group-form">
           <div className="group-identity">
             <GroupAvatar members={picked} size={84} />
-            <input className="group-name" value={name} placeholder={defaultName} aria-label="Name" onChange={(e) => setName(e.target.value)} />
-            <AutoTextArea className="group-about" value={about} placeholder="What this group works on" minRows={1} maxRows={4} onChange={setAbout} />
           </div>
+          <Field label={tr('Name')}>
+            <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
+            <label className="group-instructions-field">
+              <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>{tr('Group instructions')}</span>
+              <AutoTextArea className="field-box" value={about} placeholder="What this group works on" minRows={3} maxRows={8} onChange={setAbout} />
+            </label>
+          </Field>
           <VStack>
-            <div className="group-section-title">Members</div>
+            <div className="group-section-title">{tr("Members")} · {members.length}</div>
             {picked.map((bot) => (
               <div key={bot.id} className="member-row fade-in">
                 <BotAvatar bot={bot} size={32} animated={false} />
                 <span className="member-name">{bot.name}</span>
-                <IconButton title={tr('Remove {name}').replaceAll('{name}', () => bot.name)} icon="xmark" onClick={() => toggle(bot.id)} />
+                <IconButton title={tr('Remove {name}').replaceAll('{name}', () => bot.name)} icon="xmark" disabled={saving || members.length <= 1} onClick={() => toggle(bot.id)} />
               </div>
             ))}
             {adding ? (
@@ -102,7 +109,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
                 <Text tone="secondary" className="member-name">{tr(`Add Member`)}</Text>
               </button>
             ) : null}
-            <Text as="div" size="caption" tone="tertiary" className="group-note">{tr(`Everyone answers in turn unless you @mention someone.`)}</Text>
+            <Text as="div" size="caption" tone="tertiary" className="group-note">{tr(`Everyone answers in turn unless you @mention someone.`)} {tr("Keep at least one member in the group.")}</Text>
           </VStack>
           {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
           {current ? (

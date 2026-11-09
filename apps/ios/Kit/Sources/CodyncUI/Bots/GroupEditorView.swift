@@ -46,20 +46,15 @@ public struct GroupEditorView: View {
                     VStack(spacing: 10) {
                         GroupAvatar(members: picked, size: 84)
                             .animation(Motion.layout, value: members)
-                        TextField(defaultName, text: $name)
-                            .textFieldStyle(.plain)
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(Palette.text)
-                            .multilineTextAlignment(.center)
-                            .padding(.top, 6)
-                        TextField("What this group works on", text: $about, axis: .vertical)
-                            .textFieldStyle(.plain)
-                            .lineLimit(1...4)
-                            .font(.subheadline)
-                            .foregroundStyle(Palette.secondary)
-                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
+                    Field("Name") {
+                        TextField(defaultName, text: $name).fieldBox().disabled(saving)
+                    }
+                    Field("Group instructions", detail: "What this group works on. Each member keeps its own instructions.") {
+                        TextField("What this group works on", text: $about, axis: .vertical)
+                            .lineLimit(3...8).fieldBox().disabled(saving)
+                    }
                     VStack(alignment: .leading, spacing: 0) {
                         Text(L10n.tr("Members"))
                             .font(.subheadline.weight(.semibold))
@@ -68,6 +63,7 @@ public struct GroupEditorView: View {
                         ForEach(picked) { bot in
                             memberRow(bot) {
                                 IconButton("Remove \(bot.name)", systemImage: "xmark") { toggle(bot.id) }
+                                    .disabled(saving || members.count <= 1)
                             }
                             .transition(.opacity)
                         }
