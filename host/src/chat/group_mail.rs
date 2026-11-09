@@ -267,15 +267,17 @@ mod tests {
     #[test]
     fn department_mail_access_follows_current_source_membership() {
         let hub = hub();
-        let mut source: BotConfig = serde_json::from_value(json!({
+        let config = json!({
             "id":"source","name":"Source","backend":"claude","cwd":"","kind":"group",
             "members":["sender","outsider"]
-        }))
-        .expect("source group");
+        });
+        let mut source: BotConfig = serde_json::from_value(config).expect("source group");
         hub.store.save_bot(&source).expect("save source");
-        let entry = hub.store.insert_entry(&Lane::main("department"), EntryKind::Notice, 0, &json!({
+        let data = json!({
             "groupMail":{"direction":"incoming","status":"pending","sourceChat":"source","senderBot":"sender"}
-        })).expect("historical department request");
+        });
+        let created = hub.store.insert_entry(&Lane::main("department"), EntryKind::Notice, 0, &data);
+        let entry = created.expect("historical department request");
         let args = json!({"mailId":entry.id});
         assert!(call(&hub, "sender", "get_group_mail", &args).is_ok());
         assert!(call(&hub, "outsider", "get_group_mail", &args).is_ok());
@@ -285,5 +287,4 @@ mod tests {
         assert!(call(&hub, "outsider", "get_group_mail", &args).is_ok());
         assert!(call(&hub, "handler", "get_group_mail", &args).is_ok());
     }
-
 }
