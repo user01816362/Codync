@@ -154,14 +154,14 @@ notices but do not yet have an interactive inbox approval sheet.
 | Recommendation | What is still missing |
 | --- | --- |
 | Conversation files | Show in chat navigation, group Library navigation, a date/size-rich file inventory beyond the current bounded Library results |
-| Text preview | Find-in-file and persistent per-file view preferences |
+| Text preview | Delivered: literal case-insensitive search with numbered matching lines (first 100 shown); Read/Source and wrap preferences retained for up to 100 file identities on each device |
 | File selections | Library-upload/live-workspace origins, filename labels in every reply bar, verified line ranges |
 | Queue | Host-reported wait reasons, durable pause/reorder operations |
 | Context | Compact per-chat indicator and reported compaction before/after data; current readout is in bot details |
 | Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
 | Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
 | Optional task lifecycle | Persistent task ownership, pause/resume/reassign and task history |
-| Optional identity | Group custom-icon override; current group avatar remains the member composite |
+| Optional identity | Delivered: existing custom-icon editor exposed for groups; accountless local host storage; default remains the member composite |
 | Optional storage | Host-owned disk/storage inventory and safe cleanup semantics |
 | Optional artifact interaction | Validated artifact-selection-to-reply bridge |
 | Validation | Actual app selection/focus, keyboard, screen-reader, reduced-motion and large-content checks |
@@ -169,3 +169,13 @@ notices but do not yet have an interactive inbox approval sheet.
 These are not claimed complete by a green build. PDF/media decoding varies by platform;
 CSV/TSV tables are bounded and do not imply XLSX support. Existing sidebar sections are
 organization only. No dock, account catalog or floating shell is part of these batches.
+
+## Preview search and group identity
+
+Text previews now search the loaded UTF-8 snapshot locally, showing matching line numbers
+and up to 100 matching lines without changing file contents. View controls persist on the
+device for up to 100 identities; file contents and search terms are not persisted.
+Custom group images reuse the existing bounded host image normalizer and icon snapshot.
+Upload, URL, tint and reset are available in group settings. Icons are saved locally and
+sent to paired clients through existing authenticated state; Codync sign-in is not needed.
+An explicit cloudBackup API option retains the existing optional remote transport.

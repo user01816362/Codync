@@ -61,7 +61,9 @@ pub(crate) async fn set(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
     let mut icons = list(&hub.store)?;
     if b["remove"] == true {
         if let Some(old) = icons.get(target) {
-            storage::delete(hub, old.slot).await?;
+            if b["cloudBackup"] == true {
+                storage::delete(hub, old.slot).await?;
+            }
             icons.remove(target);
         }
     } else if b["data"].is_null() && b["url"].is_null() {
@@ -84,7 +86,9 @@ pub(crate) async fn set(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
             .map(|i| i.slot)
             .or_else(|| (0..SLOTS).find(|slot| !icons.values().any(|i| i.slot == *slot)))
             .context("This computer has 128 custom icons; remove one before adding another")?;
-        storage::put(hub, slot, &png).await?;
+        if b["cloudBackup"] == true {
+            storage::put(hub, slot, &png).await?;
+        }
         icons.insert(
             target.to_owned(),
             Icon {

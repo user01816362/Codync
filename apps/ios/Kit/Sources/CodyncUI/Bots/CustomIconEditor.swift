@@ -5,8 +5,6 @@ import UniformTypeIdentifiers
 
 struct CustomIconEditor: View {
     @Environment(BotStore.self) private var store
-    @Environment(\.customIconAccount) private var account
-    @State private var needsSignIn = false
     let target: String
     @State private var editor = IconEditor()
     @State private var choosing = false
@@ -16,7 +14,7 @@ struct CustomIconEditor: View {
 
     private var icon: CustomIcon? { store.icons[target] }
     @ViewBuilder var body: some View {
-        if store.hello?.icons != nil, account?.configured != false { content }
+        if store.hello?.icons != nil { content }
     }
 
     private var content: some View {
@@ -53,15 +51,10 @@ struct CustomIconEditor: View {
                 Text("Saved immediately. Custom images stay still.")
             }
             .font(.caption).foregroundStyle(Palette.secondary).multilineTextAlignment(.center)
-            if let error = editor.error ?? account?.error { Text(error).font(.caption).foregroundStyle(Palette.danger) }
+            if let error = editor.error { Text(error).font(.caption).foregroundStyle(Palette.danger) }
         }
         .frame(maxWidth: .infinity)
-        .disabled(editor.busy || account?.loading == true || store.connection != .online)
-        .codyncDialog("Sign in required", isPresented: $needsSignIn, message: "Sign in to use custom images.") {
-            [DialogAction("Continue with Apple") { account?.signIn(.apple) },
-             DialogAction("Continue with Google") { account?.signIn(.google) },
-             DialogAction("Continue with GitHub") { account?.signIn(.github) }]
-        }
+        .disabled(editor.busy || store.connection != .online)
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.png, .jpeg, .webP, .svg]) { result in
             switch result {
             case let .success(file): requireAccount { Task { await editor.save(.init(target: target), store: store, file: file) } }
@@ -71,7 +64,6 @@ struct CustomIconEditor: View {
     }
 
     private func requireAccount(_ action: () -> Void) {
-        guard account?.signedIn == true else { Motion.animate { needsSignIn = true }; return }
         action()
     }
 

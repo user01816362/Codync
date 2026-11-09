@@ -64,8 +64,11 @@ import com.codync.android.design.*
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
+                val icon = state.icons["bot:${draft.id}"]
+                if (icon != null) StaticCustomIcon(icon.dataUrl, icon.tinted, 84.dp)
+                else GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
             }
+            draft.id?.let { CustomIconEditor("bot:$it", state, store) }
             if (draft.id != null) SecondaryButton("Group inbox") { inbox = true }
             Field("Name") {
                 FieldBox(draft.name, { draft = draft.copy(name = it) }, defaultName)

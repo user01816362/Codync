@@ -17,41 +17,29 @@ import com.codync.android.design.*
 
 @Composable internal fun CustomIconEditor(target: String, state: AppState, store: AppStore) {
     if (state.hello?.containsKey("icons") != true) return
-    var needsSignIn by remember { mutableStateOf(false) }
-    val accounts = LocalAccounts.current
-    val account = accounts?.state?.collectAsState()?.value
-    if (account?.account?.configured == false) return
-    val requireAccount: (() -> Unit) -> Unit = { action -> if (account?.account?.userId != null) action() else needsSignIn = true }
     var url by remember(target) { mutableStateOf("") }
     var showURL by remember(target) { mutableStateOf(false) }
     val icon = state.icons[target]
     val busy = "icon:$target" in state.busy
-    val enabled = !busy && account?.account?.ready == true && "session" !in account.busy && state.actualConnection is LinkState.Ready
+    val enabled = !busy && state.actualConnection is LinkState.Ready
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { requireAccount { store.setIcon(target, file = it) } }
-    }
-    CodyncDialog("Sign in required", needsSignIn, { needsSignIn = false }, message = "Sign in to use custom images.") {
-        listOf(
-            DialogAction("Continue with Apple") { accounts?.signIn(SignInProvider.Apple) },
-            DialogAction("Continue with Google") { accounts?.signIn(SignInProvider.Google) },
-            DialogAction("Continue with GitHub") { accounts?.signIn(SignInProvider.GitHub) },
-        )
+        uri?.let { store.setIcon(target, file = it) }
     }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(tr("Custom icon"), style = Type.subheadline.semibold, color = Palette.text)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (icon != null) StaticCustomIcon(icon.dataUrl, icon.tinted, 40.dp)
-            SecondaryButton("Upload image", enabled = enabled) { requireAccount { picker.launch(arrayOf("image/png", "image/jpeg", "image/webp", "image/svg+xml")) } }
+            SecondaryButton("Upload image", enabled = enabled) { picker.launch(arrayOf("image/png", "image/jpeg", "image/webp", "image/svg+xml")) }
             if (busy) ThinkingOrb(size = 18.dp)
         }
         if (icon != null) SecondaryButton("Use default", enabled = enabled) { store.setIcon(target, remove = true) }
-        SecondaryButton("Paste URL", enabled = enabled) { requireAccount { showURL = !showURL } }
+        SecondaryButton("Paste URL", enabled = enabled) { showURL = !showURL }
         AnimatedVisibility(showURL, enter = fadeIn(), exit = fadeOut()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(tr("Image URL"), style = Type.caption, color = Palette.secondary)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.weight(1f)) { FieldBox(url, { if (enabled) url = it }, "https://…", capitalize = false) }
-                    IconButton("Use URL", "arrow.up", enabled = enabled && url.isNotBlank()) { requireAccount { store.setIcon(target, url = url.trim()) } }
+                    IconButton("Use URL", "arrow.up", enabled = enabled && url.isNotBlank()) { store.setIcon(target, url = url.trim()) }
                 }
             }
         }

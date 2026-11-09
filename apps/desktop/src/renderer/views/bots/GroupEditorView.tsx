@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { isGroup, type Bot } from '@shared/models'
-import { BotAvatar, GroupAvatar } from '../../components/Avatar'
+import { BotAvatar, BotOrGroupAvatar } from '../../components/Avatar'
 import { IconButton, Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { Dialog, ModalHeader, Sheet, SheetPage, useDismiss } from '../../components/Overlay'
 import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { CustomIconEditor } from './CustomIconEditor'
 import { GroupInbox } from './GroupInbox'
 import { errorText } from './drafts'
 import { AutoTextArea, Field } from './parts'
@@ -62,8 +63,9 @@ export function GroupEditorView({ group }: { group: Bot }) {
       <div className="group-scroll">
         <div className="group-form">
           <div className="group-identity">
-            <GroupAvatar members={picked} size={84} />
+            <BotOrGroupAvatar bot={current ?? group} members={picked} size={84} />
           </div>
+          <CustomIconEditor target={`bot:${group.id}`} />
           <Field label={tr('Name')}>
             <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
           </Field>

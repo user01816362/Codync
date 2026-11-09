@@ -45,10 +45,12 @@ public struct GroupEditorView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     VStack(spacing: 10) {
-                        GroupAvatar(members: picked, size: 84)
-                            .animation(Motion.layout, value: members)
+                        if let icon = model.icons["bot:\(groupId)"] { CustomIconView(icon: icon, size: 84) }
+                        else { GroupAvatar(members: picked, size: 84) }
+
                     }
                     .frame(maxWidth: .infinity)
+                    CustomIconEditor(target: "bot:\(groupId)")
                     Button("Group inbox") { inbox = true }.buttonStyle(SecondaryButtonStyle())
                     Field("Name") {
                         TextField(defaultName, text: $name).fieldBox().disabled(saving)

@@ -60,10 +60,10 @@ async fn cleanup_clears_agent_and_deleted_bot_icons_but_keeps_live_bots() {
         ("bot:gone".to_owned(), icon(2)),
     ]);
     assert_eq!(cleanup::stale(&hub.store, &icons).unwrap(), ["agent:claude", "bot:gone"]);
-    // Tests have no cloud: the agent icon still leaves, the deleted bot's waits for its R2 delete.
+    // Local icon cleanup must not require a cloud account.
     commit(&hub, icons).unwrap();
-    assert!(cleanup::sweep(&hub).await.is_err());
-    assert_eq!(list(&hub.store).unwrap().keys().collect::<Vec<_>>(), ["bot:b1", "bot:gone"]);
+    cleanup::sweep(&hub).unwrap();
+    assert_eq!(list(&hub.store).unwrap().keys().collect::<Vec<_>>(), ["bot:b1"]);
     drop(hub);
     std::fs::remove_dir_all(dir).unwrap();
 }
