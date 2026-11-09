@@ -1,6 +1,6 @@
 package com.codync.android
 
-/** Plain prose plus formulas only; retain native Markdown for styled, code and link paragraphs. */
+/** Bounded formulas with basic inline styling; links retain native navigation. */
 internal object InlineMath {
     private val expression = Regex("""\\\(([^\n]{1,1024}?)\\\)|(?<!\\)\$([^$\n]{1,1024}?)\$""")
     fun eligible(text: String): Boolean {

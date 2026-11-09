@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -33,6 +34,7 @@ import java.io.ByteArrayInputStream
 @Composable internal fun RichContentPreview(source: String, language: String, allowMarkdownPreview: Boolean = true, fullSize: Boolean = false) {
     val context = LocalContext.current
     val inlineMath = language == "inline-math"
+    val fontScale = LocalDensity.current.fontScale
     var measuredHeight by remember(source) { mutableStateOf(48) }
     var expanded by remember { mutableStateOf(false) }
     val markdown = allowMarkdownPreview && language in listOf("md", "markdown")
@@ -56,18 +58,18 @@ import java.io.ByteArrayInputStream
         }
         else if (markdown) Box(Modifier.padding(12.dp)) { MarkdownText(source, allowMarkdownPreview = false) }
         else {
-            val html by produceState<String?>(null, source, language) {
+            val html by produceState<String?>(null, source, language, fontScale) {
                 value = withContext(Dispatchers.IO) {
                     try {
                         val kind = when (language) { "inline-math" -> "inline-math"; "mermaid" -> "mermaid"; "math", "latex", "tex" -> "math"; else -> "code" }
-                        val payload = buildJsonObject { put("kind", kind); put("source", source); put("language", language); put("fontSize", 17) }
+                        val payload = buildJsonObject { put("kind", kind); put("source", source); put("language", language); put("fontSize", if (inlineMath) (17 * fontScale).toInt() else 17) }
                         val encoded = Base64.encodeToString(payload.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
                         context.assets.open("rich-renderer.html").bufferedReader().use { it.readText() }
                             .replace("__CODYNC_PAYLOAD__", encoded)
                     } catch (_: java.io.IOException) { failed = true; null }
                 }
             }
-            if (failed) Text("Preview couldn’t load. Choose Code to view the source.", style = Type.caption2, color = Palette.secondary)
+            if (failed) Text(if (inlineMath) source else "Preview couldn’t load. Choose Code to view the source.", style = if (inlineMath) Type.body else Type.caption2, color = Palette.secondary)
             else if (html == null) Text("Loading preview…", style = Type.caption2, color = Palette.secondary)
             else AndroidView(factory = { ctx ->
                 WebView(ctx).apply {

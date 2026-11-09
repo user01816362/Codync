@@ -7,6 +7,7 @@ struct RichContentPreview: View {
     let source: String
     let language: String
     var allowMarkdownPreview = true
+    @ScaledMetric(relativeTo: .body) private var inlineFontSize: CGFloat = 17
     @State private var showSource: Bool?
     @State private var expanded = false
     @State private var measuredHeight: CGFloat = 48
@@ -59,11 +60,11 @@ struct RichContentPreview: View {
             }
         } else if markdown {
             AnyView(MarkdownText(source, allowMarkdownPreview: false)).padding(12)
-        } else if let html = RichRenderer.html(source: source, language: language) {
+        } else if let html = RichRenderer.html(source: source, language: language, fontSize: inlineMath ? Int(inlineFontSize) : 17) {
             RichContentWebView(html: html, layout: layoutHandler)
                 .frame(height: inlineMath ? measuredHeight : height)
         } else {
-            Text("Preview couldn’t load. Choose Code to view the source.").font(.caption).padding(12)
+            Text(inlineMath ? source : "Preview couldn’t load. Choose Code to view the source.").font(inlineMath ? .body : .caption).textSelection(.enabled).padding(12)
         }
     }
 
@@ -72,7 +73,7 @@ struct RichContentPreview: View {
             ModalHeader("Preview") {
                 IconButton("Copy", systemImage: "square.on.square") { Pasteboard.copy(source) }
             }
-            if let html = RichRenderer.html(source: source, language: language) {
+            if let html = RichRenderer.html(source: source, language: language, fontSize: inlineMath ? Int(inlineFontSize) : 17) {
                 RichContentWebView(html: html).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }.background(Palette.background)
@@ -86,9 +87,9 @@ private enum RichRenderer {
         return try? String(contentsOf: url, encoding: .utf8)
     }()
 
-    static func html(source: String, language: String) -> String? {
+    static func html(source: String, language: String, fontSize: Int) -> String? {
         let kind = language == "inline-math" ? "inline-math" : language == "mermaid" ? "mermaid" : ["math", "latex", "tex"].contains(language) ? "math" : "code"
-        guard let template, let data = try? JSONSerialization.data(withJSONObject: ["kind": kind, "source": source, "language": language, "fontSize": 17]) else { return nil }
+        guard let template, let data = try? JSONSerialization.data(withJSONObject: ["kind": kind, "source": source, "language": language, "fontSize": fontSize]) else { return nil }
         return template.replacingOccurrences(of: "__CODYNC_PAYLOAD__", with: data.base64EncodedString())
     }
 }

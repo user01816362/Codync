@@ -1,4 +1,4 @@
-/** Keep native Markdown for links/styles/code; only plain prose and bounded formulas use the math paragraph view. */
+/** Keep native navigation for links; bounded formula paragraphs preserve basic inline styles. */
 export function hasInlineMath(source: string): boolean {
   if (source.length > 4000 || source.includes('$$')) return false
   let found = false

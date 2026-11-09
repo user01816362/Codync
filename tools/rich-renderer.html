@@ -40,7 +40,7 @@ async function load(name){
 
  }else if(payload.kind==='inline-math'){
   await load('katex');
-  document.documentElement.style.fontSize=Math.max(12,Math.min(40,Number(payload.fontSize)||14))+'px';
+  document.documentElement.style.fontSize=Math.max(12,Math.min(80,Number(payload.fontSize)||14))+'px';
   output.style.overflow='visible';
   // Same bounded inline vocabulary as native chat: code, strong, emphasis, strike and math.
   // DOM text nodes preserve escapes and never execute embedded HTML.
@@ -82,6 +82,6 @@ async function load(name){
   if(payload.language&&hljs.getLanguage(payload.language))code.innerHTML=hljs.highlight(payload.source,{language:payload.language,ignoreIllegals:true}).value;
   else code.textContent=payload.source;
  }
-})().catch(()=>{document.getElementById('output').replaceChildren();document.getElementById('error').textContent='This content could not be rendered. Choose Code to inspect the original source.'});
+})().catch(()=>{const output=document.getElementById('output');output.replaceChildren();if(payload.kind==='inline-math')output.textContent=payload.source;document.getElementById('error').textContent=payload.kind==='inline-math'?'Formula preview unavailable; original text is shown.':'This content could not be rendered. Choose Code to inspect the original source.'});
 document.addEventListener('click',event=>event.preventDefault());
 </script></body></html>

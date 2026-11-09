@@ -9,12 +9,18 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 
 ## 2.42.1
 ### zh-Hant
+- 文字預覽新增搜尋與檢視偏好；資料庫可載入更早的檔案並定位原訊息，支援引用檔案、工作區與成品中的段落。
+- 群組設定新增本機自訂圖片，以及可暫停、繼續、指派負責人與查看歷程的任務。佇列支援暫停與排序，主機儲存空間可查看檔案大小及壓縮資料庫。
+- 對話輸入區顯示智慧體回報的上下文用量；公式段落保留文字樣式並支援手機字級縮放。
 - 群組收件匣可選擇自動核准新請求，並指定負責回覆的成員。
 - 群組編輯新增清楚標示的欄位及群組收件匣：選擇負責成員後核准外部請求，再將部門回覆傳回原對話。成員可向其他已加入的群組傳訊。
 - 選取訊息文字後引用時，會顯示原作者與引用段落的回覆列，不再將引用內容插入草稿。文字檔預覽新增原始碼、複製、換行與重試；資料庫可篩選檔案並直接預覽文字檔。
 - bot 詳情「智慧體」區塊的「壓縮對話」預設改為「自動」：交給 Claude Code 或 Codex 在對話快滿時自己壓縮。想讓 Codync 提早壓縮，可以改選提早、接近上限或指定數量（從 100K、200K… 裡挑，或自己輸入）。已經是「提早」的 bot 會保留原設定，想交給智慧體自己壓縮可以改選「自動」。
 
 ### en-US
+- Search and remember text preview controls, browse older Library files and jump to their messages, and quote verified file/workspace or artifact passages.
+- Group settings add local custom images and owned tasks with pause/resume, reassignment and history. Queue controls add pause and ordering; host storage shows file totals and database compaction.
+- Reported context is visible beside chat input; bounded formula paragraphs preserve inline styles and phone text scaling.
 - Group inbox settings can automatically approve new requests and assign a member to handle replies.
 - Group editing has labeled fields and an inbox: approve outside requests, choose a handler and route the department reply back. Members can message other joined groups.
 - Selected message passages now use the reply bar with their author and source. Text previews add Read/Source, copy, wrap and retry; the Library can filter files and open supported text previews.

@@ -145,3 +145,18 @@ requests cancellation and waits for it to finish; it cannot undo work already pe
 Paused or failed attempts can be reassigned to another member or resumed. Resume asks the
 owner to inspect earlier work before repeating actions. After a host restart, active tasks
 show **interrupted** and need manual resumption. Expand **Task history** for status and results.
+
+### Group images and storage
+
+Group settings uses the same custom-image editor as bots: upload an image or use a URL,
+choose original colors or tint, and reset to the member-composite avatar. Images are
+normalized and saved on the host; no Codync account is needed.
+
+**Host storage** reports the conversation database and bounded file totals on the connected
+computer. **Compact database** preserves saved messages and files; its confirmation explains
+the temporary free space SQLite needs. It does not delete shared or workspace files.
+
+Terminal group settings: Ctrl+B opens the inbox and automatic-approval policy, Ctrl+T opens
+task controls, Ctrl+O opens storage, and Ctrl+P opens the image editor. Owner/handler fields
+accept unique current member names. In task controls, the history action copies the complete
+recorded history. The terminal keeps its text avatar; graphical clients show the image.

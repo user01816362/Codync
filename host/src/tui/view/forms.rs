@@ -489,14 +489,7 @@ pub(super) fn group_view(buf: &mut Buffer, area: Rect, app: &App, g: &GroupForm)
     if let Some(e) = &g.error {
         put(buf, inner.x, by - 1, inner.width, e, t.red.patch(t.panel));
     } else {
-        put(
-            buf,
-            inner.x,
-            by - 1,
-            inner.width,
-            "^B Inbox · ^T Tasks · ^O Storage · ^P Icon",
-            t.dim.patch(t.panel),
-        );
+        put(buf, inner.x, by - 1, inner.width, "^B Inbox · ^T Tasks · ^O Storage · ^P Icon", t.dim.patch(t.panel));
     }
     let save = if g.saving {
         " … Saving "

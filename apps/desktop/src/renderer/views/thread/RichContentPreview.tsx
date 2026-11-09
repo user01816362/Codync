@@ -54,7 +54,7 @@ export function RichContentPreview({ source, language, renderMarkdown }: { sourc
       </div>
     </div>}
     {!preview ? <div className="md-code-scroll"><pre className="md-code-text">{source}</pre></div> : markdown ? <div className="md-readable-preview">{renderMarkdown?.(source)}</div> :
-      failed ? <div className="md-readable-preview">Preview couldn’t load. Choose Code to view the source.</div> : shown !== html ? <div className="md-readable-preview" role="status">Loading preview…</div> :
+      failed ? <div className="md-readable-preview">{inlineMath ? source : 'Preview couldn’t load. Choose Code to view the source.'}</div> : shown !== html ? <div className="md-readable-preview" role="status">Loading preview…</div> :
         <iframe ref={frame} className="md-rendered-frame" title={`${language || 'Code'} preview`} sandbox="allow-scripts" referrerPolicy="no-referrer" style={inlineMath ? { height: measuredHeight } : ['mermaid', 'math', 'latex', 'tex'].includes(language) ? undefined : { height: Math.min(360, Math.max(64, source.split('\n').length * 18 + 20)) }} src={artifactFrameURL(id, revision, true)} />}
     <Sheet open={expanded} onClose={() => setExpanded(false)} width={960} height={760}>
       <div className="sidechat">

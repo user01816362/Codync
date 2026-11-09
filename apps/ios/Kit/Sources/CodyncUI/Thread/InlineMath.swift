@@ -1,6 +1,6 @@
 import Foundation
 
-/// Plain prose plus bounded formulas; styled/link/code paragraphs retain the native Markdown path.
+/// Bounded formula paragraphs preserve basic inline styles; links retain native navigation.
 enum InlineMath {
     private static let expression = try? NSRegularExpression(pattern: #"\\\(([^\n]{1,1024}?)\\\)|(?<!\\)\$([^$\n]{1,1024}?)\$"#)
     static func eligible(_ text: String) -> Bool {
