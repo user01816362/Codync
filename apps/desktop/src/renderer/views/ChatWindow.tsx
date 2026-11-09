@@ -1,3 +1,4 @@
+import { RosterOrganizer } from './bots/RosterOrganizer'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { WindowCommand } from '@shared/ipc'
 import { isSSHConnecting, showsChat as shouldShowChat } from '@shared/ssh-startup'
@@ -210,6 +211,7 @@ function ChatSplitView() {
   const [newMenu, setNewMenu] = useState(false)
   const [railNewMenu, setRailNewMenu] = useState(false)
   const [context, setContext] = useState<{ items: MenuItem[]; x: number; y: number } | null>(null)
+  const [organizing, setOrganizing] = useState<BotStore | null>(null)
   const [naming, setNaming] = useState<SectionNaming | null>(null)
   const [editing, setEditing] = useState<EditTarget | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<BotTarget | null>(null)
@@ -297,6 +299,7 @@ function ChatSplitView() {
   const newItems = (): MenuItem[] => [
     { title: 'New bot', icon: 'plus', action: () => create('bot') },
     { title: 'New group chat', icon: 'person.2', action: () => create('group') },
+    ...((selectedStore ?? app.local)?.hasRosterSections ? [{ title: 'Organize chats…', icon: 'folder', action: () => setOrganizing(selectedStore ?? app.local) }] : []),
     ...(localOnline ? [{ title: 'Import bots…', icon: 'square.and.arrow.down', action: () => setImporting(true) }] : []),
   ]
 
@@ -511,6 +514,7 @@ function ChatSplitView() {
         actions={confirmDelete ? [{ title: 'Delete bot and its conversation', destructive: true, action: () => confirmDelete.store.delete(confirmDelete.bot) }] : []}
         onClose={() => setConfirmDelete(null)}
       />
+      <Sheet open={organizing !== null} onClose={() => setOrganizing(null)} width={600} height={640}>{organizing ? <RosterOrganizer store={organizing} /> : null}</Sheet>
       <SectionNameDialog naming={naming} onClose={() => setNaming(null)} />
       <Dialog open={errorMessage !== null} title={tr('Something went wrong')} message={errorMessage} actions={[]} cancel="OK" onClose={() => app.clearErrors()} />
       <SignInCodeDialog />

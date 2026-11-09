@@ -298,7 +298,8 @@ pub(super) fn members(hub: &Hub, group: &BotConfig) -> Vec<BotConfig> {
 /// The lane's messages since the user last wrote there, that message included.
 fn since_last_user_message(hub: &Hub, lane: &Lane) -> Result<Vec<Entry>> {
     let recent = hub.store.messages_after(lane, 0, HISTORY_LINES)?;
-    let start = recent.iter().rposition(|e| e.kind == EntryKind::User.as_str() || e.data["groupPost"].is_object()).unwrap_or(0);
+    let start =
+        recent.iter().rposition(|e| e.kind == EntryKind::User.as_str() || e.data["groupPost"].is_object()).unwrap_or(0);
     Ok(recent[start..].to_vec())
 }
 

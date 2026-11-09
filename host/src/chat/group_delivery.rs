@@ -30,14 +30,23 @@ pub fn handles(name: &str) -> bool {
 pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
     let source = agent(hub, bot)?;
     if name == "list_chat_groups" {
-        let groups: Vec<Value> = hub.store.bots()?.into_iter()
+        let groups: Vec<Value> = hub
+            .store
+            .bots()?
+            .into_iter()
             .filter(|row| !row.deleted && row.config.is_group())
-            .map(|row| json!({"id":row.config.id,"name":row.config.name,"purpose":row.config.description,
-                "member":row.config.members.contains(&source.id)})).collect();
+            .map(|row| {
+                json!({"id":row.config.id,"name":row.config.name,"purpose":row.config.description,
+                "member":row.config.members.contains(&source.id)})
+            })
+            .collect();
         return Ok(json!({"groups":groups}));
     }
     let target = group(hub, string(args, "groupId")?)?;
-    ensure!(target.members.contains(&source.id), "you are not a member of this group; do not read or post to its conversation");
+    ensure!(
+        target.members.contains(&source.id),
+        "you are not a member of this group; do not read or post to its conversation"
+    );
     if name == "read_group_messages" {
         let entries = hub.store.messages_after(&Lane::main(&target.id), 0, 24)?;
         let messages: Vec<Value> = entries.into_iter().map(|entry| {
@@ -53,13 +62,23 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
     let text = string(args, "text")?.trim();
     ensure!(!text.is_empty() && text.len() <= 32768, "text must be nonempty and at most 32 KiB");
     let request = string(args, "requestId")?;
-    ensure!(!request.is_empty() && request.len() <= 80 && request.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_')), "requestId must be 1–80 letters, digits, dashes or underscores");
+    ensure!(
+        !request.is_empty()
+            && request.len() <= 80
+            && request.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_')),
+        "requestId must be 1–80 letters, digits, dashes or underscores"
+    );
     let id = format!("group-post:{}:{request}", source.id);
-    let display = if from == source.id { text.to_owned() }
-        else { format!("From {}\n\n{text}", group(hub, &from)?.name) };
-    let data = json!({"text":display,"final":true,"author":source.id,"groupPost":{"sourceChat":from,"sourceBot":source.id}});
-    let (entry, added) = hub.add_entry_once(&id, &Lane::main(&target.id), EntryKind::Agent, hub.store.max_turn(&target.id), &data)?;
-    ensure!(entry.bot_id == target.id && entry.data["text"] == data["text"] && entry.data["groupPost"] == data["groupPost"], "requestId already belongs to a different message");
+    let display =
+        if from == source.id { text.to_owned() } else { format!("From {}\n\n{text}", group(hub, &from)?.name) };
+    let data =
+        json!({"text":display,"final":true,"author":source.id,"groupPost":{"sourceChat":from,"sourceBot":source.id}});
+    let (entry, added) =
+        hub.add_entry_once(&id, &Lane::main(&target.id), EntryKind::Agent, hub.store.max_turn(&target.id), &data)?;
+    ensure!(
+        entry.bot_id == target.id && entry.data["text"] == data["text"] && entry.data["groupPost"] == data["groupPost"],
+        "requestId already belongs to a different message"
+    );
     if added {
         crate::chat::group::start(hub, &target, Lane::main(&target.id));
         hub.emit_bot(&target.id);

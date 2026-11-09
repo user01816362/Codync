@@ -120,7 +120,9 @@ are separate capabilities, not missing bot-profile controls to copy into a group
 Sidebar organization already exists as host-backed roster sections: right-click a bot,
 choose Move to section, and choose an existing section or New section. Sections can be
 renamed, removed or collapsed. These are flat conversation folders; they are not isolated
-workspaces, permission boundaries, nested folders or department membership. No duplicate
+workspaces, permission boundaries, nested folders or department membership. The desktop + menu now exposes Organize chats for selecting several bots or groups and
+moving them into an existing or newly named section. It reuses the same host mutations,
+reports partial failure, and keeps pinned chats in their pinned band. No duplicate
 folder store has been added. The batch list above does not claim those broader capabilities.
 
 Ordinary bots now discover groups through the chat tools independently of Manage groups.
