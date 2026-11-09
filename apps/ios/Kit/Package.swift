@@ -10,7 +10,7 @@ let package = Package(
     ],
     dependencies: [
         // libwebrtc for the remote screen viewer (hardware H.264 over WebRTC) and realtime voice calls.
-        .package(url: "https://github.com/stasel/WebRTC.git", exact: "153.0.0"),
+        .package(url: "https://github.com/stasel/WebRTC.git", exact: "157.0.0"),
         // Terminal emulator for agent install and sign-in. 1.19+ adds a build-tool
         // plugin every Xcode build would have to trust.
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.18.0"),
