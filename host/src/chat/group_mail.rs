@@ -182,3 +182,58 @@ pub fn decide(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
     hub.emit_bot(&target.id);
     Ok(json!({"status":"delivered","entryId":saved.id,"duplicate":!added}))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::remote::identity::Identity;
+    use crate::store::{BotConfig, Store};
+
+    fn hub() -> Arc<Hub> {
+        let store = Store::open(std::path::Path::new(":memory:")).expect("store");
+        for value in [
+            json!({"id":"sender","name":"Sender","backend":"claude","cwd":"/tmp"}),
+            json!({"id":"handler","name":"Handler","backend":"claude","cwd":"/tmp"}),
+            json!({"id":"outsider","name":"Outsider","backend":"claude","cwd":"/tmp"}),
+            json!({"id":"department","name":"Department","backend":"claude","cwd":"","kind":"group","members":["handler"]}),
+        ] {
+            let config: BotConfig = serde_json::from_value(value).expect("config");
+            store.save_bot(&config).expect("save bot");
+        }
+        let identity = Identity {
+            sign: ed25519_dalek::SigningKey::from_bytes(&[1; 32]),
+            box_secret: x25519_dalek::StaticSecret::from([2; 32]),
+        };
+        Hub::new(store, "host".into(), identity, "token".into(), 0)
+    }
+
+    #[test]
+    fn nonmembers_can_submit_mail_but_cannot_read_or_post_to_the_group() {
+        let hub = hub();
+        assert!(super::super::group_delivery::call(&hub, "sender", "read_group_messages", &json!({"groupId":"department"})).is_err());
+        assert!(super::super::group_delivery::call(&hub, "sender", "post_group_message", &json!({"groupId":"department","text":"hello","requestId":"p1"})).is_err());
+        let args = json!({"groupId":"department","subject":"Question","text":"Please advise","requestId":"mail1"});
+        let sent = call(&hub, "sender", "send_group_mail", &args).expect("submit");
+        let again = call(&hub, "sender", "send_group_mail", &args).expect("retry");
+        assert_eq!(sent["mailId"], again["mailId"]);
+        assert_eq!(again["duplicate"], true);
+        assert!(hub.store.messages_after(&Lane::main("department"), 0, 24).expect("prompt").is_empty());
+        let id = sent["mailId"].as_str().expect("id");
+        assert!(call(&hub, "outsider", "get_group_mail", &json!({"mailId":id})).is_err());
+        assert!(call(&hub, "handler", "reply_group_mail", &json!({"mailId":id,"text":"Reply"})).is_err());
+        assert!(decide(&hub, &json!({"mailId":id,"approve":true,"handler":"outsider"})).is_err());
+        assert_eq!(mail(&hub, id).expect("mail").data["groupMail"]["status"], "pending");
+    }
+
+    #[test]
+    fn rejected_mail_cannot_be_approved_or_replied_to_later() {
+        let hub = hub();
+        let sent = call(&hub, "sender", "send_group_mail", &json!({"groupId":"department","subject":"Question","text":"Please advise","requestId":"mail2"})).expect("submit");
+        let id = sent["mailId"].as_str().expect("id");
+        decide(&hub, &json!({"mailId":id,"approve":false})).expect("reject");
+        assert!(decide(&hub, &json!({"mailId":id,"approve":true,"handler":"handler"})).is_err());
+        assert!(call(&hub, "handler", "reply_group_mail", &json!({"mailId":id,"text":"Reply"})).is_err());
+        assert!(hub.store.entry(&format!("{id}:delivery")).is_none());
+        assert!(hub.store.entry(&format!("{id}:reply")).is_none());
+    }
+}
