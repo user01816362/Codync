@@ -58,11 +58,15 @@ pub fn tools() -> Value {
     }]);
     if let Some(tools) = tools.as_array_mut() {
         tools.extend(crate::chat::group_delivery::tools());
+        tools.extend(crate::chat::group_mail::tools());
     }
     tools
 }
 
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
+    if crate::chat::group_mail::handles(name) {
+        return crate::chat::group_mail::call(hub, bot, name, args);
+    }
     if crate::chat::group_delivery::handles(name) {
         return crate::chat::group_delivery::call(hub, bot, name, args);
     }

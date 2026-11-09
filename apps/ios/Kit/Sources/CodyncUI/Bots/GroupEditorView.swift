@@ -13,6 +13,7 @@ public struct GroupEditorView: View {
     @State private var query = ""
     @State private var adding = false
     @State private var saving = false
+    @State private var inbox = false
     @State private var error: String?
     @State private var confirmDelete: Bot?
 
@@ -48,6 +49,7 @@ public struct GroupEditorView: View {
                             .animation(Motion.layout, value: members)
                     }
                     .frame(maxWidth: .infinity)
+                    Button("Group inbox") { inbox = true }.buttonStyle(SecondaryButtonStyle())
                     Field("Name") {
                         TextField(defaultName, text: $name).fieldBox().disabled(saving)
                     }
@@ -115,6 +117,7 @@ public struct GroupEditorView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(Palette.background)
+        .codyncSheet(isPresented: $inbox) { GroupInbox(groupId: groupId) }
         .deleteBotConfirmation($confirmDelete) { dismiss() }
     }
 

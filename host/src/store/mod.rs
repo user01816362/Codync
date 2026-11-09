@@ -8,6 +8,7 @@
 mod bots;
 mod devices;
 mod entries;
+mod entry_conditions;
 mod memory;
 mod model;
 mod schema;

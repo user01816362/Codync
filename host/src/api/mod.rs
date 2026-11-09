@@ -97,6 +97,12 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     {
         market::vault::unlock(hub.clone()).await?;
     }
+    if method == "groupInbox" {
+        return crate::chat::group_mail::inbox(hub, str_arg(&b, "groupId")?);
+    }
+    if method == "decideGroupMail" {
+        return crate::chat::group_mail::decide(hub, &b);
+    }
     if method == "quoteFile" {
         let entry = hub.store.entry(str_arg(&b, "entryId")?).ok_or_else(|| anyhow::anyhow!("unknown message"))?;
         let selected =

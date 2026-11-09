@@ -345,6 +345,16 @@ impl Hub {
         Ok((entry, added))
     }
 
+    /// Approvals from two clients cannot overwrite each other's decisions.
+    pub fn set_entry_if_revision(&self, entry: &Entry, data: &Value) -> anyhow::Result<Option<Entry>> {
+        let _guard = self.emit_lock.locked();
+        let result = self.store.update_entry_if_revision(&entry.id, entry.rev, data)?;
+        if let Some(entry) = &result {
+            let _ = self.events.send(json!({"type":"entry","rev":entry.rev,"entry":entry}));
+        }
+        Ok(result)
+    }
+
     /// Updates and broadcasts an entry; failures are logged here, like [`Self::add_entry`].
     pub fn set_entry(&self, id: &str, data: &Value) -> Option<Entry> {
         self.set_entry_turn(id, None, data)

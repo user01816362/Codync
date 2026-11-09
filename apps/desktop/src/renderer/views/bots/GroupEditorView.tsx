@@ -3,10 +3,11 @@ import { isGroup, type Bot } from '@shared/models'
 import { BotAvatar, GroupAvatar } from '../../components/Avatar'
 import { IconButton, Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
-import { Dialog, ModalHeader, SheetPage, useDismiss } from '../../components/Overlay'
+import { Dialog, ModalHeader, Sheet, SheetPage, useDismiss } from '../../components/Overlay'
 import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { GroupInbox } from './GroupInbox'
 import { errorText } from './drafts'
 import { AutoTextArea, Field } from './parts'
 import './bots.css'
@@ -25,6 +26,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const [about, setAbout] = useState(group.description)
   const [members, setMembers] = useState<string[]>(group.members)
   const [query, setQuery] = useState('')
+  const [inbox, setInbox] = useState(false)
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,11 +68,9 @@ export function GroupEditorView({ group }: { group: Bot }) {
             <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
           </Field>
           <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
-            <label className="group-instructions-field">
-              <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>{tr('Group instructions')}</span>
-              <AutoTextArea className="field-box" value={about} placeholder="What this group works on" minRows={3} maxRows={8} onChange={setAbout} />
-            </label>
+            <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving} maxLength={4000} onChange={setAbout} />
           </Field>
+          <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
           <VStack>
             <div className="group-section-title">{tr("Members")} · {members.length}</div>
             {picked.map((bot) => (
@@ -119,6 +119,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           ) : null}
         </div>
       </div>
+      <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}><GroupInbox group={current ?? group} /></Sheet>
       <DeleteBotDialog bot={confirmDelete} onClose={() => setConfirmDelete(null)} onDeleted={dismiss} />
     </SheetPage>
   )

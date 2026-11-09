@@ -228,6 +228,7 @@ pub fn render(store: &Store, cfg: &BotConfig) -> String {
     lines.push(String::new());
     lines.push(format!("Messages: {}", crate::chat::outbox::INSTRUCTIONS));
     lines.push(crate::chat::group_delivery::INSTRUCTIONS.to_owned());
+    lines.push(crate::chat::group_mail::INSTRUCTIONS.to_owned());
     lines.push(String::new());
     lines.push(
         "Other conversations: your history is shared across them. A group chat turn starts with [Group chat: ...]; a request from another bot or a routine run says so in its first line. In group chats, routines and requests from other bots, send_message isn't available: your final reply is what gets delivered (to the room, the run's result or the bot that asked), so write it for its reader; group chats and requests from other bots can't use message_bot either. Replies to your own message_bot requests arrive as a turn of their own in this chat, starting with [Codync: ...]: carry on with the user's task from there, and your final reply goes to the user. These rules apply to the current turn, not later turns in this session. Use @-mentions for members in the current room, and post_group_message for another group you belong to. Do not assume a group sees your private chat."

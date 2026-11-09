@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Sheet } from '../../components/Overlay'
+import { GroupInbox } from '../bots/GroupInbox'
 import { WorkspaceBrowser } from '../bots/WorkspaceBrowser'
 import { useFilePreview } from './FilePreview'
 import { hasLibrary } from '@shared/artifacts'
@@ -45,6 +46,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
   close: () => void
 }) {
   const tr = useTr()
+  const [inbox, setInbox] = useState(false)
   const [browsingWorkspace, setBrowsingWorkspace] = useState(false)
   const preview = useFilePreview()
   const store = useStore()
@@ -62,7 +64,10 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
       <div className="details-scroll">
         {bot ? <Identity bot={bot} /> : null}
         {bot && group ? (
-          <GroupMembersList group={bot} editGroup={editGroup} />
+          <>
+            <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
+            <GroupMembersList group={bot} editGroup={editGroup} />
+          </>
         ) : (
           <>
             <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
@@ -92,6 +97,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           </>
         )}
       </div>
+      <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}>{bot && group ? <GroupInbox group={bot} /> : null}</Sheet>
       <Sheet open={browsingWorkspace} onClose={() => setBrowsingWorkspace(false)} width={600} height={640}>
         <WorkspaceBrowser botId={botId} open={(owner, path) => { setBrowsingWorkspace(false); preview?.({ botId: owner, path }) }} />
       </Sheet>

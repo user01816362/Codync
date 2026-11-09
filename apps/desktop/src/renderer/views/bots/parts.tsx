@@ -30,7 +30,7 @@ export function SwitchRow({ title, detail, on, onChange }: { title: string; deta
 }
 
 /** A multi-line field that grows with its text between `minRows` and `maxRows` (`axis: .vertical`). */
-export function AutoTextArea({ value, onChange, placeholder, minRows, maxRows, className, onKeyDown }: {
+export function AutoTextArea({ value, onChange, placeholder, minRows, maxRows, className, onKeyDown, ariaLabel, disabled, maxLength }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
@@ -38,6 +38,9 @@ export function AutoTextArea({ value, onChange, placeholder, minRows, maxRows, c
   maxRows: number
   className?: string
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  ariaLabel?: string
+  disabled?: boolean
+  maxLength?: number
 }) {
   const tr = useTr()
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -50,7 +53,7 @@ export function AutoTextArea({ value, onChange, placeholder, minRows, maxRows, c
     el.style.height = '0px'
     el.style.height = `${Math.min(Math.max(el.scrollHeight, line * minRows + pad), line * maxRows + pad)}px`
   }, [value, minRows, maxRows])
-  return <textarea ref={ref} rows={minRows} className={className} value={value} placeholder={placeholder === undefined ? undefined : tr(placeholder)} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
+  return <textarea ref={ref} aria-label={ariaLabel} disabled={disabled} maxLength={maxLength} rows={minRows} className={className} value={value} placeholder={placeholder === undefined ? undefined : tr(placeholder)} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
 }
 
 /** The avatar's shape and color: each a wrapping, centered row of choices, ringed when picked. */

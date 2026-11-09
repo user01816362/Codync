@@ -67,21 +67,21 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
     Ok(json!({"status":"delivered","entryId":entry.id,"groupId":target.id,"duplicate":!added}))
 }
 
-fn string<'a>(args: &'a Value, key: &str) -> Result<&'a str> {
+pub(super) fn string<'a>(args: &'a Value, key: &str) -> Result<&'a str> {
     args[key].as_str().with_context(|| format!("{key} is required"))
 }
 
-fn agent(hub: &Hub, id: &str) -> Result<BotConfig> {
+pub(super) fn agent(hub: &Hub, id: &str) -> Result<BotConfig> {
     let row = hub.store.bot(id)?.filter(|row| !row.deleted && !row.config.is_group()).context("unknown bot")?;
     Ok(row.config)
 }
 
-fn group(hub: &Hub, id: &str) -> Result<BotConfig> {
+pub(super) fn group(hub: &Hub, id: &str) -> Result<BotConfig> {
     let row = hub.store.bot(id)?.filter(|row| !row.deleted && row.config.is_group()).context("unknown group")?;
     Ok(row.config)
 }
 
-fn source_chat(hub: &Hub, source: &BotConfig) -> Result<String> {
+pub(super) fn source_chat(hub: &Hub, source: &BotConfig) -> Result<String> {
     let chat = hub.runtime(&source.id).lane.map_or_else(|| source.id.clone(), |lane| lane.chat);
     if chat != source.id {
         ensure!(group(hub, &chat)?.members.contains(&source.id), "you no longer belong to the source group");

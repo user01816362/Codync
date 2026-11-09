@@ -285,7 +285,7 @@ fn ask(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotConfig, lane
     Ok((member_prompt(hub, group, members, me, lane)?, shown))
 }
 
-fn members(hub: &Hub, group: &BotConfig) -> Vec<BotConfig> {
+pub(super) fn members(hub: &Hub, group: &BotConfig) -> Vec<BotConfig> {
     group
         .members
         .iter()
@@ -384,7 +384,7 @@ fn mentions(text: &str, handle: &str) -> bool {
 }
 
 /// Prefer the configured display name, then its compact form; IDs only disambiguate real collisions.
-fn readable_mention(member: &BotConfig, members: &[BotConfig]) -> String {
+pub(super) fn readable_mention(member: &BotConfig, members: &[BotConfig]) -> String {
     let full = member.name.trim().to_owned();
     let compact = member.name.split_whitespace().collect::<String>();
     [full, compact]
@@ -445,6 +445,7 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
     }
     out.push(String::new());
     out.push(crate::chat::group_delivery::INSTRUCTIONS.to_owned());
+    out.push(crate::chat::group_mail::INSTRUCTIONS.to_owned());
     out.push(format!(
         "It's your turn, {}. Reply to the room if you have something worth adding, or reply exactly \"{PASS}\" if you don't.",
         me.name

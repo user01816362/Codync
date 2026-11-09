@@ -44,6 +44,7 @@ import com.codync.android.design.*
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var query by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
+    var inbox by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val saving = "editor" in state.busy
     val picked = draft.members.mapNotNull { id -> state.bots.firstOrNull { it.id == id } }
@@ -65,6 +66,7 @@ import com.codync.android.design.*
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
             }
+            if (draft.id != null) SecondaryButton("Group inbox") { inbox = true }
             Field("Name") {
                 FieldBox(draft.name, { draft = draft.copy(name = it) }, defaultName)
             }
@@ -95,6 +97,7 @@ import com.codync.android.design.*
             LinkButton("Delete group chat", color = Palette.danger) { confirmDelete = true }
         }
     }
+    CodyncSheet(inbox, { inbox = false }) { draft.id?.let { GroupInbox(it, state, store) } }
     val group = state.bots.firstOrNull { it.id == draft.id }
     CodyncDialog("Delete ${group?.name ?: "group chat"}?", confirmDelete, { confirmDelete = false }, "Its bots and their own chats stay.") {
         listOf(DialogAction("Delete group chat", destructive = true) { group?.let { store.deleteBot(it) { dismiss() } } })

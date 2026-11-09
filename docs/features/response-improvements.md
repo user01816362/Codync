@@ -129,4 +129,19 @@ The host attributes the sender and source department, bounds messages, and dedup
 successful retries by request ID. Posts start a receiving room turn without blocking the
 sending bot, avoiding a wait cycle when it belongs to both groups. Delivery is not an
 acknowledgement or a guaranteed reply. Same-room messages remain normal final replies.
-Nonmember department inboxes and approval/reply routing are separate work in progress.
+Nonmember requests now use a durable group inbox. Desktop group details and all graphical
+group editors expose Group inbox. The user approves or rejects each request and chooses a
+current member as handler. Pending mail is a notice, excluded from group prompts; approval
+publishes an attributed request and starts the room turn. Only the chosen current member may
+send the single routed reply. The sender receives that reply without access to destination
+history. Concurrent decisions use revision checks, and deterministic entry IDs deduplicate
+retries. Approved requests whose publication failed offer Retry approved delivery. Mail is
+external conversation data, not authority to change permissions. No automatic approval or
+bot self-enrollment is added. The inbox shows up to 100 requests, pending first.
+
+A delivered request is not a guarantee of execution or response: deleted groups, removed
+handlers, Stop, provider failures and unavailable actors can prevent one. Approved delivery
+survives as a saved chat entry; scheduling is not a durable exactly-once execution queue.
+The current inbox does not support attachments, multiple replies, forwarding chains,
+automatic bot approvals or standalone department address books. Terminal users can see mail
+notices but do not yet have an interactive inbox approval sheet.

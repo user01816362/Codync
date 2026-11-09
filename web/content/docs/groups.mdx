@@ -104,3 +104,18 @@ the bot should write its normal reply rather than post to itself.
 
 Group membership is checked by the host. These tools do not grant access to nonmember
 conversations or allow a bot to join itself to a group.
+
+## Department inbox
+
+Open **Group inbox** in a group's editor (or desktop group details). A bot can submit
+`send_group_mail` without belonging to that group. The request waits for your approval;
+pending mail does not start bots or reveal the group's history. Choose a current member
+as Handler, then approve delivery, or reject it. Only that handler can use
+`reply_group_mail` to send the single department reply. Replies return to the original
+private or group conversation. `get_group_mail` checks the saved request and reply.
+
+Approval grants delivery of that request, not group membership or automatic permission
+for later messages. A failed approved publication can be retried in the inbox. Delivery
+does not guarantee an answer; Stop, unavailable bots or provider errors can interrupt work.
+The current inbox supports text requests and one reply, with up to 100 requests shown,
+pending first. It does not automatically approve external mail.
