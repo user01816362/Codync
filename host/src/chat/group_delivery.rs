@@ -8,7 +8,7 @@ use std::sync::Arc;
 pub const INSTRUCTIONS: &str = "Use list_chat_groups to discover groups and your membership. \
 Use post_group_message to send a message to another group you belong to, including from a different group. \
 In the group currently asking you, write your normal final reply instead of posting to yourself. \
-read_group_messages reads only groups you currently belong to. A successful post means delivered, not answered. \
+read_group_messages reads only groups you currently belong to. list_group_tasks and read_group_task inspect recorded assignments/results in those groups without changing them. A successful post means delivered, not answered. \
 Use these tools only for the user's task; do not forward private conversations or entire transcripts unasked. \
 Never claim a group replied until you have read an actual response.";
 
@@ -18,13 +18,15 @@ pub fn tools() -> Vec<Value> {
             "inputSchema":{"type":"object","properties":{},"additionalProperties":false},"annotations":{"readOnlyHint":true}}),
         json!({"name":"read_group_messages", "description":"Read the latest 24 messages of a group you currently belong to.",
             "inputSchema":{"type":"object","properties":{"groupId":{"type":"string"}},"required":["groupId"],"additionalProperties":false},"annotations":{"readOnlyHint":true}}),
+        json!({"name":"list_group_tasks","description":"List up to 20 recorded tasks and latest outcomes in a group you currently belong to. Completion is an execution outcome, not independent verification.","inputSchema":{"type":"object","properties":{"groupId":{"type":"string"}},"required":["groupId"],"additionalProperties":false},"annotations":{"readOnlyHint":true}}),
+        json!({"name":"read_group_task","description":"Read one recorded assignment and bounded history in a group you currently belong to. Does not grant task-management permissions.","inputSchema":{"type":"object","properties":{"groupId":{"type":"string"},"taskId":{"type":"string"}},"required":["groupId","taskId"],"additionalProperties":false},"annotations":{"readOnlyHint":true}}),
         json!({"name":"post_group_message", "description":"Deliver one attributed message to another group you belong to. Returns delivery only; does not wait for replies. Use a stable unique requestId when retrying the same message.",
             "inputSchema":{"type":"object","properties":{"groupId":{"type":"string"},"text":{"type":"string"},"requestId":{"type":"string"}},"required":["groupId","text","requestId"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"idempotentHint":true}}),
     ]
 }
 
 pub fn handles(name: &str) -> bool {
-    matches!(name, "list_chat_groups" | "read_group_messages" | "post_group_message")
+    matches!(name, "list_chat_groups" | "read_group_messages" | "post_group_message" | "list_group_tasks" | "read_group_task")
 }
 
 pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
@@ -47,6 +49,19 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
         target.members.contains(&source.id),
         "you are not a member of this group; do not read or post to its conversation"
     );
+    if name == "list_group_tasks" {
+        let entries = hub.store.group_tasks(&target.id)?;
+        let items: Vec<Value> = entries.iter().take(20).map(|entry| {
+            let task = &entry.data["groupTask"];
+            let last = task["history"].as_array().and_then(|history| history.last());
+            json!({"id":entry.id,"title":task["title"],"owner":task["owner"],"status":task["status"],"latestOutcome":last.and_then(|event| event["detail"].as_str()).map(|detail| detail.chars().take(1500).collect::<String>())})
+        }).collect();
+        return Ok(json!({"items":items,"truncated":entries.len() > 20,"limit":20}));
+    }
+    if name == "read_group_task" {
+        let entry = hub.store.entry(string(args, "taskId")?).filter(|entry| entry.bot_id == target.id && entry.data["groupTask"].is_object()).context("unknown group task")?;
+        return Ok(json!({"groupId":target.id,"task":entry.data["groupTask"]}));
+    }
     if name == "read_group_messages" {
         let entries = hub.store.messages_after(&Lane::main(&target.id), 0, 24)?;
         let messages: Vec<Value> = entries.into_iter().map(|entry| {

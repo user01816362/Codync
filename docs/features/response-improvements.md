@@ -72,7 +72,7 @@ Group editors use labeled Name and Group instructions fields and group-specific 
 inbox, task, Library, image and storage controls. A group has no independent model, agent
 session or workspace; those remain properties of its members. At least one member is required.
 
-Ordinary bots discover groups through chat tools, independently of Manage groups. Reading or
+Ordinary bots discover groups through chat tools, independently of Manage groups. Current members can inspect task summaries and individual recorded assignments through list_group_tasks/read_group_task; these tools do not grant task-management rights. Reading or
 posting requires current membership. Posting does not block while the destination answers,
 avoiding actor wait cycles when a bot belongs to both groups. Same-room replies stay normal
 final replies. Request IDs deduplicate saved delivery but do not promise comprehension.

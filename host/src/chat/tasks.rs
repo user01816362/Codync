@@ -131,9 +131,11 @@ pub async fn update(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
     data["groupTask"]["runEntry"] = run_id.clone().into();
     let saved = save(hub, &entry, data, "queued", "Attempt queued by user")?;
     let text = format!(
-        "Group task for {}: {}\n\n{}\n\n{}",
+        "Group task for {} (groupId {}): {}\n\nGroup context (each member keeps its own instructions): {:?}\n\n{}\n\n{}",
         target.name,
+        target.id,
         saved.data["groupTask"]["title"].as_str().unwrap_or_default(),
+        target.description.chars().take(4000).collect::<String>(),
         saved.data["groupTask"]["text"].as_str().unwrap_or_default(),
         if attempt > 1 {
             "This resumes an earlier attempt. Inspect earlier work before repeating side effects."
