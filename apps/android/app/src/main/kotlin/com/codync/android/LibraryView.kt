@@ -40,12 +40,17 @@ import com.kyant.shapes.RoundedRectangle
     val online = state.actualConnection is LinkState.Ready
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Library))
     var attempt by remember(bot.id) { mutableStateOf(0) }
+    var query by remember(bot.id) { mutableStateOf("") }
+    var attachmentEntryId by remember(bot.id) { mutableStateOf<String?>(null) }
     var filesOnly by remember(bot.id) { mutableStateOf(false) }
     LaunchedEffect(bot.id, online, attempt) { if (online) store.loadLibrary(bot.id) }
     val items = state.artifacts.library(bot.id, state.library[bot.id].orEmpty())
     var renaming by remember { mutableStateOf<Artifact?>(null) }
     val fileItems = items.filter { it !is LibraryItem.ArtifactItem }
-    val visible = if (filesOnly) fileItems else items
+    val visible = (if (filesOnly) fileItems else items).filter { item ->
+        val name = when (item) { is LibraryItem.ArtifactItem -> item.artifact.title; is LibraryItem.FileItem -> item.file.name; is LibraryItem.AttachmentItem -> item.file.name }
+        name.contains(query.trim(), ignoreCase = true)
+    }
     var textFile by remember(bot.id) { mutableStateOf<LibraryItem.FileItem?>(null) }
     var textAttachment by remember(bot.id) { mutableStateOf<Attachment?>(null) }
     var image by remember { mutableStateOf<Attachment?>(null) }
@@ -55,6 +60,7 @@ import com.kyant.shapes.RoundedRectangle
             Text(fileItems.size.toString(), style = Type.caption, color = Palette.secondary)
             IconButton("Retry", "arrow.clockwise", enabled = online && "library:${bot.id}" !in state.busy) { attempt += 1 }
         }
+        SearchField(query, { query = it }, prompt = "Find files and artifacts")
         when {
             visible.isNotEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 for ((period, members) in LibraryPeriod.sections(visible)) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -66,7 +72,7 @@ import com.kyant.shapes.RoundedRectangle
                                 is LibraryItem.ArtifactItem -> ArtifactRow(item.artifact, { open(OpenArtifact(bot.id, item.artifact.id, item.artifact.title, item.artifact.entryId)) },
                                     { renaming = item.artifact }) { store.shareArtifact(bot.id, item.artifact.id, item.artifact.title) }
                                 is LibraryItem.FileItem -> FileRow(item, bot.id, state, store) { textFile = item }
-                                is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store, { image = item.file }) { textAttachment = item.file }
+                                is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store, { image = item.file }) { attachmentEntryId = item.entryId; textAttachment = item.file }
                             }
                         }
                     }
@@ -81,7 +87,7 @@ import com.kyant.shapes.RoundedRectangle
     RenameArtifactDialog(target?.title, { renaming = null }) { title -> target?.let { store.renameArtifact(bot.id, it.id, title) } }
     AttachmentImageSheet(image, bot.id, state, store) { image = null }
     CodyncSheet(textFile, { textFile = null }) { SharedTextPreview(it.file, it.entryId, store) }
-    CodyncSheet(textAttachment, { textAttachment = null }) { AttachmentTextPreview(it, bot.id, store) }
+    CodyncSheet(textAttachment, { textAttachment = null }) { AttachmentTextPreview(it, bot.id, store, attachmentEntryId) }
 }
 
 /** One row of the Library: what it is on the left, its name and detail. */

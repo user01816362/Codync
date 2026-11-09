@@ -66,7 +66,8 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
         {bot && group ? (
           <>
             <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
-            <GroupMembersList group={bot} editGroup={editGroup} />
+            <TabChoice label="Group details" selection={tab === 'library' ? 'library' : 'details'} options={[{ id: 'details', label: 'Members' }, { id: 'library', label: 'Library' }]} onChange={setTab} />
+            {tab === 'library' ? <LibraryView botId={botId} openArtifact={openArtifact} /> : <GroupMembersList group={bot} editGroup={editGroup} />}
           </>
         ) : (
           <>

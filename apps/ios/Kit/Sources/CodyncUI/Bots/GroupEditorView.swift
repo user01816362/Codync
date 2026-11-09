@@ -14,6 +14,8 @@ public struct GroupEditorView: View {
     @State private var adding = false
     @State private var saving = false
     @State private var inbox = false
+    @State private var library = false
+    @State private var artifact: ArtifactTarget?
     @State private var error: String?
     @State private var confirmDelete: Bot?
 
@@ -51,6 +53,7 @@ public struct GroupEditorView: View {
                     }
                     .frame(maxWidth: .infinity)
                     CustomIconEditor(target: "bot:\(groupId)")
+                    Button("Library") { library = true }.buttonStyle(SecondaryButtonStyle())
                     Button("Group inbox") { inbox = true }.buttonStyle(SecondaryButtonStyle())
                     Field("Name") {
                         TextField(defaultName, text: $name).fieldBox().disabled(saving)
@@ -119,6 +122,10 @@ public struct GroupEditorView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(Palette.background)
+        .codyncSheet(isPresented: $library) {
+            VStack { ModalHeader("Group Library"); ScrollView { LibraryView(botId: groupId) { artifact = $0 }.padding(20) } }
+                .codyncSheet(item: $artifact) { ArtifactView(target: $0) }
+        }
         .codyncSheet(isPresented: $inbox) { GroupInbox(groupId: groupId) }
         .deleteBotConfirmation($confirmDelete) { dismiss() }
     }

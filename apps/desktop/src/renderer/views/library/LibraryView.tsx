@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Artifact, LibraryItem } from '@shared/artifacts'
 import { isImageName, type Attachment, type SharedFile } from '@shared/models'
-import { DropdownMenu, IconButton, Spinner, TabChoice } from '../../components/Controls'
+import { DropdownMenu, IconButton, Spinner, TabChoice, SearchField } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
@@ -22,6 +22,7 @@ import { artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
 export function LibraryView({ botId, openArtifact }: { botId: string; openArtifact: (artifactId: string) => void }) {
   const tr = useTr()
   const store = useStore()
+  const [query, setQuery] = useState('')
   const [items, setItems] = useState<LibraryItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [viewing, setViewing] = useState<Attachment | null>(null)
@@ -43,7 +44,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
       live = false
     }
   }, [store, store.client, botId, shared, attempt])
-  const visible = filter === 'files' ? items.filter(item => item.kind !== 'artifact') : items
+  const visible = (filter === 'files' ? items.filter(item => item.kind !== 'artifact') : items).filter(item => (item.kind === 'artifact' ? item.artifact.title : item.file.name).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   return (
     <VStack gap={20}>
       <HStack gap={8}>
@@ -51,6 +52,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
         <Text size="caption" tone="secondary" grow>{items.filter(item => item.kind !== 'artifact').length} {tr('files')}</Text>
         <IconButton title="Retry" icon="arrow.clockwise" disabled={loading} onClick={() => setAttempt(value => value + 1)} />
       </HStack>
+      <SearchField value={query} onChange={setQuery} prompt="Find files and artifacts" />
       {error ? <Text size="caption" tone="danger" role="alert">{error}</Text> : null}
       {loading && items.length === 0 ? <Spinner /> : !error && visible.length === 0 ? (
         <VStack gap={4} className="outlined-card library-empty">
@@ -68,7 +70,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
                 ) : item.kind === 'file' ? (
                   <FileRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} />
                 ) : (
-                  <AttachmentRow key={item.file.id} botId={botId} file={item.file} view={() => setViewing(item.file)} />
+                  <AttachmentRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} view={() => setViewing(item.file)} />
                 ),
               )}
             </VStack>
@@ -154,12 +156,12 @@ function FileRow({ botId, entryId, file }: { botId: string; entryId: string; fil
 }
 
 /** A file the user sent: an image opens full size, like in the chat. */
-function AttachmentRow({ botId, file, view }: { botId: string; file: Attachment; view: () => void }) {
+function AttachmentRow({ botId, entryId, file, view }: { botId: string; entryId: string; file: Attachment; view: () => void }) {
   const openPreview = useFilePreview()
   if (!isImageName(file.name)) {
     return (
       <Row leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}>
-        {openPreview && canOpenPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, file })}>
+        {openPreview && canOpenPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, file, uploadEntryId: entryId })}>
           <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />
         </button> : <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />}
       </Row>

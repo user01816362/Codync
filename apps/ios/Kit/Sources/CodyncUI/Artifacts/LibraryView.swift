@@ -18,13 +18,22 @@ struct LibraryView: View {
     @State private var viewing: Attachment?
     @State private var textAttachment: Attachment?
     @State private var textFile: LibraryTextFile?
+    @State private var query = ""
+    @State private var attachmentEntryId: String?
     @State private var filesOnly = false
     @State private var attempt = 0
 
     var body: some View {
         let items = files + model.artifacts.artifacts(of: botId).map(ChatLibraryItem.init)
         let fileItems = items.filter { if case .artifact = $0.kind { return false }; return true }
-        let visible = filesOnly ? fileItems : items
+        let visible = (filesOnly ? fileItems : items).filter { item in
+            guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+            switch item.kind {
+            case .artifact(let artifact): return artifact.title.localizedCaseInsensitiveContains(query)
+            case .file(let file, _): return file.name.localizedCaseInsensitiveContains(query)
+            case .attachment(let file, _): return file.name.localizedCaseInsensitiveContains(query)
+            }
+        }
         VStack(alignment: .leading, spacing: 28) {
             HStack {
                 TabChoice(selection: $filesOnly, options: [(false, "All"), (true, "Files")])
@@ -32,6 +41,7 @@ struct LibraryView: View {
                 Spacer(minLength: 0)
                 IconButton("Retry", systemImage: "arrow.clockwise") { attempt += 1 }.disabled(!loaded)
             }
+            SearchField("Find files and artifacts", text: $query)
             if let error {
                 Text(L10n.tr(error)).font(.caption).foregroundStyle(Palette.danger).textSelection(.enabled)
             }
@@ -63,7 +73,7 @@ struct LibraryView: View {
         .codyncSheet(item: $renaming) { ArtifactRenameSheet(artifact: $0) }
         .artifactShareSheet($sharing)
         .codyncSheet(item: $viewing) { AttachmentViewer(file: $0, botId: botId) }
-        .codyncSheet(item: $textAttachment) { SharedTextPreview(attachment: $0, botId: botId) }
+        .codyncSheet(item: $textAttachment) { SharedTextPreview(attachment: $0, botId: botId, entryId: attachmentEntryId) }
         .codyncSheet(item: $textFile) { SharedTextPreview(file: $0.file, entryId: $0.entryId) }
         .fileExportSheet(model, botId: botId)
     }
@@ -102,8 +112,8 @@ struct LibraryView: View {
                 }
             }
             .buttonStyle(.plain)
-        case .attachment(let file, _):
-            Button { textAttachment = file } label: {
+        case .attachment(let file, let entryId):
+            Button { attachmentEntryId = entryId; textAttachment = file } label: {
                 LibraryRow(title: file.name, detail: L10n.tr("You") + " · " + ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file)) {
                     symbol(AttachmentIcon.symbol(file.name))
                 }

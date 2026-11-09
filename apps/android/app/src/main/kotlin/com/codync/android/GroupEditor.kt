@@ -44,6 +44,8 @@ import com.codync.android.design.*
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var query by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
+    var library by remember { mutableStateOf(false) }
+    var artifact by remember { mutableStateOf<OpenArtifact?>(null) }
     var inbox by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val saving = "editor" in state.busy
@@ -69,6 +71,7 @@ import com.codync.android.design.*
                 else GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
             }
             draft.id?.let { CustomIconEditor("bot:$it", state, store) }
+            if (draft.id != null) SecondaryButton("Library") { library = true }
             if (draft.id != null) SecondaryButton("Group inbox") { inbox = true }
             Field("Name") {
                 FieldBox(draft.name, { draft = draft.copy(name = it) }, defaultName)
@@ -100,6 +103,15 @@ import com.codync.android.design.*
             LinkButton("Delete group chat", color = Palette.danger) { confirmDelete = true }
         }
     }
+    CodyncSheet(library, { library = false }) {
+        state.bots.firstOrNull { it.id == draft.id }?.let { group ->
+            Column(Modifier.fillMaxSize()) {
+                ModalHeader("Group Library")
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp)) { LibraryView(group, state, store) { artifact = it } }
+            }
+        }
+    }
+    CodyncSheet(artifact, { artifact = null }) { target -> state.bots.firstOrNull { it.id == target.botId }?.let { ArtifactViewer(target, it, state, store) { artifact = null } } }
     CodyncSheet(inbox, { inbox = false }) { draft.id?.let { GroupInbox(it, state, store) } }
     val group = state.bots.firstOrNull { it.id == draft.id }
     CodyncDialog("Delete ${group?.name ?: "group chat"}?", confirmDelete, { confirmDelete = false }, "Its bots and their own chats stay.") {
