@@ -258,3 +258,8 @@ and scrolls to the actual source row. It never inserts an isolated old entry tha
 gap in normal history paging. A source further back requires another explicit attempt after
 loading history; removed sources and call-only sources have explicit errors. The Library's
 counts/search apply to loaded pages and are not a whole-workspace index.
+
+Terminal text previews support `/` to find literal case-insensitive text, with numbered source
+lines and highlighted matching rows; Enter finishes entering the query and `n` advances to the
+next match. Read/Source or wrap clears the search. Graphical clients retain bounded per-file
+preferences on device; terminal view controls remain session-local.

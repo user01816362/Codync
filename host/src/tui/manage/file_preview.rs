@@ -16,6 +16,8 @@ pub struct FilePreviewSheet {
     pub scroll: usize,
     pub max_scroll: Cell<usize>,
     pub page: Cell<usize>,
+    pub query: String,
+    pub searching: bool,
     pub source: bool,
     pub wrap: bool,
     request: PreviewRequest,
@@ -200,6 +202,8 @@ impl App {
             scroll: 0,
             max_scroll: Cell::default(),
             page: Cell::default(),
+            query: String::new(),
+            searching: false,
             source: false,
             wrap: true,
             request,
@@ -249,14 +253,44 @@ impl App {
                 return Some(Overlay::FilePreview(view));
             }
         }
+        if view.searching {
+            match key.code {
+                KeyCode::Esc => { view.searching = false; view.query.clear(); }
+                KeyCode::Enter => view.searching = false,
+                KeyCode::Backspace => { view.query.pop(); }
+                KeyCode::Char(c) if !ctrl(key) && view.query.chars().count() < 200 => view.query.push(c),
+                _ => {}
+            }
+            if let Some(Ok(text)) = &view.content {
+                let query = view.query.to_lowercase();
+                view.scroll = if query.is_empty() { 0 } else { text.lines().position(|line| line.to_lowercase().contains(&query)).unwrap_or(0) };
+            }
+            return Some(Overlay::FilePreview(view));
+        }
         let half = (view.page.get() / 2).max(1);
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return None,
+            KeyCode::Char('/') if view.directory.is_none() => {
+                view.searching = true;
+                view.query.clear();
+                view.source = true;
+                view.wrap = false;
+            }
+            KeyCode::Char('n') if !view.query.is_empty() => {
+                if let Some(Ok(text)) = &view.content {
+                    let query = view.query.to_lowercase();
+                    let matches: Vec<usize> = text.lines().enumerate().filter_map(|(index, line)| line.to_lowercase().contains(&query).then_some(index)).collect();
+                    if let Some(next) = matches.iter().find(|index| **index > view.scroll).or_else(|| matches.first()) { view.scroll = *next; }
+                    self.flash(&format!("{} matching lines", matches.len()));
+                }
+            }
             KeyCode::Char('v') => {
+                view.query.clear();
                 view.source = !view.source;
                 view.scroll = 0;
             }
             KeyCode::Char('w') => {
+                view.query.clear();
                 view.wrap = !view.wrap;
                 view.scroll = 0;
             }

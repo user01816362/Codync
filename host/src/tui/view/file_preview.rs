@@ -23,9 +23,12 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
         inner.x,
         inner.bottom() - 1,
         inner.width,
-        " ↑↓ scroll · v read/source · w wrap · c copy · r retry · esc close",
+        " ↑↓ scroll · / find · n next · v read/source · w wrap · c copy · r retry · esc",
         t.dim.patch(t.panel),
     );
+    if view.searching || !view.query.is_empty() {
+        put(buf, inner.x, inner.bottom() - 1, inner.width, &format!("Find: {} · enter finish · n next · esc cancel", view.query), t.text.patch(t.panel));
+    }
     let body = Rect::new(inner.x, inner.y, inner.width, inner.height - 2);
     let width = usize::from(body.width);
     if let Some(directory) = &view.directory {
@@ -80,6 +83,13 @@ pub(super) fn file_preview(buf: &mut Buffer, area: Rect, view: &FilePreviewSheet
                 }
                 Err(error) => vec![Line::raw(format!("{error}; v shows the full source."))],
             }
+        }
+        Some(Ok(text)) if !view.query.is_empty() => {
+            let query = view.query.to_lowercase();
+            text.lines().enumerate().map(|(index, line)| {
+                let style = if line.to_lowercase().contains(&query) { t.text.add_modifier(ratatui::style::Modifier::REVERSED) } else { t.text };
+                Line::styled(format!("{}: {line}", index + 1), style)
+            }).collect()
         }
         Some(Ok(text)) if !view.wrap => text.lines().map(|line| Line::raw(line.to_owned())).collect(),
         Some(Ok(text)) => text
