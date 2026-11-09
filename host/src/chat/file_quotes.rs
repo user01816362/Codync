@@ -1,5 +1,8 @@
 //! Verify literal excerpts against bounded saved file snapshots, never client-provided authors or paths.
-use crate::{chat::{files, uploads}, store::{Entry, Store}};
+use crate::{
+    chat::{files, uploads},
+    store::{Entry, Store},
+};
 use anyhow::{Context as _, Result, ensure};
 use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
@@ -20,7 +23,8 @@ pub fn annotate(store: &Store, entry: &Entry, meta: &Value, shared: bool, text: 
         ensure!(format!("{:x}", Sha256::digest(&bytes)) == file.sha256, "file integrity check failed");
     } else {
         let cfg = store.bot(&entry.bot_id)?.context("source conversation is unavailable")?.config;
-        let (loaded, actual) = uploads::read(&uploads::root(&cfg), meta["id"].as_str().context("unknown upload")?, 0, 1024 * 1024)?;
+        let (loaded, actual) =
+            uploads::read(&uploads::root(&cfg), meta["id"].as_str().context("unknown upload")?, 0, 1024 * 1024)?;
         ensure!(actual == size, "upload size changed");
         bytes = loaded;
     }

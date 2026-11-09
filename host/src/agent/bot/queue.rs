@@ -191,7 +191,15 @@ impl Actor {
                 Queued::User { entry_id, .. } => {
                     if let Some(mut e) = self.hub.store.entry(&entry_id) {
                         if let Some(task) = e.data["taskId"].as_str() {
-                            if let Err(error) = crate::chat::tasks::finish(&self.hub, task, &entry_id, "failed", "Stopped by user before dispatch") { tracing::error!(%error, "couldn't save task cancellation"); }
+                            if let Err(error) = crate::chat::tasks::finish(
+                                &self.hub,
+                                task,
+                                &entry_id,
+                                "failed",
+                                "Stopped by user before dispatch",
+                            ) {
+                                tracing::error!(%error, "couldn't save task cancellation");
+                            }
                         }
                         e.data["status"] = "cancelled".into();
                         self.hub.set_entry(&entry_id, &e.data);
@@ -356,23 +364,41 @@ impl Actor {
                 && *l == lane
             {
                 let is_task = match self.queue.front() {
-                    Some(Queued::User { entry_id, .. }) => self.hub.store.entry(entry_id).is_some_and(|entry| entry.data["taskId"].is_string()),
+                    Some(Queued::User { entry_id, .. }) => {
+                        self.hub.store.entry(entry_id).is_some_and(|entry| entry.data["taskId"].is_string())
+                    }
                     _ => false,
                 };
-                if is_task && !batch.is_empty() { break; }
+                if is_task && !batch.is_empty() {
+                    break;
+                }
                 if let Some(Queued::User { entry_id, text, .. }) = self.queue.pop_front() {
                     if let Some(entry) = self.hub.store.entry(&entry_id)
                         && let Some(task) = entry.data["taskId"].as_str()
                     {
-                        let pending = self.hub.store.entry(task).is_some_and(|saved| saved.data["groupTask"]["status"] == "queued" && saved.data["groupTask"]["runEntry"] == entry_id);
-                        if !pending { continue; }
-                        if let Err(error) = crate::chat::tasks::finish(&self.hub, task, &entry_id, "running", "Dispatched to owner") { tracing::error!(%error, "couldn't mark task running"); continue; }
+                        let pending = self.hub.store.entry(task).is_some_and(|saved| {
+                            saved.data["groupTask"]["status"] == "queued"
+                                && saved.data["groupTask"]["runEntry"] == entry_id
+                        });
+                        if !pending {
+                            continue;
+                        }
+                        if let Err(error) =
+                            crate::chat::tasks::finish(&self.hub, task, &entry_id, "running", "Dispatched to owner")
+                        {
+                            tracing::error!(%error, "couldn't mark task running");
+                            continue;
+                        }
                     }
                     batch.push((entry_id, text));
                 }
-                if is_task { break; }
+                if is_task {
+                    break;
+                }
             }
-            if batch.is_empty() { continue; }
+            if batch.is_empty() {
+                continue;
+            }
             let ids: Vec<String> = batch.iter().map(|(id, _)| id.clone()).collect();
             let text = batch.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join("\n\n");
             // A handoff waiting in the chat starts a new conversation with this message, as does one already taken
@@ -390,8 +416,11 @@ impl Actor {
         for id in &self.turn_entries {
             if let Some(entry) = self.hub.store.entry(id)
                 && let Some(task) = entry.data["taskId"].as_str()
-                && let Err(error) = crate::chat::tasks::finish(&self.hub, task, id, "failed", &format!("Could not start: {e:#}"))
-            { tracing::error!(%error, "couldn't record task start failure"); }
+                && let Err(error) =
+                    crate::chat::tasks::finish(&self.hub, task, id, "failed", &format!("Could not start: {e:#}"))
+            {
+                tracing::error!(%error, "couldn't record task start failure");
+            }
         }
         if self.turn.is_some() {
             self.report_turn(false, Some(e), "start_failed");

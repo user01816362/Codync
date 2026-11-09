@@ -14,7 +14,9 @@ impl Actor {
         for (index, item) in self.queue.iter().enumerate() {
             if let Queued::User { entry_id, .. } = item {
                 let mut entry = self.hub.store.entry(entry_id).context("queued message is unavailable")?;
-                if entry.data["taskId"].is_string() { continue; }
+                if entry.data["taskId"].is_string() {
+                    continue;
+                }
                 entry.data["durableQueue"] = true.into();
                 entry.data["queuePaused"] = paused.into();
                 entry.data["queueOrder"] = index.into();

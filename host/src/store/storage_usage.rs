@@ -11,7 +11,9 @@ impl Store {
         let size: u64 = c.query_row("PRAGMA page_size", [], |row| row.get(0))?;
         let free: u64 = c.query_row("PRAGMA freelist_count", [], |row| row.get(0))?;
         let entries: u64 = c.query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))?;
-        Ok(json!({"databaseBytes":pages.saturating_mul(size),"reusableBytes":free.saturating_mul(size),"entries":entries}))
+        Ok(
+            json!({"databaseBytes":pages.saturating_mul(size),"reusableBytes":free.saturating_mul(size),"entries":entries}),
+        )
     }
 
     pub fn compact_storage(&self) -> Result<()> {

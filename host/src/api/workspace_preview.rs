@@ -35,16 +35,18 @@ pub async fn quote(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
     let digest = format!("{:x}", Sha256::digest(source.as_bytes()));
     let chat = str_arg(body, "botId")?;
     let path = str_arg(body, "path")?;
-    let identity = serde_json::to_vec(&json!([chat,path,digest,passage]))?;
+    let identity = serde_json::to_vec(&json!([chat, path, digest, passage]))?;
     let id = format!("workspace-quote:{:x}", Sha256::digest(&identity));
     let mut snapshot = json!({"author":preview["botId"],"fileName":preview["name"],"workspacePath":path,"text":passage,"sha256":digest});
     if source.rfind(passage) == Some(at) {
         let start = source[..at].bytes().filter(|byte| *byte == b'\n').count() + 1;
         snapshot["startLine"] = start.into();
-        snapshot["endLine"] = (start + passage.trim_end_matches('\n').bytes().filter(|byte| *byte == b'\n').count()).into();
+        snapshot["endLine"] =
+            (start + passage.trim_end_matches('\n').bytes().filter(|byte| *byte == b'\n').count()).into();
     }
     let data = json!({"text":format!("Selected a passage from {}", preview["name"].as_str().unwrap_or("workspace file")),"workspaceQuote":snapshot});
-    let (entry, _) = hub.add_entry_once(&id, &crate::store::Lane::main(chat), crate::store::EntryKind::Notice, 0, &data)?;
+    let (entry, _) =
+        hub.add_entry_once(&id, &crate::store::Lane::main(chat), crate::store::EntryKind::Notice, 0, &data)?;
     let selected = json!({"text":passage,"part":"workspace"});
     let quote = crate::chat::replies::selection(&hub.store, chat, &entry.id, &selected)?;
     Ok(json!({"chatId":chat,"quote":quote}))

@@ -12,9 +12,9 @@ mod http;
 mod marketplace;
 mod network;
 mod queue_controls;
-mod storage_usage;
 mod reach;
 mod remote;
+mod storage_usage;
 mod workspace_browser;
 mod workspace_preview;
 
@@ -128,10 +128,12 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     }
     if method == "quoteArtifactSelection" {
         let bot = str_arg(&b, "botId")?;
-        let artifact = crate::chat::artifacts::get(&hub.store, bot, str_arg(&b, "artifactId")?).ok_or_else(|| anyhow::anyhow!("unknown artifact"))?;
+        let artifact = crate::chat::artifacts::get(&hub.store, bot, str_arg(&b, "artifactId")?)
+            .ok_or_else(|| anyhow::anyhow!("unknown artifact"))?;
         let entry = artifact.entry_id.ok_or_else(|| anyhow::anyhow!("this artifact has no source message to quote"))?;
         let selected = serde_json::json!({"text":str_arg(&b, "text")?,"part":format!("artifact:{}",artifact.id)});
-        let source = hub.store.entry(&entry).ok_or_else(|| anyhow::anyhow!("artifact source message is unavailable"))?;
+        let source =
+            hub.store.entry(&entry).ok_or_else(|| anyhow::anyhow!("artifact source message is unavailable"))?;
         let quote = crate::chat::replies::selection(&hub.store, &source.bot_id, &entry, &selected)?;
         return Ok(serde_json::json!({"chatId":source.bot_id,"quote":quote}));
     }
