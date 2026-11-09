@@ -76,6 +76,8 @@ impl Actor {
             _ => bail!("unknown queue action"),
         }
         let runtime = self.hub.runtime(&self.cfg.id);
-        Ok(json!({"paused":self.queue_paused(),"reason":if self.queue_paused() { "Paused by you" } else if self.turn.is_some() { "Waiting for the current turn" } else { "Ready" },"activity":runtime.activity}))
+        Ok(
+            json!({"paused":self.queue_paused(),"reason":if self.queue_paused() { "Paused by you" } else if self.turn.is_some() { "Waiting for the current turn" } else { "Ready" },"activity":runtime.activity}),
+        )
     }
 }
