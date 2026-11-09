@@ -140,14 +140,13 @@ history. Mail inspection follows current source/destination membership: removing
 from a department revokes its access to that department’s mail, including mail it originally
 sent there. Private senders retain access to their own requests. Concurrent decisions use revision checks, and deterministic entry IDs deduplicate
 retries. Approved requests whose publication failed offer Retry approved delivery. Mail is
-external conversation data, not authority to change permissions. No automatic approval or
-bot self-enrollment is added. The inbox shows up to 100 requests, pending first.
+external conversation data, not authority to change permissions. Automatic approval is an explicit Group inbox setting, off by default. It requires a valid current member as handler; new requests are approved and dispatched to that member. Existing pending requests stay pending. A missing or removed handler falls back to manual approval. No bot self-enrollment is added. The inbox shows up to 100 requests, pending first.
 
 A delivered request is not a guarantee of execution or response: deleted groups, removed
 handlers, Stop, provider failures and unavailable actors can prevent one. Approved delivery
 survives as a saved chat entry; scheduling is not a durable exactly-once execution queue.
 The current inbox does not support attachments, multiple replies, forwarding chains,
-automatic bot approvals or standalone department address books. Terminal users can see mail
+standalone department address books. Terminal users can see mail
 notices but do not yet have an interactive inbox approval sheet.
 
 ## Remaining recommendation gaps

@@ -4,6 +4,7 @@ import SwiftUI
 struct GroupInbox: View {
     let groupId: String
     @Environment(BotStore.self) private var model
+    @State private var policy = Policy(autoApprove: false, handler: "")
     @State private var items: [MailItem]?
     @State private var failure: String?
     @State private var attempt = 0
@@ -20,6 +21,15 @@ struct GroupInbox: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(L10n.tr("Approve an external request and choose who handles it. The sender receives only that handler’s reply, with no access to this conversation."))
                         .font(.caption).foregroundStyle(Palette.secondary)
+                    Toggle("Automatically approve incoming mail", isOn: Binding(get: { policy.autoApprove }, set: { enabled in
+                        savePolicy(Policy(autoApprove: enabled, handler: members.contains(where: { $0.id == policy.handler }) ? policy.handler : members.first?.id ?? ""))
+                    })).toggleStyle(.codync).disabled(items == nil || busy != nil || members.isEmpty)
+                    Text("New requests go directly to the selected bot. Existing pending requests still need approval. If the handler leaves, incoming requests wait for approval.").font(.caption).foregroundStyle(Palette.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Automatic mail handler").font(.caption).foregroundStyle(Palette.secondary)
+                        ChoicePicker(selection: Binding(get: { policy.handler }, set: { savePolicy(Policy(autoApprove: policy.autoApprove, handler: $0)) }), options: members.map { (id: $0.id, label: $0.name) })
+                            .disabled(items == nil || busy != nil)
+                    }
                     if let failure { Text(failure).foregroundStyle(Palette.danger).textSelection(.enabled) }
                     if let items {
                         if items.isEmpty { Text(L10n.tr("No group mail.")).foregroundStyle(Palette.secondary) }
@@ -35,7 +45,7 @@ struct GroupInbox: View {
             guard let client = model.live else { failure = L10n.tr("Computer is offline"); return }
             do {
                 let result: Inbox = try await client.call("groupInbox", ["groupId": groupId])
-                if !Task.isCancelled { items = result.items }
+                if !Task.isCancelled { items = result.items; policy = result.policy ?? Policy(autoApprove: false, handler: "") }
             } catch { if !Task.isCancelled { failure = error.localizedDescription } }
         }
     }
@@ -48,9 +58,8 @@ struct GroupInbox: View {
             Text(L10n.tr(item.replied ? "Replied" : item.delivered ? "Delivered to handler" : item.mail.status == "approved" ? "Approved · delivery pending" : item.mail.status == "rejected" ? "Rejected" : "Awaiting your approval"))
                 .font(.caption).foregroundStyle(Palette.secondary)
             if item.mail.status == "pending" {
-                Picker("Handler", selection: Binding(get: { handler(for: item.id) }, set: { handlers[item.id] = $0 })) {
-                    ForEach(members) { Text($0.name).tag($0.id) }
-                }.disabled(busy != nil)
+                ChoicePicker(selection: Binding(get: { handler(for: item.id) }, set: { handlers[item.id] = $0 }), options: members.map { (id: $0.id, label: $0.name) })
+                    .disabled(busy != nil)
                 HStack {
                     Button("Approve delivery") { decide(item, approve: true) }.disabled(busy != nil || members.isEmpty)
                     Button("Reject", role: .destructive) { decide(item, approve: false) }.disabled(busy != nil)
@@ -80,9 +89,24 @@ struct GroupInbox: View {
         }
     }
 
+    private func savePolicy(_ next: Policy) {
+        guard busy == nil, let client = model.live else { return }
+        busy = "policy"
+        failure = nil
+        Task {
+            defer { busy = nil }
+            do {
+                let saved: Policy = try await client.call("setGroupInboxPolicy", PolicyUpdate(groupId: groupId, autoApprove: next.autoApprove, handler: next.handler))
+                policy = saved
+            } catch { failure = error.localizedDescription }
+        }
+    }
+
+    private struct Policy: Codable { let autoApprove: Bool; let handler: String }
+    private struct PolicyUpdate: Encodable { let groupId: String; let autoApprove: Bool; let handler: String }
     private struct Approval: Encodable { let mailId: String; let approve: Bool; let handler: String? }
     private struct Decision: Decodable { let status: String }
-    private struct Inbox: Decodable { let items: [MailItem] }
+    private struct Inbox: Decodable { let items: [MailItem]; let policy: Policy? }
     private struct MailItem: Decodable, Identifiable {
         let id: String
         let from: String

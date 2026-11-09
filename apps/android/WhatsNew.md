@@ -9,11 +9,13 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 
 ## 2.42.1
 ### zh-Hant
+- 群組收件匣可選擇自動核准新請求，並指定負責回覆的成員。
 - 群組編輯新增清楚標示的欄位及群組收件匣：選擇負責成員後核准外部請求，再將部門回覆傳回原對話。成員可向其他已加入的群組傳訊。
 - 選取訊息文字後引用時，會顯示原作者與引用段落的回覆列，不再將引用內容插入草稿。文字檔預覽新增原始碼、複製、換行與重試；資料庫可篩選檔案並直接預覽文字檔。
 - bot 詳情「智慧體」區塊的「壓縮對話」預設改為「自動」：交給 Claude Code 或 Codex 在對話快滿時自己壓縮。想讓 Codync 提早壓縮，可以改選提早、接近上限或指定數量（從 100K、200K… 裡挑，或自己輸入）。已經是「提早」的 bot 會保留原設定，想交給智慧體自己壓縮可以改選「自動」。
 
 ### en-US
+- Group inbox settings can automatically approve new requests and assign a member to handle replies.
 - Group editing has labeled fields and an inbox: approve outside requests, choose a handler and route the department reply back. Members can message other joined groups.
 - Selected message passages now use the reply bar with their author and source. Text previews add Read/Source, copy, wrap and retry; the Library can filter files and open supported text previews.
 - Summarize long chats, in a bot's Agent section, now defaults to Auto: Claude Code or Codex summarizes a chat on its own once it fills up. Pick Early, Near the limit or a size (100K, 200K and so on, or one you type) to have Codync summarize sooner. Bots already on Early keep it; pick Auto to leave it to the agent.

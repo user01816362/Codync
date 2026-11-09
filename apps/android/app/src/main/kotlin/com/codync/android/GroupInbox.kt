@@ -15,6 +15,8 @@ import kotlinx.serialization.json.*
 
 @Composable internal fun GroupInbox(groupId: String, state: AppState, store: AppStore) {
     val members = state.bots.firstOrNull { it.id == groupId }?.members.orEmpty().mapNotNull { id -> state.bots.firstOrNull { it.id == id } }
+    var autoApprove by remember(groupId) { mutableStateOf(false) }
+    var automaticHandler by remember(groupId) { mutableStateOf("") }
     var items by remember(groupId) { mutableStateOf<JsonArray?>(null) }
     var failure by remember(groupId) { mutableStateOf<String?>(null) }
     var attempt by remember(groupId) { mutableStateOf(0) }
@@ -23,9 +25,31 @@ import kotlinx.serialization.json.*
     val scope = rememberCoroutineScope()
     LaunchedEffect(groupId, attempt) {
         failure = null
-        try { items = store.hostQuery("groupInbox", buildJsonObject { put("groupId", groupId) }).jsonObject["items"]?.jsonArray }
+        try {
+            val result = store.hostQuery("groupInbox", buildJsonObject { put("groupId", groupId) }).jsonObject
+            items = result["items"]?.jsonArray
+            val policy = result["policy"]?.jsonObject
+            autoApprove = policy?.get("autoApprove")?.jsonPrimitive?.booleanOrNull == true
+            automaticHandler = policy?.get("handler")?.jsonPrimitive?.content.orEmpty()
+        }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message ?: "Couldn't load group inbox." }
+    }
+    fun savePolicy(enabled: Boolean, handler: String) {
+        if (busy != null) return
+        busy = "policy"
+        failure = null
+        scope.launch {
+            try {
+                store.hostQuery("setGroupInboxPolicy", buildJsonObject {
+                    put("groupId", groupId); put("autoApprove", enabled); put("handler", handler)
+                })
+                autoApprove = enabled
+                automaticHandler = handler
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { failure = error.message ?: "Couldn't save inbox settings." }
+            finally { busy = null }
+        }
     }
     fun decide(id: String, approve: Boolean) {
         if (busy != null) return
@@ -47,6 +71,12 @@ import kotlinx.serialization.json.*
         ModalHeader("Group inbox") { IconButton("Refresh inbox", "arrow.clockwise", enabled = busy == null) { attempt += 1 } }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Text(tr("Approve an external request and choose who handles it. The sender receives only that handler’s reply, with no access to this conversation."), style = Type.caption, color = Palette.secondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(tr("Automatically approve incoming mail"), modifier = Modifier.weight(1f), color = Palette.text)
+                CodyncSwitch(autoApprove, { enabled -> savePolicy(enabled, automaticHandler.takeIf { id -> members.any { it.id == id } } ?: members.firstOrNull()?.id.orEmpty()) }, enabled = items != null && busy == null && members.isNotEmpty())
+            }
+            Text(tr("New requests go directly to the selected bot. Existing pending requests still need approval. If the handler leaves, incoming requests wait for approval."), style = Type.caption, color = Palette.secondary)
+            ChoicePicker(automaticHandler, members.map { it.id to it.name }, { savePolicy(autoApprove, it) }, label = "Automatic mail handler", enabled = items != null && busy == null)
             failure?.let { Text(it, color = Palette.danger) }
             val current = items
             if (current == null && failure == null) Spinner()
