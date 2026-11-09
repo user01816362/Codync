@@ -112,7 +112,7 @@ private data class EntryFields(
 /** A quoted message: its entry, who wrote it (`user` or a bot id) and its text, cut short by the computer; `artifact` when it
  *  quotes an artifact card (the message is about that artifact). */
 @Serializable data class ReplyQuote(val id: String = "", val author: String = "", val text: String = "", val artifact: String? = null,
-    val selected: Boolean? = null, val part: String? = null)
+    val selected: Boolean? = null, val part: String? = null, val fileName: String? = null, val artifactTitle: String? = null, val startLine: Int? = null, val endLine: Int? = null)
 
 @Serializable data class Attachment(val id: String, val name: String, val size: Long) {
     val isImage: Boolean get() = isImageName(name)

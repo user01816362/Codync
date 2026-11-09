@@ -155,7 +155,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | --- | --- |
 | Conversation files | Show in chat navigation, group Library navigation, a date/size-rich file inventory beyond the current bounded Library results |
 | Text preview | Delivered: literal case-insensitive search with numbered matching lines (first 100 shown); Read/Source and wrap preferences retained for up to 100 file identities on each device |
-| File selections | Library-upload/live-workspace origins, filename labels in every reply bar, verified line ranges |
+| File selections | Library upload origins and file/artifact labels implemented. Saved-file selections require literal matching and integrity/size checks; unique passages receive verified line ranges. Live workspace quote origin remains in progress. |
 | Queue | Delivered: actor-serialized pause/resume and earlier/later ordering; managed user messages survive restart, with host-reported queue reason. Device interaction still needs validation. |
 | Context | Delivered: compact per-chat reported usage; compaction notices retain a reported before/after drop when received within 60 seconds. No token estimate is invented when the adapter reports none. |
 | Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
@@ -163,7 +163,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | Optional task lifecycle | Implemented: group assignments, explicit owner/start, cancellation-aware pause, resume/reassign and bounded history. Restart marks active attempts interrupted rather than replaying side effects. CI and interaction checks pending. |
 | Optional identity | Delivered: existing custom-icon editor exposed for groups; accountless local host storage; default remains the member composite |
 | Optional storage | Implemented: bounded managed-file inventory, SQLite page/reusable-space accounting and explicit database compaction with a temporary-space warning. No automatic file deletion. |
-| Optional artifact interaction | Validated artifact-selection-to-reply bridge |
+| Optional artifact interaction | Implemented: explicit Quote selected artifact text, bounded selection, host-validated source card and ordinary reply-bar review. No automatic send or command bridge. |
 | Validation | Actual app selection/focus, keyboard, screen-reader, reduced-motion and large-content checks |
 
 These are not claimed complete by a green build. PDF/media decoding varies by platform;
@@ -215,3 +215,16 @@ preserving live rows and files, with explicit confirmation and a warning that te
 free space up to twice the database size may be required. It runs off the async runtime but
 serializes database access. No file is classified as garbage from the Library's bounded
 history, and no workspace or shared file is deleted. See SQLite's [VACUUM documentation](https://www.sqlite.org/lang_vacuum.html).
+
+## Artifact and file excerpt provenance
+
+Artifact viewers expose Quote selected artifact text. Reading selection happens only after
+the app button is pressed; desktop checks the exact source frame and a one-use request
+nonce, while phones evaluate the bounded selection expression in the owned viewer. The
+host resolves the current artifact and its real source message. The excerpt opens the
+ordinary reply bar for review and does not send automatically. An artifact cannot invoke
+host commands, read files or grant access through this path. Artifact selections remain
+user-provided excerpts rather than proof that the artifact's scripts represented data honestly.
+Saved file quotes now re-read at most 1 MiB, verify shared-file hashes/upload size, and require
+a literal match. Unique occurrences get start/end line numbers; repeated text has no guessed
+line range. A rendered passage that is not literal asks the user to quote Source instead.

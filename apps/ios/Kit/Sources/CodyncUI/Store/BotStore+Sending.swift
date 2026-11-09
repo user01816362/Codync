@@ -36,6 +36,15 @@ extension BotStore {
                               kind: "agent", turn: 0, data: data, createdAt: 0, updatedAt: 0)
     }
 
+    func selectArtifactReply(botId: String, artifactId: String, text: String) async throws {
+        struct Result: Decodable { let chatId: String; let quote: ReplyQuote }
+        guard let client = live else { throw URLError(.notConnectedToInternet) }
+        let result: Result = try await client.call("quoteArtifactSelection", ["botId": botId, "artifactId": artifactId, "text": text])
+        var data = EntryData()
+        data.selectedQuote = result.quote
+        selectedReply = Entry(id: result.quote.id, seq: 0, botId: result.chatId, rev: 0, kind: "agent", turn: 0, data: data, createdAt: 0, updatedAt: 0)
+    }
+
     func prependQuote(_ text: String, to botId: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         setComposerDraft(text + composerDraft(for: botId), for: botId)

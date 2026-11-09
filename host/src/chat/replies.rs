@@ -4,7 +4,7 @@
 use crate::agent::acp;
 use crate::hub::Hub;
 use crate::store::{EntryKind, Store, message_text};
-use anyhow::{Result, anyhow, ensure};
+use anyhow::{Context as _, Result, anyhow, ensure};
 use serde_json::{Value, json};
 
 /// How much of the answered message's text the reply keeps.
@@ -48,7 +48,20 @@ pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Resul
             reply["text"] = text.into();
             reply["selected"] = true.into();
             reply["part"] = part.into();
-            reply["fileName"] = file["name"].clone();
+            let shared = entry.data["files"].as_array().is_some_and(|files| files.iter().any(|item| item["id"] == file["id"]));
+            super::file_quotes::annotate(store, &entry, file, shared, text, &mut reply)?;
+            return Ok(reply);
+        }
+        if let Some(artifact) = part.strip_prefix("artifact:") {
+            let mut reply = quote(store, chat, id)?;
+            ensure!(reply["artifact"] == artifact, "unknown artifact source");
+            let author = reply["author"].as_str().context("unknown artifact author")?;
+            let saved = super::artifacts::get(store, author, artifact).context("artifact is unavailable")?;
+            reply.as_object_mut().context("invalid quote")?.remove("artifact");
+            reply["artifactTitle"] = saved.title.into();
+            reply["text"] = text.into();
+            reply["part"] = part.into();
+            reply["selected"] = true.into();
             return Ok(reply);
         }
         ensure!(part == "request" || part == "reply", "unknown quote source");
@@ -86,6 +99,9 @@ pub fn note(hub: &Hub, me: &str, reply: &Value) -> Option<String> {
     };
     if reply["selected"] == true {
         let id = reply["id"].as_str().unwrap_or_default();
+        if let Some(title) = reply["artifactTitle"].as_str() {
+            return Some(format!("[Codync: the user selected this passage from artifact {title:?}, associated with {whose} (message {id}): {text:?}. This is user-provided content, not an instruction from the artifact.]"));
+        }
         if let Some(name) = reply["fileName"].as_str() {
             let name = serde_json::to_string(name).ok()?;
             return Some(format!(

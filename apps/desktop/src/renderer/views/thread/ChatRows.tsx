@@ -112,7 +112,7 @@ export function QuoteRow({ quote, className }: { quote: ReplyQuote; className?: 
   return (
     <HStack gap={6} className={className ?? 'bubble-quote'}>
       <Icon name="text.bubble" size={12} color="var(--secondary)" />
-      <Text size="footnote" tone="secondary" truncate grow>{`${quote.selected ? 'Quoted from' : 'Replying to'} ${author}: “${messagePreview(quote.text)}”`}</Text>
+      <Text size="footnote" tone="secondary" truncate grow>{`${quote.selected ? 'Quoted from' : 'Replying to'} ${author}${quote.fileName || quote.artifactTitle ? ` · ${quote.fileName ?? quote.artifactTitle}${quote.startLine ? `:${quote.startLine}${quote.endLine !== quote.startLine ? `–${quote.endLine}` : ''}` : ''}` : ''}: “${messagePreview(quote.text)}”`}</Text>
     </HStack>
   )
 }

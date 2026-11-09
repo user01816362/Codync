@@ -10,6 +10,8 @@ struct ArtifactWebView: UIViewRepresentable {
     let html: ArtifactCache.HTML
     /// The chat card's preview: no touches, and the artifact opens nothing.
     var interactive = true
+    var selectionRequest = 0
+    var onQuote: ((String) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -26,6 +28,12 @@ struct ArtifactWebView: UIViewRepresentable {
         let coordinator = context.coordinator
         coordinator.interactive = interactive
         view.isUserInteractionEnabled = interactive
+        if selectionRequest > 0, coordinator.selectionRequest != selectionRequest, interactive {
+            coordinator.selectionRequest = selectionRequest
+            view.evaluateJavaScript("(window.getSelection()?.toString() || '').slice(0, 16000)") { result, _ in
+                onQuote?(String((result as? String ?? "").unicodeScalars.prefix(4000)))
+            }
+        }
         let origin = Self.origin(artifactId)
         let shown = "\(artifactId)@\(html.updatedAt)"
         guard coordinator.shown != shown else { return }
@@ -50,6 +58,7 @@ struct ArtifactWebView: UIViewRepresentable {
         """, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
 
     @MainActor final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        var selectionRequest = 0
         var interactive = true
         var shown: String?
         var origin: String?

@@ -22,17 +22,18 @@ import androidx.compose.ui.viewinterop.AndroidView
  * system browser; the card's preview follows none and is hidden from TalkBack. `gone`: the artifact crashed its renderer,
  * so this view can't be used again and the caller drops it.
  */
-@Composable internal fun ArtifactWebView(id: String, html: String, interactive: Boolean, gone: () -> Unit, modifier: Modifier = Modifier) {
+@Composable internal fun ArtifactWebView(id: String, html: String, interactive: Boolean, gone: () -> Unit, modifier: Modifier = Modifier, selectionRequest: Int = 0, onQuote: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val links = LocalUriHandler.current
     val onGone by rememberUpdatedState(gone)
     val view = remember(id) { ArtifactView(context, id, interactive, { url -> runCatching { links.openUri(url) } }) { onGone() } }
-    AndroidView({ view }, modifier, onRelease = ArtifactView::destroy, update = { it.show(html) })
+    AndroidView({ view }, modifier, onRelease = ArtifactView::destroy, update = { it.show(html); it.selection(selectionRequest, onQuote) })
 }
 
 @SuppressLint("SetJavaScriptEnabled", "ViewConstructor")
 private class ArtifactView(context: Context, id: String, interactive: Boolean, open: (String) -> Unit, gone: () -> Unit) : WebView(context) {
     private var shown: String? = null
+    private var selectionRequest = 0
     /** Never resolves: relative links go nowhere, and the artifact gets an origin to keep its storage under (as on iPhone). */
     private val origin = "${id.lowercase()}.artifact.codync.invalid"
 
@@ -59,6 +60,15 @@ private class ArtifactView(context: Context, id: String, interactive: Boolean, o
                 gone()
                 return true
             }
+        }
+    }
+
+    fun selection(request: Int, quote: ((String) -> Unit)?) {
+        if (request <= 0 || request == selectionRequest || quote == null) return
+        selectionRequest = request
+        evaluateJavascript("(window.getSelection()?.toString() || '').slice(0, 16000)") { value ->
+            val selected = runCatching { com.codync.android.core.WireJson.decodeFromString<String>(value) }.getOrDefault("")
+            quote(buildString { selected.codePoints().limit(4000).forEach { appendCodePoint(it) } })
         }
     }
 

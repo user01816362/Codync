@@ -120,6 +120,10 @@ public struct ReplyQuote: Codable, Hashable, Sendable {
     public var artifact: String?
     public var selected: Bool?
     public var part: String?
+    public var fileName: String?
+    public var artifactTitle: String?
+    public var startLine: Int?
+    public var endLine: Int?
 
     public init(id: String, author: String, text: String, artifact: String? = nil, selected: Bool? = nil, part: String? = nil) {
         self.id = id
@@ -138,6 +142,10 @@ public struct ReplyQuote: Codable, Hashable, Sendable {
         artifact = try c.decodeIfPresent(String.self, forKey: .artifact)
         selected = try c.decodeIfPresent(Bool.self, forKey: .selected)
         part = try c.decodeIfPresent(String.self, forKey: .part)
+        fileName = try c.decodeIfPresent(String.self, forKey: .fileName)
+        artifactTitle = try c.decodeIfPresent(String.self, forKey: .artifactTitle)
+        startLine = try c.decodeIfPresent(Int.self, forKey: .startLine)
+        endLine = try c.decodeIfPresent(Int.self, forKey: .endLine)
     }
 }
 

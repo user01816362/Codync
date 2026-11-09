@@ -123,6 +123,15 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     if method == "decideGroupMail" {
         return crate::chat::group_mail::decide(hub, &b);
     }
+    if method == "quoteArtifactSelection" {
+        let bot = str_arg(&b, "botId")?;
+        let artifact = crate::chat::artifacts::get(&hub.store, bot, str_arg(&b, "artifactId")?).ok_or_else(|| anyhow::anyhow!("unknown artifact"))?;
+        let entry = artifact.entry_id.ok_or_else(|| anyhow::anyhow!("this artifact has no source message to quote"))?;
+        let selected = serde_json::json!({"text":str_arg(&b, "text")?,"part":format!("artifact:{}",artifact.id)});
+        let source = hub.store.entry(&entry).ok_or_else(|| anyhow::anyhow!("artifact source message is unavailable"))?;
+        let quote = crate::chat::replies::selection(&hub.store, &source.bot_id, &entry, &selected)?;
+        return Ok(serde_json::json!({"chatId":source.bot_id,"quote":quote}));
+    }
     if method == "quoteFile" {
         let entry = hub.store.entry(str_arg(&b, "entryId")?).ok_or_else(|| anyhow::anyhow!("unknown message"))?;
         let selected =

@@ -225,7 +225,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
                 label = "Reply") { quote ->
                 if (quote != null) Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(tr(if (replyTo?.selected == true) "Quoted from" else "Replying to") + " " + state.authorName(replyTo?.author.orEmpty()),
+                        Text(tr(if (replyTo?.selected == true) "Quoted from" else "Replying to") + " " + state.authorName(replyTo?.author.orEmpty()) + (replyTo?.fileName ?: replyTo?.artifactTitle)?.let { " · $it" }.orEmpty(),
                             style = Type.caption, color = Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         QuoteLine(quote)
                     }

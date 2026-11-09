@@ -2,10 +2,10 @@ import { useEffect } from 'react'
 import type { Entry, ReplyQuote } from '@shared/models'
 
 /** Reuse the reply composer without modifying either the source message or the text draft. */
-export function quoteSelection(entry: Pick<Entry, 'id' | 'botId' | 'kind' | 'data'>, selected: string, author?: string, part?: 'request' | 'reply' | `file:${string}`) {
+export function quoteSelection(entry: Pick<Entry, 'id' | 'botId' | 'kind' | 'data'>, selected: string, author?: string, part?: ReplyQuote['part'], metadata?: Pick<ReplyQuote, 'fileName' | 'artifactTitle' | 'startLine' | 'endLine'>) {
   const text = Array.from(selected.trim()).slice(0, 4000).join('')
   if (!text) return
-  const quote: ReplyQuote = { id: entry.id, author: author ?? (entry.kind === 'user' ? 'user' : entry.data.author ?? entry.botId), text, selected: true, ...(part ? { part } : {}) }
+  const quote: ReplyQuote = { ...metadata, id: entry.id, author: author ?? (entry.kind === 'user' ? 'user' : entry.data.author ?? entry.botId), text, selected: true, ...(part ? { part } : {}) }
   window.dispatchEvent(new CustomEvent<Entry>('codync:quote-selection', { detail: { seq: 0, rev: 0, turn: 0, createdAt: 0, updatedAt: 0, ...entry, data: { ...entry.data, selectedQuote: quote } } }))
 }
 

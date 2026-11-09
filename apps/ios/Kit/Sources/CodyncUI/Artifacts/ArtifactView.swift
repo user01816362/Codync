@@ -43,6 +43,7 @@ struct ArtifactView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var renaming: Artifact?
     @State private var sharing: ArtifactFile?
+    @State private var selectionRequest = 0
     @State private var shareError: String?
 
     private var botId: String { target.botId }
@@ -86,8 +87,10 @@ struct ArtifactView: View {
             .disabled(artifact == nil)
             .accessibilityHint(L10n.tr("Rename artifact"))
         } trailing: {
-            IconButton("Share artifact", systemImage: "square.and.arrow.up") { share() }
-                .disabled(model.artifacts.html[target.id] == nil)
+            HStack {
+                IconButton("Quote selected artifact text", systemImage: "text.quote") { selectionRequest += 1 }.disabled(artifact?.entryId == nil)
+                IconButton("Share artifact", systemImage: "square.and.arrow.up") { share() }.disabled(model.artifacts.html[target.id] == nil)
+            }
         }
     }
 
@@ -95,7 +98,13 @@ struct ArtifactView: View {
         let html = model.artifacts.html[target.id]
         ZStack {
             if let html {
-                ArtifactWebView(artifactId: target.id, html: html)
+                ArtifactWebView(artifactId: target.id, html: html, selectionRequest: selectionRequest, onQuote: { text in
+                    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { shareError = "Select text in the artifact first."; return }
+                    Task {
+                        do { try await model.selectArtifactReply(botId: botId, artifactId: target.id, text: text); dismiss() }
+                        catch { shareError = error.localizedDescription }
+                    }
+                })
                     .transition(.opacity)
             } else if let failure = model.artifacts.failures[target.id] {
                 VStack(spacing: 6) {

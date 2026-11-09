@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { IconButton } from '../../components/Controls'
 import { artifactFrameURL, type Artifact } from '@shared/artifacts'
 import type { MenuItem } from '../../components/Menu'
 import type { BotStore } from '../../store/bot-store'
@@ -10,18 +11,31 @@ import './library.css'
  * An artifact in a frame of its own origin (`main/artifacts.ts`): the whole artifact, or for a card its top, scaled down and
  * out of reach of the pointer.
  */
-export function ArtifactFrame({ id, html, title, preview = false }: { id: string; html: ArtifactHTML; title: string; preview?: boolean }) {
+export function ArtifactFrame({ id, html, title, preview = false, onQuote }: { id: string; html: ArtifactHTML; title: string; preview?: boolean; onQuote?: (text: string) => void }) {
+  const frame = useRef<HTMLIFrameElement>(null)
+  const pending = useRef<string | null>(null)
+  useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (!onQuote || preview || event.source !== frame.current?.contentWindow || !pending.current || event.data?.kind !== 'codync-artifact-selection' || event.data?.nonce !== pending.current) return
+      pending.current = null
+      if (typeof event.data.text === 'string' && event.data.text.length <= 16000) onQuote(Array.from(event.data.text.trim()).slice(0, 4000).join(''))
+    }
+    window.addEventListener('message', receive)
+    return () => window.removeEventListener('message', receive)
+  }, [onQuote, preview])
   const [shown, setShown] = useState<number | null>(null)
   useEffect(() => {
     let live = true
-    void window.codync.artifacts.show(id, html.bytes).then(() => live && setShown(html.updatedAt), console.error)
+    void window.codync.artifacts.show(id, new TextEncoder().encode(new TextDecoder().decode(html.bytes) + selectionRelay)).then(() => live && setShown(html.updatedAt), console.error)
     return () => {
       live = false
     }
   }, [id, html])
   if (shown === null) return null
-  return (
+  return (<>
+    {onQuote && !preview && <IconButton title="Quote selected artifact text" icon="text.quote" onClick={() => { const nonce = crypto.randomUUID(); pending.current = nonce; frame.current?.contentWindow?.postMessage({ kind: 'codync-read-selection', nonce }, '*') }} />}
     <iframe
+      ref={frame}
       className={preview ? 'artifact-frame preview' : 'artifact-frame'}
       src={artifactFrameURL(id, shown, preview)}
       title={title}
@@ -31,8 +45,12 @@ export function ArtifactFrame({ id, html, title, preview = false }: { id: string
       aria-hidden={preview || undefined}
       loading="lazy"
     />
-  )
+  </>)
 }
+
+// A read-only, request/response selection relay. Only the owning frame's bounded response
+// to an explicit app button is accepted. There is no file, network or command bridge.
+const selectionRelay = `<script>window.addEventListener('message',function(e){if(e.source===parent&&e.data?.kind==='codync-read-selection'&&typeof e.data.nonce==='string')parent.postMessage({kind:'codync-artifact-selection',nonce:e.data.nonce,text:(window.getSelection()?.toString()||'').slice(0,16000)},'*')});</script>`
 
 /** A title being edited in place: Return keeps it, Escape leaves it as it was. */
 export function TitleField({ initial, className, done }: { initial: string; className: string; done: (title: string | null) => void }) {

@@ -36,10 +36,7 @@ suspend fun AppStore.selectFileReply(entryId: String, fileId: String, text: Stri
         put("entryId", entryId); put("fileId", fileId); put("text", passage)
     }).jsonObject
     val value = result.getValue("quote").jsonObject
-    val quote = ReplyQuote(id = value.getValue("id").jsonPrimitive.content,
-        author = value.getValue("author").jsonPrimitive.content,
-        text = value.getValue("text").jsonPrimitive.content, selected = true,
-        part = value.getValue("part").jsonPrimitive.content)
+    val quote = WireJson.decodeFromJsonElement<ReplyQuote>(value)
     mutableState.update { it.copy(selectedReply = result.getValue("chatId").jsonPrimitive.content to quote) }
 }
 
@@ -164,4 +161,10 @@ private suspend fun AppStore.cachedFile(id: String, size: Long, fetch: suspend (
     destination
     } }
     try { return request.await() } finally { request.cancel() }
+}
+
+suspend fun AppStore.selectArtifactReply(botId: String, artifactId: String, text: String) {
+    val result = hostQuery("quoteArtifactSelection", body("botId" to botId, "artifactId" to artifactId, "text" to text)).jsonObject
+    val quote = WireJson.decodeFromJsonElement<ReplyQuote>(result.getValue("quote"))
+    mutableState.update { it.copy(selectedReply = result.getValue("chatId").jsonPrimitive.content to quote) }
 }

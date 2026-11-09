@@ -98,7 +98,7 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
       if (!store.client) { setQuoteError('Computer is offline'); return }
       const text = Array.from(selected.trim()).slice(0, 4000).join('')
       void store.client?.call<{ chatId: string; quote: ReplyQuote }>('quoteFile', { entryId: sourceEntryId, fileId: preview.file.id, text }).then(value => {
-        quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part)
+        quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part, value.quote)
         close()
       }).catch((error: unknown) => setQuoteError(error instanceof Error ? error.message : String(error)))
     } : undefined}>

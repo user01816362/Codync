@@ -328,7 +328,7 @@ struct Composer: View {
     private func quoteBar(_ target: Entry) -> some View {
         HStack(spacing: 4) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.tr(target.replyQuote.selected == true ? "Quoted from" : "Replying to") + " " + model.authorName(target.replyQuote.author))
+                Text(L10n.tr(target.replyQuote.selected == true ? "Quoted from" : "Replying to") + " " + model.authorName(target.replyQuote.author) + (target.replyQuote.fileName.map { " · " + $0 } ?? target.replyQuote.artifactTitle.map { " · " + $0 } ?? ""))
                     .font(.caption).foregroundStyle(Palette.secondary)
                 QuoteLine(text: target.replyQuote.text)
             }

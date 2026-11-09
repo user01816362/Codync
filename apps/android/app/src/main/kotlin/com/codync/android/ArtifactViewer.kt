@@ -1,5 +1,9 @@
 package com.codync.android
 
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import androidx.compose.foundation.layout.Row
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -72,6 +76,9 @@ internal data class OpenArtifact(val botId: String, val id: String, val title: S
     val newest = artifacts.newest(open.id)
     val online = state.actualConnection is LinkState.Ready
     LaunchedEffect(open.id, newest, online) { store.loadArtifact(bot.id, open.id) }
+    var selectionRequest by remember(open.id) { mutableStateOf(0) }
+    var selectionFailure by remember(open.id) { mutableStateOf<String?>(null) }
+    val selectionScope = rememberCoroutineScope()
     var renaming by remember { mutableStateOf(false) }
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Artifact))
     // The artifact crashed its renderer: this view is done; opening the artifact again starts a new one.
@@ -81,18 +88,29 @@ internal data class OpenArtifact(val botId: String, val id: String, val title: S
         ScreenHeader({ IconButton("Close artifact", "xmark", action = close) }, {
             Text(title, Modifier.padding(horizontal = 56.dp).plainButton { renaming = true }, style = Type.body.semibold,
                 color = Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }, { IconButton("Share artifact", "square.and.arrow.up") { store.shareArtifact(bot.id, open.id, title) } })
+        }, { Row {
+            IconButton("Quote selected artifact text", "text.quote", enabled = artifact?.entryId != null) { selectionRequest += 1 }
+            IconButton("Share artifact", "square.and.arrow.up") { store.shareArtifact(bot.id, open.id, title) }
+        } })
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             val html = artifacts.html[open.id]?.text
             val failure = artifacts.failures[open.id]
             when {
                 gone -> ArtifactFailure(null)
                 // A newer version that couldn't be read leaves the one shown.
-                html != null -> ArtifactWebView(open.id, html, interactive = true, gone = { gone = true }, Modifier.fillMaxSize())
+                html != null -> ArtifactWebView(open.id, html, interactive = true, gone = { gone = true }, Modifier.fillMaxSize(), selectionRequest = selectionRequest, onQuote = { text ->
+                    if (text.isBlank()) selectionFailure = "Select text in the artifact first."
+                    else selectionScope.launch {
+                        try { store.selectArtifactReply(bot.id, open.id, text); close() }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (error: Exception) { selectionFailure = error.message }
+                    }
+                })
                 failure != null -> ArtifactFailure(failure)
                 else -> Spinner(20.dp)
             }
         }
+        selectionFailure?.let { Text(it, color = Palette.danger) }
         // No card (a routine run published it): nothing a message could reply to.
         val quote = (artifact?.entryId ?: open.entryId)?.let { artifactQuote(it, bot.id, open.id, title) }
         if (quote != null) MessageComposer(bot, state, store, onCall = null, replyTo = quote, about = title, draftKey = artifactDraftKey(bot.id, open.id))

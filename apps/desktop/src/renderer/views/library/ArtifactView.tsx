@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { quoteSelection } from '../thread/selection-quote'
+import type { ReplyQuote } from '@shared/models'
 import type { Artifact } from '@shared/artifacts'
 import { DropdownMenu, Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
@@ -41,7 +43,14 @@ export function ArtifactView({ botId, artifactId, close }: { botId: string; arti
       </div>
       <div className="artifact-body">
         {html ? (
-          <ArtifactFrame id={artifactId} html={html} title={artifact?.title ?? ''} />
+          <ArtifactFrame id={artifactId} html={html} title={artifact?.title ?? ''} onQuote={text => {
+            if (!text) { setError('Select text in the artifact first.'); return }
+            if (!store.client) { setError('Computer is offline'); return }
+            void store.client.call<{ chatId: string; quote: ReplyQuote }>('quoteArtifactSelection', { botId, artifactId, text }).then(value => {
+              quoteSelection({ id: value.quote.id, botId: value.chatId, kind: 'agent', data: {} }, value.quote.text, value.quote.author, value.quote.part, value.quote)
+              close()
+            }).catch((error: unknown) => setError(String(error)))
+          }} />
         ) : failed ? (
           <VStack gap={6} className="artifact-state">
             <Text size="body" weight="semibold">{tr("Couldn't open the artifact")}</Text>
