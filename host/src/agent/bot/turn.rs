@@ -2,7 +2,7 @@
 
 use super::{Actor, Conn, Done, Instructions, NoticeStyle, Queued, Reacted, Seg};
 use crate::agent::acp::{self, Incoming};
-use crate::analytics::{self, TurnOutcome, TurnSource};
+use crate::analytics::TurnSource;
 use crate::chat::context::{self, Snapshot};
 use crate::chat::memory;
 use crate::hub::BotStatus;
@@ -476,36 +476,7 @@ impl Actor {
         }
     }
 
-    /// `turn_finished`, while the turn's start time is still in the runtime.
-    pub(super) fn report_turn(&self, stopped: bool, failure: Option<&anyhow::Error>, stop_reason: &str) {
-        let outcome = if stopped {
-            TurnOutcome::Stopped
-        } else if failure.is_some() {
-            TurnOutcome::Failed
-        } else if stop_reason == "end_turn" {
-            TurnOutcome::Done
-        } else {
-            TurnOutcome::Incomplete
-        };
-        let started = self.hub.runtime(&self.id()).started_at.unwrap_or_else(now_ms);
-        let ms = now_ms() - started;
-        analytics::turn_finished(&self.hub, &self.cfg.backend, outcome, stop_reason, failure, self.source(), ms);
-    }
 
-    /// What started the turn that is starting or running.
-    pub(super) fn source(&self) -> TurnSource {
-        if self.active_routine.is_some() {
-            TurnSource::Routine
-        } else if self.active_group.is_some() {
-            TurnSource::Group
-        } else if self.active_request.is_some() || self.reply_hops.is_some() {
-            TurnSource::Bot
-        } else if self.active_prompt {
-            TurnSource::Host
-        } else {
-            TurnSource::User
-        }
-    }
 }
 
 /// A finished turn alerts once the user's work is done: not when it's `quiet` (their next message

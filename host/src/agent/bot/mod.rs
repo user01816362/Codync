@@ -20,6 +20,7 @@ mod background_work;
 mod cmd;
 mod codex_names;
 mod compaction;
+mod completion;
 mod fallback;
 mod fast_mode;
 mod files;
