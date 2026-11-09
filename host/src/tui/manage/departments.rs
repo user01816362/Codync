@@ -182,7 +182,9 @@ impl App {
             }
             Ok(("decideGroupMail", json!({"mailId":row["id"],"approve":action == "approve","handler":resolve_owner()})))
         })();
-        if kind == "tasks" && action == "history" && fields.choice > 0
+        if kind == "tasks"
+            && action == "history"
+            && fields.choice > 0
             && let Some(events) = data["items"][fields.choice - 1]["data"]["groupTask"]["history"].as_array()
         {
             let text = events
