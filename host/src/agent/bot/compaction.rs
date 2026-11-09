@@ -159,7 +159,9 @@ impl Actor {
             entry.data["compaction"]["usageBefore"] = before.into();
             entry.data["compaction"]["usageAfter"] = used.into();
             entry.data["compaction"]["contextSize"] = size.into();
-            entry.data["text"] = format!("Earlier context was summarized to make room. Reported context: {before} → {used} / {size}.").into();
+            entry.data["text"] =
+                format!("Earlier context was summarized to make room. Reported context: {before} → {used} / {size}.")
+                    .into();
             self.hub.set_entry(id, &entry.data);
         }
         if self.turn_session == self.session_id

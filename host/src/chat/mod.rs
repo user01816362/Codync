@@ -29,5 +29,6 @@ mod research;
 mod rich_report;
 pub mod skills;
 pub mod table_preview;
+pub mod tasks;
 pub mod team;
 pub mod uploads;

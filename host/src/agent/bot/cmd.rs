@@ -33,6 +33,11 @@ pub enum Cmd {
         text: String,
         done: tokio::sync::oneshot::Sender<Result<()>>,
     },
+    PauseTask {
+        task_id: String,
+        entry_id: String,
+        done: tokio::sync::oneshot::Sender<Result<()>>,
+    },
     QueueControl {
         action: String,
         entry_id: Option<String>,

@@ -14,6 +14,7 @@ public struct GroupEditorView: View {
     @State private var adding = false
     @State private var saving = false
     @State private var inbox = false
+    @State private var tasks = false
     @State private var library = false
     @State private var artifact: ArtifactTarget?
     @State private var error: String?
@@ -53,6 +54,7 @@ public struct GroupEditorView: View {
                     }
                     .frame(maxWidth: .infinity)
                     CustomIconEditor(target: "bot:\(groupId)")
+                    Button("Group tasks") { tasks = true }.buttonStyle(SecondaryButtonStyle())
                     Button("Library") { library = true }.buttonStyle(SecondaryButtonStyle())
                     Button("Group inbox") { inbox = true }.buttonStyle(SecondaryButtonStyle())
                     Field("Name") {
@@ -122,6 +124,7 @@ public struct GroupEditorView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(Palette.background)
+        .codyncSheet(isPresented: $tasks) { GroupTasks(groupId: groupId) }
         .codyncSheet(isPresented: $library) {
             VStack { ModalHeader("Group Library"); ScrollView { LibraryView(botId: groupId) { artifact = $0 }.padding(20) } }
                 .codyncSheet(item: $artifact) { ArtifactView(target: $0) }

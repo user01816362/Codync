@@ -45,7 +45,11 @@ fn queued_rows(queued: &[&Entry], keys: QueueKeys) -> Vec<(String, String)> {
     let label = |e: &Entry| {
         let text = super::roster::plain(e.text().lines().next().unwrap_or_default());
         let files: Vec<String> = e.attachments().iter().map(|(name, _)| format!("▤ {name}")).collect();
-        format!("{} {}", if e.data["queuePaused"] == true { "Ⅱ" } else { "›" }, if text.is_empty() { files.join("  ") } else { text })
+        format!(
+            "{} {}",
+            if e.data["queuePaused"] == true { "Ⅱ" } else { "›" },
+            if text.is_empty() { files.join("  ") } else { text }
+        )
     };
     let mut rows: Vec<(String, String)> = if queued.len() > 3 {
         let mut rows: Vec<_> = queued[..2].iter().map(|e| (label(e), String::new())).collect();

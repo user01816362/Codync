@@ -28,10 +28,15 @@ impl App {
     /// Queue controls operate through the same actor as graphical clients.
     pub(super) fn control_queue(&mut self, action: &str) {
         let Some(bot) = self.selected.clone() else { return };
-        let Some(entry) = self.queued(&bot).first().copied() else { self.flash("No message waiting"); return };
+        let Some(entry) = self.queued(&bot).first().copied() else {
+            self.flash("No message waiting");
+            return;
+        };
         let action = if action == "toggle" {
             if entry.data["queuePaused"] == true { "resume" } else { "pause" }
-        } else { action };
+        } else {
+            action
+        };
         let body = json!({"botId":bot,"entryId":entry.id,"action":action});
         self.call("queueControl", body, After::Nothing);
     }

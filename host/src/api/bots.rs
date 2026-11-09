@@ -311,6 +311,9 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             if queued.is_none() {
                 bail!("that message isn't waiting any more");
             }
+            if method == "steer" {
+                anyhow::ensure!(queued.as_ref().is_none_or(|entry| entry.data["taskId"].is_null()), "task attempts run separately; use their task controls");
+            }
             let cmd = if method == "steer" { Cmd::Steer { entry_id } } else { Cmd::Unqueue { entry_id } };
             hub.send_cmd(bot, cmd)?;
             json!({})

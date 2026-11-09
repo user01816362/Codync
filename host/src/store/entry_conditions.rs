@@ -20,6 +20,16 @@ impl Store {
         Ok(Some(c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry)?))
     }
 
+    pub fn group_tasks(&self, group: &str) -> Result<Vec<Entry>> {
+        let c = self.db.locked();
+        let mut query = c.prepare(&format!(
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = 'notice'
+             AND json_type(data, '$.groupTask') = 'object'
+             ORDER BY CASE json_extract(data, '$.groupTask.status') WHEN 'completed' THEN 1 WHEN 'failed' THEN 1 WHEN 'interrupted' THEN 1 ELSE 0 END, seq DESC LIMIT 100"
+        ))?;
+        Ok(query.query_map([group], row_entry)?.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn managed_queue(&self, bot: &str) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut query = c.prepare(&format!(

@@ -370,6 +370,14 @@ impl Actor {
             let text = (status == crate::routines::Status::Succeeded).then(|| final_text.clone()).flatten();
             self.finish_routine(status, detail, text);
         }
+        for id in &self.turn_entries {
+            if let Some(entry) = self.hub.store.entry(id)
+                && let Some(task) = entry.data["taskId"].as_str()
+                && let Err(error) = crate::chat::tasks::finish(&self.hub, task, id, if stopped || failed || stop_reason != "end_turn" { "failed" } else { "completed" }, final_text.as_deref().unwrap_or("Turn ended without a final reply"))
+            {
+                tracing::error!(%error, "couldn't record task result");
+            }
+        }
         self.complete_request(reply, stopped);
         self.complete_group(if stopped || failed || stop_reason != "end_turn" {
             Err(anyhow!("turn did not complete ({stop_reason})"))

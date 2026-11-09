@@ -160,7 +160,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | Context | Delivered: compact per-chat reported usage; compaction notices retain a reported before/after drop when received within 60 seconds. No token estimate is invented when the adapter reports none. |
 | Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
 | Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
-| Optional task lifecycle | Persistent task ownership, pause/resume/reassign and task history |
+| Optional task lifecycle | Implemented: group assignments, explicit owner/start, cancellation-aware pause, resume/reassign and bounded history. Restart marks active attempts interrupted rather than replaying side effects. CI and interaction checks pending. |
 | Optional identity | Delivered: existing custom-icon editor exposed for groups; accountless local host storage; default remains the member composite |
 | Optional storage | Host-owned disk/storage inventory and safe cleanup semantics |
 | Optional artifact interaction | Validated artifact-selection-to-reply bridge |
@@ -189,3 +189,17 @@ into durable recovery; untouched queues retain the existing restart-cancellation
 New messages sent to a paused queue are retained too. Stop still cancels pending user messages.
 Explicit Send now remains an override. Terminal: `~` toggles pause, `(`/`)` move the next user
 message earlier/later, and the paused marker is shown beside queued text.
+
+## Group task lifecycle
+
+Group settings exposes Group tasks on graphical clients. Create saves a draft; Start sends
+a distinct user-authorized attempt to the chosen current member's own chat. Attempts are not
+batched with other queued messages or injected into another turn. Pause requests cancellation
+and stays Pausing until the running turn actually ends. Only stopped drafts/attempts can be
+reassigned or resumed. Resume is a new attempt with an explicit instruction to inspect earlier
+work before repeating side effects; it is not rollback or transactional execution. Normal Stop
+and queue removal record failed attempts. The board retains up to 100 history events per task,
+with each detail bounded to 4,000 characters. Active tasks are listed first, up to 100; new tasks
+are refused when 100 unfinished assignments exist. Restart marks running/queued tasks interrupted;
+resuming requires the user, so provider side effects are never replayed automatically. Task result
+history appears in the source group; detailed execution remains in the owner's chat.

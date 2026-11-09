@@ -11,10 +11,10 @@ mod host;
 mod http;
 mod marketplace;
 mod network;
+mod queue_controls;
 mod reach;
 mod remote;
 mod workspace_browser;
-mod queue_controls;
 mod workspace_preview;
 
 pub use events::{events_stream, term_events};
@@ -97,6 +97,15 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
         || matches!(method, "agentAuth" | "agentAuthenticate" | "setAgentEnv")
     {
         market::vault::unlock(hub.clone()).await?;
+    }
+    if method == "groupTasks" {
+        return crate::chat::tasks::list(hub, str_arg(&b, "groupId")?);
+    }
+    if method == "createGroupTask" {
+        return crate::chat::tasks::create(hub, &b);
+    }
+    if method == "updateGroupTask" {
+        return crate::chat::tasks::update(hub, &b).await;
     }
     if method == "queueControl" {
         return queue_controls::control(hub, &b).await;

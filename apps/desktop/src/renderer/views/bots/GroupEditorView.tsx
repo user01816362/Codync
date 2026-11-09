@@ -8,6 +8,7 @@ import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { CustomIconEditor } from './CustomIconEditor'
+import { GroupTasks } from './GroupTasks'
 import { GroupInbox } from './GroupInbox'
 import { errorText } from './drafts'
 import { AutoTextArea, Field } from './parts'
@@ -27,6 +28,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const [about, setAbout] = useState(group.description)
   const [members, setMembers] = useState<string[]>(group.members)
   const [query, setQuery] = useState('')
+  const [tasks, setTasks] = useState(false)
   const [inbox, setInbox] = useState(false)
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -72,6 +74,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
             <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving} maxLength={4000} onChange={setAbout} />
           </Field>
+          <button className="member-row press" onClick={() => setTasks(true)}><Icon name="checklist" size={20} /> Group tasks</button>
           <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
           <VStack>
             <div className="group-section-title">{tr("Members")} · {members.length}</div>
@@ -121,6 +124,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           ) : null}
         </div>
       </div>
+      <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}><GroupTasks group={current ?? group} /></Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}><GroupInbox group={current ?? group} /></Sheet>
       <DeleteBotDialog bot={confirmDelete} onClose={() => setConfirmDelete(null)} onDeleted={dismiss} />
     </SheetPage>
