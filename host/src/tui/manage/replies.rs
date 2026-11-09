@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use super::super::app::{After, AgentModel, App, Entry, Overlay, Toggle, rename_fold};
 use super::super::l10n::tr;
-use super::{Market, MemoryMode, Reply, Shell, open_browser, s};
+use super::{Market, MemoryMode, Reply, Shell, Submit, open_browser, s};
 
 impl App {
     pub(in crate::tui) fn on_sheet_reply(&mut self, r: Reply, res: Result<Value, String>) {
@@ -17,6 +17,12 @@ impl App {
             }
         };
         match r {
+            Reply::DepartmentSaved { request_id } => {
+                if matches!(self.overlays.last(), Some(Overlay::Fields(fields)) if matches!(&fields.submit, Submit::Department {request_id: current,..} if current == &request_id)) {
+                    self.overlays.pop();
+                    self.flash("Saved");
+                }
+            }
             Reply::Department { group, kind, request_id } => self.department_loaded(group, kind, request_id, v),
             Reply::Memory(bot) => {
                 for o in &mut self.overlays {
@@ -263,6 +269,14 @@ impl App {
 
     fn sheet_error(&mut self, r: &Reply, e: String) {
         match r {
+            Reply::DepartmentSaved { request_id } => {
+                if let Some(Overlay::Fields(fields)) = self.overlays.last_mut()
+                    && matches!(&fields.submit, Submit::Department {request_id: current,..} if current == request_id)
+                {
+                    fields.saving = false;
+                    fields.error = Some(e);
+                }
+            }
             Reply::Department { request_id, .. } => {
                 if let Some(Overlay::Fields(fields)) = self.overlays.last_mut()
                     && matches!(&fields.submit, Submit::Department {request_id: current,..} if current == request_id)

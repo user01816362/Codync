@@ -207,7 +207,7 @@ impl App {
             }
         }
         match result {
-            Ok((method, body)) => self.sheet(method, body, Reply::FieldsSaved),
+            Ok((method, body)) => self.sheet(method, body, Reply::DepartmentSaved { request_id: request_id.clone() }),
             Err(error) => {
                 fields.saving = false;
                 fields.error = Some(error);
