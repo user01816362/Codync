@@ -37,7 +37,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
     let live = true
     setLoading(true)
     setError(null)
-    (store.client ? store.client.call<{ items: LibraryItem[]; nextBefore: number | null }>('libraryPage', { botId }).then(value => { setNextBefore(value.nextBefore); for (const item of value.items) if (item.kind === 'artifact') store.artifacts.upsert(item.artifact); return value.items }) : Promise.reject(new Error('Computer is offline'))).then(
+    void (store.client ? store.client.call<{ items: LibraryItem[]; nextBefore: number | null }>('libraryPage', { botId }).then(value => { setNextBefore(value.nextBefore); for (const item of value.items) if (item.kind === 'artifact') store.artifacts.upsert(item.artifact); return value.items }) : Promise.reject(new Error('Computer is offline'))).then(
       (items) => live && (setItems(items), setError(null)),
       (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
     ).finally(() => { if (live) setLoading(false) })
