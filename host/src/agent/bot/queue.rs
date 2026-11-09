@@ -25,16 +25,15 @@ impl Actor {
                 }
             }
             Cmd::PauseTask { task_id, entry_id, done } => {
-                if !done.is_closed() {
-                    let result = if self.turn_entries.contains(&entry_id) {
-                        self.cancel_turn().await;
-                        Ok(())
-                    } else {
-                        self.unqueue(&entry_id);
-                        crate::chat::tasks::finish(&self.hub, &task_id, &entry_id, "paused", "Paused before dispatch")
-                    };
-                    let _ = done.send(result);
-                }
+                // The pause intent is already durable; a timed-out client must not discard it.
+                let result = if self.turn_entries.contains(&entry_id) {
+                    self.cancel_turn().await;
+                    Ok(())
+                } else {
+                    self.unqueue(&entry_id);
+                    crate::chat::tasks::finish(&self.hub, &task_id, &entry_id, "paused", "Paused before dispatch")
+                };
+                let _ = done.send(result);
             }
             Cmd::QueueControl { action, entry_id, done } => {
                 if !done.is_closed() {

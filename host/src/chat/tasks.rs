@@ -99,8 +99,16 @@ pub async fn update(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
         let owner = string(&saved.data["groupTask"], "owner")?;
         let run = string(&saved.data["groupTask"], "runEntry")?;
         let (done, result) = tokio::sync::oneshot::channel();
-        if let Err(error) = hub.send_cmd(owner, Cmd::PauseTask { task_id: saved.id.clone(), entry_id: run.to_owned(), done }) {
-            save(hub, &saved, saved.data.clone(), "interrupted", "Owner unavailable; cancellation could not be confirmed. Inspect earlier work before resuming.")?;
+        if let Err(error) =
+            hub.send_cmd(owner, Cmd::PauseTask { task_id: saved.id.clone(), entry_id: run.to_owned(), done })
+        {
+            save(
+                hub,
+                &saved,
+                saved.data.clone(),
+                "interrupted",
+                "Owner unavailable; cancellation could not be confirmed. Inspect earlier work before resuming.",
+            )?;
             return Err(error);
         }
         tokio::time::timeout(std::time::Duration::from_secs(10), result)
