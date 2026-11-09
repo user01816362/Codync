@@ -158,7 +158,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | File selections | Library upload origins and file/artifact labels implemented. Saved-file selections require literal matching and integrity/size checks; unique passages receive verified line ranges. Live workspace quotes now save a bounded verified excerpt with path, owner, hash and unique line ranges; later file edits do not replace the saved selection. |
 | Queue | Delivered: actor-serialized pause/resume and earlier/later ordering; managed user messages survive restart, with host-reported queue reason. Device interaction still needs validation. |
 | Context | Delivered: compact per-chat reported usage; compaction notices retain a reported before/after drop when received within 60 seconds. No token estimate is invented when the adapter reports none. |
-| Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
+| Inline math | Bold/emphasis/strike/code mixed with formulas implemented in the bounded offline renderer; links/HTML retain native rendering. Actual accessibility/device validation remains unavailable. |
 | Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
 | Optional task lifecycle | Implemented: group assignments, explicit owner/start, cancellation-aware pause, resume/reassign and bounded history. Restart marks active attempts interrupted rather than replaying side effects. CI and interaction checks pending. |
 | Optional identity | Delivered: existing custom-icon editor exposed for groups; accountless local host storage; default remains the member composite |
@@ -228,3 +228,22 @@ user-provided excerpts rather than proof that the artifact's scripts represented
 Saved file quotes now re-read at most 1 MiB, verify shared-file hashes/upload size, and require
 a literal match. Unique occurrences get start/end line numbers; repeated text has no guessed
 line range. A rendered passage that is not literal asks the user to quote Source instead.
+
+## Mixed inline formula presentation
+
+Formula paragraphs can now preserve bold, emphasis, strikethrough and code spans using
+the same inline vocabulary as native chat. Code spans remain literal; formulas use the
+existing untrusted KaTeX MathML output. Parsing is bounded to eight nesting levels and
+the existing paragraph/formula limits. Paragraphs containing links or HTML keep native
+rendering so link behavior is not replaced by a different navigation bridge. Source remains
+available. This change does not claim a complete CommonMark implementation or device
+accessibility verification.
+
+## Current protocol boundary
+
+The current [ACP v2 migration guide](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/protocol/v2/migration.mdx)
+now describes message-ID upserts and foreground state updates, but explicitly labels v2
+draft and requires negotiated, feature-gated support alongside v1. This host's existing
+v1 connections must not consume those fields as if v2 had been negotiated. Explicit
+stream_message remains the supported live-chat contract. Full v2 lifecycle negotiation
+is a separate protocol migration, not a rendering switch or an inferred finality signal.

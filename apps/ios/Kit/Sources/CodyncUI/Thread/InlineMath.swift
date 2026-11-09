@@ -5,6 +5,7 @@ enum InlineMath {
     private static let expression = try? NSRegularExpression(pattern: #"\\\(([^\n]{1,1024}?)\\\)|(?<!\\)\$([^$\n]{1,1024}?)\$"#)
     static func eligible(_ text: String) -> Bool {
         guard text.utf16.count <= 4000, !text.contains("$$"), let expression else { return false }
+        let text = text.replacingOccurrences(of: #"`[^`\n]*`"#, with: "", options: .regularExpression)
         let original = text as NSString
         let remaining = NSMutableString(string: text)
         var found = false
@@ -17,6 +18,6 @@ enum InlineMath {
                  math.range(of: #"^[A-Za-z]$"#, options: .regularExpression) != nil))
             if valid { found = true; remaining.replaceCharacters(in: match.range, with: "") }
         }
-        return found && (remaining as String).range(of: #"[`*_~\[\]<>\\]"#, options: .regularExpression) == nil
+        return found && (remaining as String).range(of: #"[\[\]<>\\]"#, options: .regularExpression) == nil
     }
 }

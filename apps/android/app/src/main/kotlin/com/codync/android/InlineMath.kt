@@ -6,13 +6,13 @@ internal object InlineMath {
     fun eligible(text: String): Boolean {
         if (text.length > 4000 || text.contains("$$")) return false
         var found = false
-        val rest = expression.replace(text) { match ->
+        val rest = expression.replace(text.replace(Regex("""`[^`\n]*`"""), "")) { match ->
             val explicit = match.groups[1]?.value
             val math = explicit ?: match.groups[2]?.value.orEmpty()
             val valid = explicit != null || (math.trim() == math &&
                 (Regex("""[\\^_=+*/{}]""").containsMatchIn(math) || Regex("""^[A-Za-z]$""").matches(math)))
             if (valid) { found = true; "" } else match.value
         }
-        return found && !Regex("""[`*_~\[\]<>\\]""").containsMatchIn(rest)
+        return found && !Regex("""[\[\]<>\\]""").containsMatchIn(rest)
     }
 }
