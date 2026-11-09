@@ -31,6 +31,14 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
+      - name: Install Rust (host/rust-toolchain.toml)
+        working-directory: host
+        run: rustup toolchain install
+
+      - name: Check Rust formatting before expensive builds
+        working-directory: host
+        run: cargo fmt --all --check
+
       - name: Install desktop dependencies
         working-directory: apps/desktop
         run: npm ci
@@ -62,6 +70,7 @@ jobs:
             for (const [kind, language, source, selector] of [
               ['code', 'javascript', 'const answer = 42;', '#output .hljs-keyword'],
               ['math', 'math', String.raw`\frac{1}{2}`, '#output math'],
+              ['inline-math', 'inline-math', '**Value $x$** and `$y$`', '#output strong math'],
               ['mermaid', 'mermaid', 'graph TD; A-->B;', '#output svg'],
             ]) {
               const page = await context.newPage()
@@ -124,10 +133,6 @@ jobs:
         run: >-
           xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
           -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
-
-      - name: Install Rust (host/rust-toolchain.toml)
-        working-directory: host
-        run: rustup toolchain install
 
       - name: Add macOS targets
         working-directory: host
