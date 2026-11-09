@@ -8,6 +8,7 @@ pub mod context_usage;
 pub mod fallbacks;
 pub mod files;
 pub mod group;
+pub mod group_delivery;
 pub mod handoff;
 pub mod lead;
 pub mod library;

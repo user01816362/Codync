@@ -91,3 +91,16 @@ When shared name prefixes would notify more than one member, the participant lis
 recommends a compact name such as `@FarmExpert`. Only genuinely ambiguous names require
 an exact ID; give those bots distinct names to keep their mentions readable. Delivery still
 uses the same host routing, and display names are independent of the agent provider.
+
+## Sending to another group
+
+A member can discover groups with `list_chat_groups`, read its joined groups with
+`read_group_messages`, and post to another joined group with `post_group_message`.
+This works from a private chat or a different group without enabling Manage groups.
+Ask the bot to forward the relevant discussion; private history is not automatically copied.
+The receiving group sees an attributed message and starts its usual member turn.
+Delivery confirms a saved message, not that anyone has answered. In the current room,
+the bot should write its normal reply rather than post to itself.
+
+Group membership is checked by the host. These tools do not grant access to nonmember
+conversations or allow a bot to join itself to a group.

@@ -33,7 +33,7 @@ const MAX_MESSAGE_BYTES: usize = 32 * 1024;
 const DELIVERY_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub fn tools() -> Value {
-    json!([{
+    let mut tools = json!([{
         "name": "send_message",
         "description": "Send the user one chat message (Markdown). It shows right away as its own bubble on their phone and computer; send several for several thoughts.",
         "inputSchema": {
@@ -55,10 +55,17 @@ pub fn tools() -> Value {
             "text": {"type": "string", "description": "Required for start/append, omitted for finish/cancel."}
         }, "required": ["action"]},
         "annotations": {"readOnlyHint": false, "idempotentHint": false}
-    }])
+    }]);
+    if let Some(tools) = tools.as_array_mut() {
+        tools.extend(crate::chat::group_delivery::tools());
+    }
+    tools
 }
 
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
+    if crate::chat::group_delivery::handles(name) {
+        return crate::chat::group_delivery::call(hub, bot, name, args);
+    }
     if name == "research_progress" {
         let entries = crate::chat::research::validate(args)?;
         deliver(hub, bot, |reply| Cmd::ResearchProgress { entries, reply }).await?;

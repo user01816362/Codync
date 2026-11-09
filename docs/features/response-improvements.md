@@ -107,3 +107,26 @@ The preview affordance covers shared snapshots and uploads opened from their sav
 Desktop keeps unchanged Markdown blocks through its existing block comparison; iPhone now explicitly skips unchanged blocks with Equatable views, and Android retains parsed blocks with its existing source-keyed cache. Appending text updates the same explicit streaming entry and retains block positions, including an unfinished code fence. This is block reuse, not a claim that parsing is constant-time or that arbitrary Markdown can be finalized before later input arrives.
 
 The current ACP protocol does not provide a reliable final-answer boundary for ordinary message chunks. Its message-ID proposal explicitly documents ambiguous boundaries; proposal fields must not be treated as a deployed finality guarantee. Consequently ordinary ACP chunks remain trace content, thought chunks remain separate, and the existing explicit `stream_message` contract is the supported live-chat delivery path. An adapter-specific final-answer mapping requires that adapter's documented signal before enabling it. See the [ACP message-ID proposal](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/message-id.mdx). Stop, reconnect and assistive-technology interactions still require device validation.
+
+## Group editor and messaging audit
+
+The group editor now uses labeled, boxed Name and Group instructions fields on desktop,
+iPhone and Android, matching existing bot form controls. It retains the member-composite
+avatar and group-specific membership/actions, and prevents removing the last member.
+Groups still have no model, private workspace or agent permissions of their own: those
+belong to their members. Custom group icons, explicit task owners and inbox delegation
+are separate capabilities, not missing bot-profile controls to copy into a group.
+
+Sidebar organization already exists as host-backed roster sections: right-click a bot,
+choose Move to section, and choose an existing section or New section. Sections can be
+renamed, removed or collapsed. These are flat conversation folders; they are not isolated
+workspaces, permission boundaries, nested folders or department membership. No duplicate
+folder store has been added. The batch list above does not claim those broader capabilities.
+
+Ordinary bots now discover groups through the chat tools independently of Manage groups.
+They can read and post only to groups they belong to, including posting from another group.
+The host attributes the sender and source department, bounds messages, and deduplicates
+successful retries by request ID. Posts start a receiving room turn without blocking the
+sending bot, avoiding a wait cycle when it belongs to both groups. Delivery is not an
+acknowledgement or a guaranteed reply. Same-room messages remain normal final replies.
+Nonmember department inboxes and approval/reply routing are separate work in progress.
