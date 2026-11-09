@@ -346,7 +346,7 @@ impl Hub {
     }
 
     /// Approvals from two clients cannot overwrite each other's decisions.
-    pub fn set_entry_if_revision(&self, entry: &Entry, data: &Value) -> anyhow::Result<Option<Entry>> {
+    pub fn set_entry_if_revision(&self, entry: &Entry, data: &Value) -> Result<Option<Entry>> {
         let _guard = self.emit_lock.locked();
         let result = self.store.update_entry_if_revision(&entry.id, entry.rev, data)?;
         if let Some(entry) = &result {
