@@ -21,11 +21,15 @@ internal fun AppStore.receiveArtifacts(events: List<MirrorEvent>) {
  * A chat's Library, fetched when it shows: its artifacts' details join the artifact cache (events keep them current while
  * connected), its files stay listed for that chat.
  */
-fun AppStore.loadLibrary(botId: String) = action("library:$botId") {
-    val response = ready().call("library", body("botId" to botId)).jsonObject
+fun AppStore.loadLibrary(botId: String, before: Long? = null) = action("library:$botId") {
+    val response = ready().call("libraryPage", buildJsonObject { put("botId", botId); before?.let { put("beforeSeq", it) } }).jsonObject
     val items = response.getValue("items").jsonArray.mapNotNull { (it as? JsonObject)?.let(LibraryItem::decode) }
     val artifacts = items.filterIsInstance<LibraryItem.ArtifactItem>().map { it.artifact }
-    mutableState.update { it.copy(library = it.library + (botId to items), artifacts = artifacts.fold(it.artifacts, ArtifactCache::upsert)) }
+    val next = response["nextBefore"]?.jsonPrimitive?.longOrNull
+    mutableState.update {
+        val merged = if (before == null) items else (it.library[botId].orEmpty() + items).distinctBy { item -> when (item) { is LibraryItem.ArtifactItem -> "artifact:${item.artifact.id}"; is LibraryItem.FileItem -> "${item.entryId}:${item.file.id}"; is LibraryItem.AttachmentItem -> "${item.entryId}:${item.file.id}" } }
+        it.copy(library = it.library + (botId to merged), libraryCursor = if (next == null) it.libraryCursor - botId else it.libraryCursor + (botId to next), artifacts = artifacts.fold(it.artifacts, ArtifactCache::upsert))
+    }
 }
 
 /**

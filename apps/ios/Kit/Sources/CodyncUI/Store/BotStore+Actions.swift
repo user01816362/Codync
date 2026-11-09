@@ -461,6 +461,24 @@ extension BotStore {
         if let view = try? await client.networkView(), !Task.isCancelled { network = view }
     }
 
+    func revealMessage(botId: String, entryId: String) async throws {
+        struct Location: Decodable { let seq: Int64 }
+        guard let client = live else { throw URLError(.notConnectedToInternet) }
+        let location: Location = try await client.call("messageLocation", ["botId": botId, "entryId": entryId])
+        for _ in 0..<25 {
+            if chat(botId).contains(where: { $0.id == entryId }) { break }
+            let first = chat(botId).first(where: { $0.seq > 0 && $0.seq != Int64.max })?.seq ?? Int64.max
+            let older = try await client.history(botId: botId, beforeSeq: first, limit: 500)
+            for entry in older { upsert(entry) }
+            if older.isEmpty || (older.map(\.seq).min() ?? Int64.max) <= location.seq { break }
+        }
+        guard chat(botId).contains(where: { $0.id == entryId }) else {
+            throw NSError(domain: "Codync", code: 1, userInfo: [NSLocalizedDescriptionKey: "The message is further back. Load earlier messages and try again."])
+        }
+        selection = botId
+        messageReveal = (botId, entryId, UUID())
+    }
+
     public func loadOlder(_ botId: String) async {
         guard let client, !historyComplete.contains(botId) else { return }
         let first = chat(botId).first { $0.seq > 0 && $0.seq != Int64.max }?.seq ?? Int64.max

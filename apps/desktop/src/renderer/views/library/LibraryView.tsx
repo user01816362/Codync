@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Artifact, LibraryItem } from '@shared/artifacts'
 import { isImageName, type Attachment, type SharedFile } from '@shared/models'
-import { DropdownMenu, IconButton, Spinner, TabChoice, SearchField } from '../../components/Controls'
+import { Button, DropdownMenu, IconButton, Spinner, TabChoice, SearchField } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
@@ -22,6 +22,7 @@ import { artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
 export function LibraryView({ botId, openArtifact }: { botId: string; openArtifact: (artifactId: string) => void }) {
   const tr = useTr()
   const store = useStore()
+  const [nextBefore, setNextBefore] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<LibraryItem[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +37,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
     let live = true
     setLoading(true)
     setError(null)
-    store.artifacts.library(store.client, botId).then(
+    (store.client ? store.client.call<{ items: LibraryItem[]; nextBefore: number | null }>('libraryPage', { botId }).then(value => { setNextBefore(value.nextBefore); for (const item of value.items) if (item.kind === 'artifact') store.artifacts.upsert(item.artifact); return value.items }) : Promise.reject(new Error('Computer is offline'))).then(
       (items) => live && (setItems(items), setError(null)),
       (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
     ).finally(() => { if (live) setLoading(false) })
@@ -44,6 +45,16 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
       live = false
     }
   }, [store, store.client, botId, shared, attempt])
+  const older = async () => {
+    if (!store.client || nextBefore === null || loading) return
+    setLoading(true)
+    try {
+      const page = await store.client.call<{ items: LibraryItem[]; nextBefore: number | null }>('libraryPage', { botId, beforeSeq: nextBefore })
+      setItems(items => [...items, ...page.items]); setNextBefore(page.nextBefore); setError(null)
+    } catch (error: unknown) { setError(String(error)) }
+    finally { setLoading(false) }
+  }
+  const show = (entryId: string) => { void store.revealMessage(botId, entryId).catch((error: unknown) => setError(String(error))) }
   const visible = (filter === 'files' ? items.filter(item => item.kind !== 'artifact') : items).filter(item => (item.kind === 'artifact' ? item.artifact.title : item.file.name).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   return (
     <VStack gap={20}>
@@ -68,15 +79,16 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
                 item.kind === 'artifact' ? (
                   <ArtifactRow key={item.artifact.id} artifact={store.artifacts.byId.get(item.artifact.id) ?? item.artifact} open={() => openArtifact(item.artifact.id)} onError={setError} />
                 ) : item.kind === 'file' ? (
-                  <FileRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} />
+                  <FileRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} at={item.at} show={() => show(item.entryId)} />
                 ) : (
-                  <AttachmentRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} view={() => setViewing(item.file)} />
+                  <AttachmentRow key={item.file.id} botId={botId} entryId={item.entryId} file={item.file} at={item.at} show={() => show(item.entryId)} view={() => setViewing(item.file)} />
                 ),
               )}
             </VStack>
           </section>
         ))
       )}
+      {nextBefore !== null && <Button disabled={loading} onClick={() => void older()}>Load older files</Button>}
       <AttachmentViewer source={viewing && { file: viewing, botId }} close={() => setViewing(null)} />
     </VStack>
   )
@@ -137,16 +149,16 @@ function ArtifactRow({ artifact, open, onError }: { artifact: Artifact; open: ()
 }
 
 /** A file the bot shared: saved like its card in the chat. */
-function FileRow({ botId, entryId, file }: { botId: string; entryId: string; file: SharedFile }) {
+function FileRow({ botId, entryId, file, at, show }: { botId: string; entryId: string; file: SharedFile; at: number; show: () => void }) {
   const openPreview = useFilePreview()
   const store = useStore()
   const state = store.fileDownloads.states.get(file.id)
   const busy = state?.kind === 'downloading'
-  const detail = `${store.bots.get(botId)?.name ?? ''} · ${downloadDetail(state, file)}`
+  const detail = `${store.bots.get(botId)?.name ?? ''} · ${downloadDetail(state, file)} · ${new Date(at).toLocaleString()}`
   return (
     <Row
       leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}
-      trailing={<IconButton title={downloadAction(state)} icon={busy ? 'xmark' : 'arrow.down.to.line'} onClick={() => (busy ? store.fileDownloads.cancel(file.id) : void store.fileDownloads.save(store.client, entryId, file))} />}
+      trailing={<><IconButton title="Show in chat" icon="bubble.left" onClick={show} /><IconButton title={downloadAction(state)} icon={busy ? 'xmark' : 'arrow.down.to.line'} onClick={() => (busy ? store.fileDownloads.cancel(file.id) : void store.fileDownloads.save(store.client, entryId, file))} /></>}
     >
       {openPreview && canOpenPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, entryId, file })}>
         <Name name={file.name} detail={detail} failed={state?.kind === 'failed'} />
@@ -156,21 +168,21 @@ function FileRow({ botId, entryId, file }: { botId: string; entryId: string; fil
 }
 
 /** A file the user sent: an image opens full size, like in the chat. */
-function AttachmentRow({ botId, entryId, file, view }: { botId: string; entryId: string; file: Attachment; view: () => void }) {
+function AttachmentRow({ botId, entryId, file, view, at, show }: { botId: string; entryId: string; file: Attachment; view: () => void; at: number; show: () => void }) {
   const openPreview = useFilePreview()
   if (!isImageName(file.name)) {
     return (
-      <Row leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />}>
+      <Row leading={<Icon name={attachmentSymbol(file.name)} size={16} color="var(--secondary)" />} trailing={<IconButton title="Show in chat" icon="bubble.left" onClick={show} />}>
         {openPreview && canOpenPreview(file) ? <button className="library-row-open" onClick={() => openPreview({ botId, file, uploadEntryId: entryId })}>
-          <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />
-        </button> : <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />}
+          <Name name={file.name} detail={`You · ${byteCount(file.size)} · ${new Date(at).toLocaleString()}`} />
+        </button> : <Name name={file.name} detail={`You · ${byteCount(file.size)} · ${new Date(at).toLocaleString()}`} />}
       </Row>
     )
   }
   return (
-    <Row leading={<AttachmentImage source={{ file, botId }} fit="icon" />}>
+    <Row leading={<AttachmentImage source={{ file, botId }} fit="icon" />} trailing={<IconButton title="Show in chat" icon="bubble.left" onClick={show} />}>
       <button className="library-row-open" onClick={view}>
-        <Name name={file.name} detail={`You · ${byteCount(file.size)}`} />
+        <Name name={file.name} detail={`You · ${byteCount(file.size)} · ${new Date(at).toLocaleString()}`} />
       </button>
     </Row>
   )

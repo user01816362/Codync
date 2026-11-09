@@ -71,6 +71,11 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         "manageGroupsCall" => {
             crate::chat::manage_groups::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"]).await?
         }
+        "messageLocation" => {
+            let entry = hub.store.entry(str_arg(&b, "entryId")?).filter(|entry| entry.bot_id == b["botId"].as_str().unwrap_or_default() && entry.data["removed"] != true && entry.data["superseded"] != true).context("source message is unavailable")?;
+            anyhow::ensure!(entry.data["call"].is_null(), "this message belongs to a call; open its call conversation");
+            json!({"seq":entry.seq})
+        }
         "history" => {
             let bot = str_arg(&b, "botId")?;
             let before = b["beforeSeq"].as_i64().unwrap_or(i64::MAX);
@@ -330,6 +335,7 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             json!({})
         }
         "memory" | "memoryFile" => crate::chat::memory::call(hub, method, &b).await?,
+        "libraryPage" => crate::chat::library::page(hub, str_arg(&b, "botId")?, b["beforeSeq"].as_i64().unwrap_or(i64::MAX))?,
         "library" => crate::chat::library::list(hub, str_arg(&b, "botId")?)?,
         "readArtifact" | "renameArtifact" => crate::chat::artifacts::api(hub, method, &b).await?,
         "editHandoff" | "keepConversation" => crate::chat::handoff::call(hub, method, &b)?,

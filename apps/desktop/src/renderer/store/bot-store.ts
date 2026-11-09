@@ -45,6 +45,24 @@ export const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅']
  * `rev`, then live). Port of kit's `BotStore`.
  */
 export class BotStore extends BotSync {
+  messageReveal: { botId: string; id: string; nonce: string } | null = null
+
+  async revealMessage(botId: string, id: string) {
+    if (!this.client) throw new Error('Computer is offline')
+    const { seq } = await this.client.call<{ seq: number }>('messageLocation', { botId, entryId: id })
+    for (let page = 0; page < 25 && !this.allEntries(botId).some(entry => entry.id === id); page++) {
+      const first = this.allEntries(botId).find(entry => entry.seq > 0 && entry.seq !== Number.MAX_SAFE_INTEGER)?.seq ?? Number.MAX_SAFE_INTEGER
+      const older = await this.client.history(botId, first, 500)
+      for (const entry of older) this.upsert(entry)
+      this.changed()
+      if (!older.length || Math.min(...older.map(entry => entry.seq)) <= seq) break
+    }
+    if (!this.allEntries(botId).some(entry => entry.id === id)) throw new Error('The message is further back. Load earlier messages and try again.')
+    this.messageReveal = { botId, id, nonce: crypto.randomUUID() }
+    this.selection = botId
+    this.changed()
+  }
+
   readonly fileDownloads = new FileDownloads(() => this.changed())
   readonly sections = new BotSections(() => this.bots, () => this.changed(), (op, undo) => this.perform(op, true, undo))
   readonly devServers = new DevServerCommands((op) => this.perform(op), (op) => this.withLink(op))

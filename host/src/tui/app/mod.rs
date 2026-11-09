@@ -457,7 +457,7 @@ impl App {
         }
     }
 
-    fn load_history(&mut self) {
+    pub(in crate::tui) fn load_history(&mut self) {
         let Some(id) = self.selected.clone() else { return };
         if self.history_busy.contains(&id) || self.history_done.contains(&id) {
             return;

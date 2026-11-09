@@ -23,6 +23,7 @@ pub enum LibraryItem {
     },
     /// A file the user attached (`readUpload`).
     Attachment {
+        entry: String,
         id: String,
         name: String,
         size: u64,
@@ -49,6 +50,7 @@ impl LibraryItem {
                 at,
             }),
             "attachment" => Some(Self::Attachment {
+                entry: v["entryId"].as_str().unwrap_or_default().to_owned(),
                 id: file["id"].as_str()?.to_owned(),
                 name: file["name"].as_str()?.to_owned(),
                 size: file["size"].as_u64().unwrap_or_default(),
@@ -77,13 +79,13 @@ impl Library {
 
 impl App {
     pub fn open_library(&mut self) {
-        let Some(b) = self.bot().filter(|b| !b.group) else {
-            self.flash("The Library belongs to a bot, not a group");
+        let Some(b) = self.bot() else {
+            self.flash("Select a chat first");
             return;
         };
         let bot = b.id.clone();
-        self.sheet("library", json!({"botId": bot}), Reply::Library(bot.clone()));
-        self.overlays.push(Overlay::Library(Library { bot, items: None, cursor: 0, files_only: false }));
+        self.sheet("libraryPage", json!({"botId": bot}), Reply::Library(bot.clone()));
+        self.overlays.push(Overlay::Library(Library { bot, items: None, cursor: 0, files_only: false, next_before: None, append: false }));
     }
 
     pub(in crate::tui) fn library_key(&mut self, mut l: Library, k: KeyEvent) -> Option<Overlay> {
@@ -116,8 +118,21 @@ impl App {
                 l.files_only = !l.files_only;
                 l.cursor = 0;
             }
+            (KeyCode::Char('n'), _) if l.next_before.is_some() => {
+                l.append = true;
+                self.sheet("libraryPage", json!({"botId":bot,"beforeSeq":l.next_before}), Reply::Library(bot.clone()));
+            }
+            (KeyCode::Char('g'), Some(LibraryItem::File { entry, .. } | LibraryItem::Attachment { entry, .. })) => {
+                if self.lane(&bot).iter().any(|item| item.id == entry) {
+                    self.pick = Some(entry);
+                    return None;
+                }
+                self.load_history();
+                self.flash("Loading earlier messages; press g again to show the source");
+            }
             (KeyCode::Char('R'), _) => {
-                self.sheet("library", json!({"botId": bot}), Reply::Library(bot.clone()));
+                l.append = false;
+                self.sheet("libraryPage", json!({"botId": bot}), Reply::Library(bot.clone()));
             }
             (KeyCode::Char('f'), Some(item)) => self.save_item(&bot, item),
             (KeyCode::Char('r'), Some(LibraryItem::Artifact(a))) => {
@@ -188,7 +203,10 @@ impl App {
             if let Overlay::Library(l) = o
                 && l.bot == bot
             {
-                l.items = Some(items.clone());
+                if l.append {
+                    l.items.get_or_insert_with(Vec::new).extend(items.clone());
+                    l.append = false;
+                } else { l.items = Some(items.clone()); }
                 let count = l.visible().map_or(0, |items| items.len());
                 l.cursor = l.cursor.min(count.saturating_sub(1));
             }
@@ -275,7 +293,7 @@ mod tests {
         .expect("a card parses")
         .1;
         assert_eq!(app.artifact_title(&card).as_deref(), Some("Old"));
-        app.overlays.push(Overlay::Library(Library { bot: "bot".into(), items: None, cursor: 0, files_only: false }));
+        app.overlays.push(Overlay::Library(Library { bot: "bot".into(), items: None, cursor: 0, files_only: false, next_before: None, append: false }));
         let file = json!({"id": "x", "name": "a.csv", "size": 9, "sha256": "0".repeat(64)});
         app.library_loaded(
             "bot",

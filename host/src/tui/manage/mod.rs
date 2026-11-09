@@ -116,6 +116,8 @@ pub struct Library {
     pub items: Option<Vec<LibraryItem>>,
     pub cursor: usize,
     pub files_only: bool,
+    pub next_before: Option<i64>,
+    pub append: bool,
 }
 
 pub struct RoutineList {

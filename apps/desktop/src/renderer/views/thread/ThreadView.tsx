@@ -56,6 +56,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   const tr = useTr()
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
+
   const [showTrace, setShowTrace] = useState(false)
   const [showSidechat, setShowSidechat] = useState(false)
   const [preview, setPreview] = useState<PreviewFile | null>(null)
@@ -182,6 +183,10 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   // This bot's Agent card is on the Details tab; a group member's is in its settings.
   const presentAgent = useCallback((id: string) => (id === botId ? presentRoutine(null) : setEditingMember(id)), [botId, presentRoutine])
   const member = editingMember ? store.bots.get(editingMember) : undefined
+
+  useEffect(() => {
+    if (store.messageReveal?.botId === botId) { setShowSettings(false); setCompactDetails(false); setPreview(null) }
+  }, [store.messageReveal?.nonce, botId])
 
   const details = (
     <DetailsPanel
@@ -375,6 +380,12 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
   const followingRef = useRef(true)
   followingRef.current = following
   const scroller = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const reveal = store.messageReveal
+    if (reveal?.botId !== botId) return
+    const target = scroller.current?.querySelector<HTMLElement>(`[data-entry-id="${CSS.escape(reveal.id)}"]`)
+    if (target) { setFollowing(false); target.scrollIntoView({ block: 'center' }); target.focus({ preventScroll: true }) }
+  }, [store.messageReveal?.nonce, botId, items.length])
   const lastScrollTop = useRef(0)
   const keepPlace = useRef<number | null>(null)
   const last = items[items.length - 1]
@@ -459,7 +470,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
           ) : null}
           {items.length === 0 && bot ? <div className="transcript-intro">{isGroup(bot) ? <GroupIntroCard group={bot} /> : <IntroCard bot={bot} />}</div> : null}
           {items.map((item) => (
-            <div key={item.id} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
+            <div key={item.id} data-entry-id={item.kind === 'separator' ? undefined : item.entry.id} tabIndex={-1} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
               <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} onEdit={onEdit} onPickVersion={pickVersion} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} openArtifact={openArtifact} openCall={openCall} />
             </div>
           ))}

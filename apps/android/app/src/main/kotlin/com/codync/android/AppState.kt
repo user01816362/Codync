@@ -82,6 +82,8 @@ data class AppState(
     val selectedBot: String? = null,
     /** A row selection consumed by the matching conversation composer. */
     val selectedReply: Pair<String, ReplyQuote>? = null,
+    val messageReveal: Triple<String, String, String>? = null,
+    val libraryCursor: Map<String, Long> = emptyMap(),
     /** A call to start in this bot's chat once it shows ("Talk to Codync"). */
     val callRequest: String? = null,
     val trace: Boolean = false,

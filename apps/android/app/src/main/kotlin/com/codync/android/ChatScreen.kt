@@ -268,7 +268,9 @@ private fun AppState.chatEntries(bot: Bot) = entries.filter { it.botId == bot.id
     val more = bot.id !in state.historyComplete
     val details by ThinkingDetails.enabled.collectAsStateWithLifecycle()
     // Pull to refresh reconnects, like Reconnect in the roster's computer menu, until the link is back.
-    ConversationList(items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop) {
+    val reveal = state.messageReveal?.takeIf { it.first == bot.id }
+    val revealIndex = reveal?.let { target -> items.indexOfFirst { it is ChatItem.Message && it.entry.id == target.second }.takeIf { it >= 0 }?.plus(if (more) 1 else 0) }
+    ConversationList(items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop, revealIndex = revealIndex, revealToken = reveal?.third) {
         if (more) item("earlier") {
             Box(Modifier.fillMaxWidth().padding(vertical = 14.dp).clearAndSetSemantics { contentDescription = "Loading earlier messages" },
                 contentAlignment = Alignment.Center) { Spinner(14.dp) }

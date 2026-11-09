@@ -13,12 +13,19 @@ const MAX_FILE_MESSAGES: i64 = 500;
 
 /// `library {botId}` → `{items: [{kind: artifact | file | attachment, at, …}]}`.
 pub fn list(hub: &Hub, bot: &str) -> Result<Value> {
+    page(hub, bot, i64::MAX)
+}
+
+pub fn page(hub: &Hub, bot: &str, before: i64) -> Result<Value> {
     ensure!(hub.store.bot(bot)?.is_some_and(|row| !row.deleted), "unknown bot");
     let mut items: Vec<Value> = artifacts::list(&hub.store, bot)
         .into_iter()
         .map(|artifact| json!({"kind": "artifact", "at": artifact.updated_at, "artifact": artifact}))
         .collect();
-    for e in hub.store.file_messages(bot, MAX_FILE_MESSAGES)? {
+    let messages = if before == i64::MAX { hub.store.file_messages(bot, MAX_FILE_MESSAGES)? } else { hub.store.file_messages_before(bot, before, MAX_FILE_MESSAGES)? };
+    let next = (messages.len() == usize::try_from(MAX_FILE_MESSAGES)?).then(|| messages.last().map(|entry| entry.seq)).flatten();
+    if before != i64::MAX { items.clear(); }
+    for e in messages {
         let (kind, files) = if e.kind == EntryKind::User.as_str() {
             ("attachment", &e.data["attachments"])
         } else {
@@ -29,5 +36,5 @@ pub fn list(hub: &Hub, bot: &str) -> Result<Value> {
         }
     }
     items.sort_by_key(|item| std::cmp::Reverse(item["at"].as_i64().unwrap_or_default()));
-    Ok(json!({"items": items}))
+    Ok(json!({"items": items,"nextBefore":next}))
 }

@@ -454,7 +454,12 @@ extension ThreadView {
             })
         }
         // Pull to refresh reconnects, like Reconnect in the computer menu, until the link is back.
-        return ConversationList(rows: rows, following: $following, nearTop: { showEarlier() }, refresh: {
+        let reveal = model.messageReveal
+        let revealId = reveal?.botId == botId ? items.first(where: { item in
+            if case .entry(let entry, _) = item.kind { return entry.id == reveal?.id }
+            return false
+        })?.id : nil
+        return ConversationList(rows: rows, following: $following, revealId: revealId, revealToken: reveal?.botId == botId ? reveal?.nonce : nil, nearTop: { showEarlier() }, refresh: {
             model.restartStream()
             _ = try? await model.ready()
         })

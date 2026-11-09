@@ -153,7 +153,7 @@ notices but do not yet have an interactive inbox approval sheet.
 
 | Recommendation | What is still missing |
 | --- | --- |
-| Conversation files | Show in chat navigation, group Library navigation, a date/size-rich file inventory beyond the current bounded Library results |
+| Conversation files | Implemented: group Library, filename search, dated rows, cursor-based older-file pages and Show in chat for file/upload source messages. Source navigation pages history contiguously with a 25-page bound and explicit failure. |
 | Text preview | Delivered: literal case-insensitive search with numbered matching lines (first 100 shown); Read/Source and wrap preferences retained for up to 100 file identities on each device |
 | File selections | Library upload origins and file/artifact labels implemented. Saved-file selections require literal matching and integrity/size checks; unique passages receive verified line ranges. Live workspace quotes now save a bounded verified excerpt with path, owner, hash and unique line ranges; later file edits do not replace the saved selection. |
 | Queue | Delivered: actor-serialized pause/resume and earlier/later ordering; managed user messages survive restart, with host-reported queue reason. Device interaction still needs validation. |
@@ -247,3 +247,14 @@ draft and requires negotiated, feature-gated support alongside v1. This host's e
 v1 connections must not consume those fields as if v2 had been negotiated. Explicit
 stream_message remains the supported live-chat contract. Full v2 lifecycle negotiation
 is a separate protocol migration, not a rendering switch or an inferred finality signal.
+
+## Library paging and message navigation
+
+Library file history now pages backwards using a host-owned sequence cursor, 500 file-bearing
+messages per page. Load older files extends the same Library, rather than introducing a second
+index. Artifact details appear once on the first page. Source message IDs remain attached to
+file/upload rows. Show in chat loads contiguous transcript pages (up to 25 pages of 500 entries)
+and scrolls to the actual source row. It never inserts an isolated old entry that would hide a
+gap in normal history paging. A source further back requires another explicit attempt after
+loading history; removed sources and call-only sources have explicit errors. The Library's
+counts/search apply to loaded pages and are not a whole-workspace index.

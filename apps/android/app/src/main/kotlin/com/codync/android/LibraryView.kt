@@ -15,6 +15,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +40,13 @@ import com.kyant.shapes.RoundedRectangle
  * in it, newest first by day. Each opens as it does in the chat.
  */
 @Composable internal fun LibraryView(bot: Bot, state: AppState, store: AppStore, open: (OpenArtifact) -> Unit) {
+    val scope = rememberCoroutineScope()
+    val dismiss = LocalDismissModal.current
+    fun show(entryId: String) { scope.launch {
+        try { store.revealMessage(bot.id, entryId); dismiss() }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) { store.showError(error) }
+    } }
     val online = state.actualConnection is LinkState.Ready
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Library))
     var attempt by remember(bot.id) { mutableStateOf(0) }
@@ -71,8 +81,8 @@ import com.kyant.shapes.RoundedRectangle
                             when (item) {
                                 is LibraryItem.ArtifactItem -> ArtifactRow(item.artifact, { open(OpenArtifact(bot.id, item.artifact.id, item.artifact.title, item.artifact.entryId)) },
                                     { renaming = item.artifact }) { store.shareArtifact(bot.id, item.artifact.id, item.artifact.title) }
-                                is LibraryItem.FileItem -> FileRow(item, bot.id, state, store) { textFile = item }
-                                is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store, { image = item.file }) { attachmentEntryId = item.entryId; textAttachment = item.file }
+                                is LibraryItem.FileItem -> FileRow(item, bot.id, state, store, { show(item.entryId) }) { textFile = item }
+                                is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store, { show(item.entryId) }, { image = item.file }) { attachmentEntryId = item.entryId; textAttachment = item.file }
                             }
                         }
                     }
@@ -81,6 +91,7 @@ import com.kyant.shapes.RoundedRectangle
             "library:${bot.id}" in state.busy -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { Spinner(20.dp) }
             else -> if (filesOnly) Text(tr("No files shared in this chat"), color = Palette.secondary) else EmptyLibrary(bot.name)
         }
+        state.libraryCursor[bot.id]?.let { cursor -> SecondaryButton("Load older files", enabled = online && "library:${bot.id}" !in state.busy) { store.loadLibrary(bot.id, cursor) } }
     }
     // The artifact as composed: Save closes the dialog (clearing `renaming`) before it renames.
     val target = renaming
@@ -110,12 +121,13 @@ import com.kyant.shapes.RoundedRectangle
 }
 
 /** A file the bot shared: tapping downloads it to the share sheet, as its card in the chat does (again: cancels). */
-@Composable private fun FileRow(item: LibraryItem.FileItem, botId: String, state: AppState, store: AppStore, preview: () -> Unit) {
+@Composable private fun FileRow(item: LibraryItem.FileItem, botId: String, state: AppState, store: AppStore, show: () -> Unit, preview: () -> Unit) {
     val download = state.fileDownloads[item.file.id]
     val busy = download is FileDownloadState.Downloading
     LibraryRow(Modifier.plainButton { if (item.file.canOpenPreview) preview() else if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file) },
         { Symbol(AttachmentIcon.symbol(item.file.name), size = 22.dp, tint = Palette.secondary) }) {
-        NameAndDetail(item.file.name, (state.bots.firstOrNull { it.id == botId }?.name ?: "") + " · " + detail(item.file, download))
+        IconButton("Show in chat", "bubble.left", action = show)
+        NameAndDetail(item.file.name, (state.bots.firstOrNull { it.id == botId }?.name ?: "") + " · " + detail(item.file, download) + " · " + java.util.Date(item.at).toString())
         if (item.file.canOpenPreview) IconButton(if (busy) "Cancel download" else "Download", if (busy) "xmark" else "arrow.down.to.line") {
             if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file)
         }
@@ -123,11 +135,12 @@ import com.kyant.shapes.RoundedRectangle
 }
 
 /** A file the user attached: an image opens full size, as in the chat; another file only shows. */
-@Composable private fun AttachmentRow(file: Attachment, botId: String, state: AppState, store: AppStore, openImage: () -> Unit, openText: () -> Unit) {
+@Composable private fun AttachmentRow(file: Attachment, botId: String, state: AppState, store: AppStore, show: () -> Unit, openImage: () -> Unit, openText: () -> Unit) {
     if (file.isImage) LibraryRow(Modifier.plainButton(action = openImage), {
         AttachmentImage(file, botId, 144, state, store, Modifier.size(36.dp).clip(RoundedRectangle(8.dp)), ContentScale.Crop)
-    }) { NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size)) }
+    }) { IconButton("Show in chat", "bubble.left", action = show); NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size)) }
     else LibraryRow(if (file.canOpenPreview) Modifier.plainButton(action = openText) else Modifier.semantics(mergeDescendants = true) {}, { Symbol(AttachmentIcon.symbol(file.name), size = 22.dp, tint = Palette.secondary) }) {
+        IconButton("Show in chat", "bubble.left", action = show)
         NameAndDetail(file.name, tr("You") + " · " + formatBytes(file.size))
     }
 }

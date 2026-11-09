@@ -68,6 +68,22 @@ internal fun entriesOf(response: JsonElement): List<Entry> =
 internal suspend fun AppStore.callEntries(botId: String, call: String): List<Entry> =
     entriesOf(hostCall("callEntries", buildJsonObject { put("botId", botId); put("callId", call) }, 20_000))
 
+suspend fun AppStore.revealMessage(botId: String, entryId: String) {
+    val active = ready()
+    val location = active.call("messageLocation", body("botId" to botId, "entryId" to entryId)).jsonObject.getValue("seq").jsonPrimitive.long
+    val mirror = requireNotNull(database)
+    var pages = 0
+    while (state.value.entries.none { it.id == entryId } && pages++ < 25) {
+        val before = state.value.entries.filter { it.botId == botId && it.seq > 0 && it.seq != Long.MAX_VALUE }.minOfOrNull { it.seq } ?: Long.MAX_VALUE
+        val older = entriesOf(active.call("history", buildJsonObject { put("botId", botId); put("beforeSeq", before); put("limit", 500) }))
+        withContext(Dispatchers.IO) { mirror.receive(older) }
+        refresh()
+        if (older.isEmpty() || older.minOf { it.seq } <= location) break
+    }
+    require(state.value.entries.any { it.botId == botId && it.id == entryId }) { "The message is further back. Load earlier messages and try again." }
+    mutableState.update { it.copy(selectedBot = botId, messageReveal = Triple(botId, entryId, java.util.UUID.randomUUID().toString())) }
+}
+
 fun AppStore.loadHistory() {
     val id = state.value.selectedBot ?: return
     action("history") {

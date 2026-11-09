@@ -18,6 +18,9 @@ struct LibraryView: View {
     @State private var viewing: Attachment?
     @State private var textAttachment: Attachment?
     @State private var textFile: LibraryTextFile?
+    @Environment(\.dismissModal) private var dismiss
+    @State private var nextBefore: Int64?
+    @State private var paging = false
     @State private var query = ""
     @State private var attachmentEntryId: String?
     @State private var filesOnly = false
@@ -57,14 +60,15 @@ struct LibraryView: View {
             } else if !loaded {
                 Spinner(size: 20).frame(maxWidth: .infinity).padding(.top, 40)
             }
+            if nextBefore != nil { Button("Load older files") { older() }.buttonStyle(SecondaryButtonStyle()).disabled(paging) }
         }
         .animation(Motion.reduced(Motion.fade, reduceMotion), value: loaded)
         .task(id: "\(botId):\(attempt)") {
             loaded = false
             error = nil
             do {
-                let items = try await model.loadLibrary(botId)
-                if !Task.isCancelled { files = items }
+                let page = try await model.loadLibraryPage(botId)
+                if !Task.isCancelled { files = page.items; nextBefore = page.nextBefore }
             } catch {
                 if !Task.isCancelled { self.error = error.localizedDescription }
             }
@@ -95,15 +99,15 @@ struct LibraryView: View {
                 if file.showsAsPreview { textFile = LibraryTextFile(file: file, entryId: entryId) }
                 else { download(file, entryId: entryId) }
             } label: {
-                LibraryRow(title: file.name, detail: (model.bots[botId]?.name ?? "") + " · " + FileDownloadCard.detail(model.fileDownloads.states[file.id], size: file.size)) {
+                LibraryRow(title: file.name, detail: (model.bots[botId]?.name ?? "") + " · " + FileDownloadCard.detail(model.fileDownloads.states[file.id], size: file.size) + " · " + item.date.formatted()) {
                     symbol(AttachmentIcon.symbol(file.name))
                 }
             }
             .buttonStyle(.plain)
             .contextActions {
-                [MenuItem("Download", icon: "arrow.down.to.line") { download(file, entryId: entryId) }]
+                [MenuItem("Show in chat", icon: "bubble.left") { show(entryId) }, MenuItem("Download", icon: "arrow.down.to.line") { download(file, entryId: entryId) }]
             }
-        case .attachment(let file, _) where file.isImage:
+        case .attachment(let file, let entryId) where file.isImage:
             Button { viewing = file } label: {
                 LibraryRow(title: file.name) {
                     AttachmentImage(file: file, botId: botId, maxPixels: 120, contentMode: .fill)
@@ -112,12 +116,34 @@ struct LibraryView: View {
                 }
             }
             .buttonStyle(.plain)
+            .contextActions { [MenuItem("Show in chat", icon: "bubble.left") { show(entryId) }] }
         case .attachment(let file, let entryId):
             Button { attachmentEntryId = entryId; textAttachment = file } label: {
-                LibraryRow(title: file.name, detail: L10n.tr("You") + " · " + ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file)) {
+                LibraryRow(title: file.name, detail: L10n.tr("You") + " · " + ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file) + " · " + item.date.formatted()) {
                     symbol(AttachmentIcon.symbol(file.name))
                 }
             }.buttonStyle(.plain).disabled(!SharedFile.canOpenPreview(name: file.name, size: file.size))
+            .contextActions { [MenuItem("Show in chat", icon: "bubble.left") { show(entryId) }] }
+        }
+    }
+
+    private func show(_ entry: String) {
+        Task {
+            do { try await model.revealMessage(botId: botId, entryId: entry); dismiss() }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+    private func older() {
+        guard let nextBefore, !paging else { return }
+        paging = true
+        Task {
+            defer { paging = false }
+            do {
+                let page = try await model.loadLibraryPage(botId, before: nextBefore)
+                var seen = Set(files.map(\.id))
+                files += page.items.filter { seen.insert($0.id).inserted }
+                self.nextBefore = page.nextBefore
+            } catch { self.error = error.localizedDescription }
         }
     }
 

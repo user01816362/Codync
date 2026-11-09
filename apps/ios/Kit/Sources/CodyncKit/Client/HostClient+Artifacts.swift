@@ -15,6 +15,13 @@ public extension HostClient {
         return res.items.compactMap(\.item)
     }
 
+    func libraryPage(botId: String, beforeSeq: Int64? = nil) async throws -> (items: [ChatLibraryItem], nextBefore: Int64?) {
+        struct Body: Encodable { let botId: String; let beforeSeq: Int64? }
+        struct Res: Decodable { let items: [ChatLibraryItem.Wire]; let nextBefore: Int64? }
+        let res: Res = try await call("libraryPage", Body(botId: botId, beforeSeq: beforeSeq))
+        return (res.items.compactMap(\.item), res.nextBefore)
+    }
+
     /// At most `FileDownload.chunkSize` bytes of an artifact's HTML, from `offset`.
     func readArtifact(botId: String, artifactId: String, offset: Int64) async throws -> ArtifactChunk {
         struct Body: Encodable { let botId: String; let artifactId: String; let offset: Int64 }

@@ -93,7 +93,14 @@ impl App {
                     self.sheet("routines", json!({"botId": bot}), Reply::Routines(bot.clone()));
                 }
             }
-            Reply::Library(bot) => self.library_loaded(&bot, v["items"].as_array().map_or(&[], Vec::as_slice)),
+            Reply::Library(bot) => {
+                self.library_loaded(&bot, v["items"].as_array().map_or(&[], Vec::as_slice));
+                for overlay in &mut self.overlays {
+                    if let Overlay::Library(library) = overlay && library.bot == bot {
+                        library.next_before = v["nextBefore"].as_i64();
+                    }
+                }
+            }
             Reply::Gear(backend) => {
                 let lists = super::gear::GearLists {
                     skills: super::gear::items(&v["skills"]),

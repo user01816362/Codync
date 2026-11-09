@@ -19,6 +19,16 @@ extension BotStore {
         }
     }
 
+    func loadLibraryPage(_ botId: String, before: Int64? = nil) async throws -> (items: [ChatLibraryItem], nextBefore: Int64?) {
+        let page = try await withLink(replay: true) { try await $0.libraryPage(botId: botId, beforeSeq: before) }
+        let files = page.items.filter { item in
+            guard case .artifact(let artifact) = item.kind else { return true }
+            artifacts.upsert(artifact)
+            return false
+        }
+        return (files, page.nextBefore)
+    }
+
     /// A card on screen: the version it names is known now (history and the cache don't come as events), and the
     /// artifact's HTML is read unless the newest version is here.
     func showArtifact(_ ref: ArtifactRef, botId: String) {

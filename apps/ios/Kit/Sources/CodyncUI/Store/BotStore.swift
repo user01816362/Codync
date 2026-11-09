@@ -90,6 +90,7 @@ public final class BotStore {
     /// The open conversation (navigation path).
     public var selection: String?
     /// A selected passage requested by a message row, consumed by its conversation.
+    var messageReveal: (botId: String, id: String, nonce: UUID)?
     var selectedReply: Entry?
     /// The remote screen viewer (iPhone); `codync://screen` opens it.
     public var screenRequest: ScreenRequest?
