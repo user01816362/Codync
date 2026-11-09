@@ -287,4 +287,28 @@ mod tests {
         assert!(call(&hub, "outsider", "get_group_mail", &args).is_ok());
         assert!(call(&hub, "handler", "get_group_mail", &args).is_ok());
     }
+
+    #[tokio::test]
+    async fn approved_mail_routes_one_reply_without_granting_membership() {
+        let hub = hub();
+        let args = json!({"groupId":"department","subject":"Question","text":"Please advise","requestId":"mail3"});
+        let sent = call(&hub, "sender", "send_group_mail", &args).expect("submit");
+        let id = sent["mailId"].as_str().expect("mail id");
+        let approval = json!({"mailId":id,"approve":true,"handler":"handler"});
+        decide(&hub, &approval).expect("approve delivery");
+        assert!(hub.store.entry(&format!("{id}:delivery")).is_some());
+        let reply = json!({"mailId":id,"text":"Department answer"});
+        assert!(call(&hub, "outsider", "reply_group_mail", &reply).is_err());
+        let delivered = call(&hub, "handler", "reply_group_mail", &reply).expect("reply");
+        assert_eq!(delivered["status"], "delivered");
+        assert_eq!(delivered["followupScheduled"], false);
+        assert_eq!(call(&hub, "handler", "reply_group_mail", &reply).expect("retry")["duplicate"], true);
+        let different = json!({"mailId":id,"text":"A different answer"});
+        assert!(call(&hub, "handler", "reply_group_mail", &different).is_err());
+        let saved = hub.store.entry(&format!("{id}:reply")).expect("saved reply");
+        assert_eq!(saved.bot_id, "sender");
+        assert_eq!(saved.data["mailReply"], "Department answer");
+        assert!(!group(&hub, "department").expect("group").members.contains(&"sender".to_owned()));
+        tokio::task::yield_now().await;
+    }
 }
