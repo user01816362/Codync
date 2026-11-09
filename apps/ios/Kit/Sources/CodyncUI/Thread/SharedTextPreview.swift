@@ -46,7 +46,7 @@ struct SharedTextPreview: View {
     }
 
     private var textPreview: some View {
-        TextPreviewBody(name: name, text: text, failure: failed ? L10n.tr("Couldn't open this file. The file must be valid UTF-8 text up to 1 MiB and pass its integrity checks.") : nil, quote: quoteAction) {
+        TextPreviewBody(preferenceId: id, name: name, text: text, failure: failed ? L10n.tr("Couldn't open this file. The file must be valid UTF-8 text up to 1 MiB and pass its integrity checks.") : nil, quote: quoteAction) {
             attempt += 1
         }
         .overlay(alignment: .bottom) {

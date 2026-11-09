@@ -4,7 +4,7 @@ import { mediaMime } from '../../../shared/text-preview'
 import { useTablePreview } from './use-table-preview'
 import { MediaFilePreview } from './MediaFilePreview'
 import { sha256Hex } from '../../../shared/files'
-import { IconButton } from '../../components/Controls'
+import { IconButton, SearchField } from '../../components/Controls'
 import { HStack } from '../../components/Stack'
 import { ModalHeader } from '../../components/Overlay'
 import { useTr } from '../../lib/use-language'
@@ -32,8 +32,18 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
   const [result, setResult] = useState<{ text: string } | { error: string } | null>(null)
   const [quoteError, setQuoteError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const [source, setSource] = useState(false)
-  const [wrap, setWrap] = useState(true)
+  const preferenceKey = `text-preview:${previewKey(preview)}`
+  const [source, setSource] = useState(() => readPreferences(preferenceKey).source)
+  const [wrap, setWrap] = useState(() => readPreferences(preferenceKey).wrap)
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('text-preview-preferences') ?? '{}') as Record<string, { source: boolean; wrap: boolean }>
+      delete saved[preferenceKey]
+      saved[preferenceKey] = { source, wrap }
+      localStorage.setItem('text-preview-preferences', JSON.stringify(Object.fromEntries(Object.entries(saved).slice(-100))))
+    } catch { /* Preview remains usable when local preferences are unavailable. */ }
+  }, [preferenceKey, source, wrap])
   useEffect(() => {
     let active = true
     setResult(null)
@@ -76,6 +86,13 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
       <IconButton title="Copy" icon="square.on.square" disabled={text === null} onClick={() => { if (text !== null) window.codync.app.copy(text) }} />
       <IconButton title="Retry" icon="arrow.clockwise" disabled={!result} onClick={() => setAttempt(value => value + 1)} />
     </HStack>
+    <div className="file-preview-toolbar"><SearchField value={query} onChange={setQuery} prompt="Find in file" /></div>
+    {query.trim() && text !== null && <div className="sidechat-scroll" role="region" aria-label="Find results" style={{ maxHeight: 220 }}>
+      {(() => {
+        const matches = text.split('\n').flatMap((line, index) => line.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) ? [{ line, number: index + 1 }] : [])
+        return <><div role="status">{matches.length} matching lines{matches.length > 100 ? ' · showing first 100' : ''}</div>{matches.slice(0, 100).map(match => <pre key={match.number} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{match.number}: {match.line}</pre>)}</>
+      })()}
+    </div>}
     {quoteError && <div role="alert">{quoteError}</div>}
     <Bubble className="sidechat-scroll selectable" items={() => []} quote={sourceEntryId && 'file' in preview ? selected => {
       if (!store.client) { setQuoteError('Computer is offline'); return }
@@ -92,4 +109,11 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
         <pre style={{ whiteSpace: wrap ? 'pre-wrap' : 'pre', overflowWrap: wrap ? 'anywhere' : undefined, overflowX: 'auto', margin: 0 }}>{result.text}</pre>}
     </Bubble>
   </div>
+}
+
+function readPreferences(key: string): { source: boolean; wrap: boolean } {
+  try {
+    const value = JSON.parse(localStorage.getItem('text-preview-preferences') ?? '{}')[key]
+    return { source: value?.source === true, wrap: value?.wrap !== false }
+  } catch { return { source: false, wrap: true } }
 }

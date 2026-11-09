@@ -29,7 +29,7 @@ struct WorkspaceTextPreview: View {
 
     var body: some View {
         let name = result?.name ?? (path as NSString).lastPathComponent
-        TextPreviewBody(name: name, text: result?.text, failure: failure) {
+        TextPreviewBody(preferenceId: "\(botId):\(path)", name: name, text: result?.text, failure: failure) {
             attempt += 1
         }
         .id("\(botId):\(path)")

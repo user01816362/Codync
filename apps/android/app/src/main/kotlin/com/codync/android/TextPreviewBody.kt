@@ -25,8 +25,15 @@ import kotlinx.serialization.json.booleanOrNull
 @Composable internal fun TextPreviewBody(id: String, name: String, text: String?, failure: String?, store: AppStore, quote: ((String) -> Unit)? = null, retry: () -> Unit) {
     val context = LocalContext.current
     var selectingQuote by remember(id) { mutableStateOf(false) }
-    var source by remember(id) { mutableStateOf(false) }
-    var wrap by remember(id) { mutableStateOf(true) }
+    val preferences = remember { context.getSharedPreferences("text-preview-preferences", android.content.Context.MODE_PRIVATE) }
+    var source by remember(id) { mutableStateOf(preferences.getString(id, "01")?.getOrNull(0) == '1') }
+    var wrap by remember(id) { mutableStateOf(preferences.getString(id, "01")?.getOrNull(1) != '0') }
+    var query by remember(id) { mutableStateOf("") }
+    LaunchedEffect(id, source, wrap) {
+        val editor = preferences.edit()
+        if (!preferences.contains(id) && preferences.all.size >= 100) preferences.all.keys.sorted().firstOrNull()?.let { editor.remove(it) }
+        editor.putString(id, (if (source) "1" else "0") + (if (wrap) "1" else "0")).apply()
+    }
     var table by remember(id) { mutableStateOf<String?>(null) }
     var notice by remember(id) { mutableStateOf<String?>(null) }
     val tabular = name.endsWith(".csv", true) || name.endsWith(".tsv", true)
@@ -62,6 +69,14 @@ import kotlinx.serialization.json.booleanOrNull
                 text?.let { context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(name, it)) }
             }
             IconButton("Retry", "arrow.clockwise", enabled = text != null || failure != null, action = retry)
+        }
+        SearchField(query, { query = it }, Modifier.padding(horizontal = 16.dp), prompt = "Find in file")
+        if (query.isNotBlank() && text != null) {
+            val matches = remember(text, query) { text.lines().mapIndexedNotNull { index, line -> if (line.contains(query.trim(), ignoreCase = true)) index + 1 to line else null } }
+            Column(Modifier.heightIn(max = 180.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${matches.size} matching lines" + if (matches.size > 100) " · showing first 100" else "", style = Type.caption, color = Palette.secondary)
+                SelectionContainer { Column { matches.take(100).forEach { (number, line) -> Text("$number: $line", style = Type.caption.monospaced, color = Palette.text) } } }
+            }
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
             .then(if ((markdown || table != null) && !source || wrap) Modifier else Modifier.horizontalScroll(rememberScrollState())).padding(20.dp)) {

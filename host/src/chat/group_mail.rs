@@ -70,9 +70,8 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
         if added
             && entry.data["groupMail"]["status"] == "pending"
             && policy["autoApprove"] == true
-            && let Some(handler) = policy["handler"]
-                .as_str()
-                .filter(|id| destination.members.iter().any(|member| member == id))
+            && let Some(handler) =
+                policy["handler"].as_str().filter(|id| destination.members.iter().any(|member| member == id))
             && agent(hub, handler).is_ok()
         {
             decide(hub, &json!({"mailId":entry.id,"approve":true,"handler":handler}))?;
@@ -161,10 +160,7 @@ pub fn set_policy(hub: &Hub, args: &Value) -> Result<Value> {
     let enabled = args["autoApprove"].as_bool().context("autoApprove is required")?;
     let handler = args["handler"].as_str().unwrap_or_default();
     if enabled {
-        ensure!(
-            target.members.iter().any(|id| id == handler),
-            "choose a current group member as handler"
-        );
+        ensure!(target.members.iter().any(|id| id == handler), "choose a current group member as handler");
         agent(hub, handler)?;
     }
     let value = json!({"autoApprove":enabled,"handler":handler});
