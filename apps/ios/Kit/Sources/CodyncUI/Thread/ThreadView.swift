@@ -48,6 +48,11 @@ public struct ThreadView: View {
                         .padding(.bottom, 8)
                         .transition(.opacity)
                 } else {
+                    if let usage = model.bots[botId]?.contextUsage {
+                        Text("Context \(Int(100 * Double(usage.used) / Double(max(1, usage.size))))% · \(usage.used.formatted()) / \(usage.size.formatted())")
+                            .font(.caption2).foregroundStyle(Palette.secondary)
+                            .accessibilityLabel("Agent-reported context: \(usage.used) of \(usage.size)")
+                    }
                     Composer(botId: botId, replyingTo: $replyingTo, editingMessage: $editingMessage,
                              queued: model.chat(botId).hidingCalls().queue(working: busy),
                              onCall: !calling && bot != nil ? { calling = true } : nil,

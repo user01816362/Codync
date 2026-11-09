@@ -157,7 +157,7 @@ notices but do not yet have an interactive inbox approval sheet.
 | Text preview | Delivered: literal case-insensitive search with numbered matching lines (first 100 shown); Read/Source and wrap preferences retained for up to 100 file identities on each device |
 | File selections | Library-upload/live-workspace origins, filename labels in every reply bar, verified line ranges |
 | Queue | Delivered: actor-serialized pause/resume and earlier/later ordering; managed user messages survive restart, with host-reported queue reason. Device interaction still needs validation. |
-| Context | Compact per-chat indicator and reported compaction before/after data; current readout is in bot details |
+| Context | Delivered: compact per-chat reported usage; compaction notices retain a reported before/after drop when received within 60 seconds. No token estimate is invented when the adapter reports none. |
 | Inline math | Mixed styled Markdown/formula layout and accessibility/device interaction validation |
 | Streaming | Documented adapter-specific finality; generic ACP chunks remain trace content |
 | Optional task lifecycle | Persistent task ownership, pause/resume/reassign and task history |

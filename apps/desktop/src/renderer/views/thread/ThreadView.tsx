@@ -241,6 +241,9 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           ) : artifactId ? null : (
             // The artifact over the chat has its own box (two would both take the voice shortcut).
             <>
+              {bot?.contextUsage && <button className="md-preview-toggle" style={{ alignSelf: 'flex-end' }} title={`Agent-reported context · ${new Date(bot.contextUsage.reportedAt).toLocaleTimeString()}`} onClick={() => { setDetailsTab('details'); setShowSettings(true); setCompactDetails(!wide) }}>
+                Context {Math.round(100 * bot.contextUsage.used / bot.contextUsage.size)}% · {bot.contextUsage.used.toLocaleString()} / {bot.contextUsage.size.toLocaleString()}
+              </button>}
               <SidechatIndicator botId={botId} open={() => { setShowSettings(false); setCompactDetails(false); setPreview(null); setShowSidechat(true) }} />
               <QueuedMessages botId={botId} />
               <Composer

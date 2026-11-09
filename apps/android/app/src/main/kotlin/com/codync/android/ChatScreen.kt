@@ -140,6 +140,9 @@ import com.kyant.shapes.Capsule
         // Measured with the keyboard and navigation bar under it, so the last message clears them too.
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { composerHeight = it.height }
             .imePadding().navigationBarsPadding()) {
+            bot.contextUsage?.let { usage ->
+                Text("Context ${(100.0 * usage.used / usage.size.coerceAtLeast(1)).toInt()}% · ${usage.used} / ${usage.size}", Modifier.padding(horizontal = 20.dp, vertical = 4.dp), style = Type.caption2, color = Palette.secondary)
+            }
             SidechatIndicator(bot, state) { sidechat = true }
             // Nothing sent now could be read on the other side.
             val mismatch = state.mismatch

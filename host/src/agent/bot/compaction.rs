@@ -150,6 +150,18 @@ impl Actor {
         if !conn.reports_compaction && compacted_by_usage(before, used) {
             self.compacted(&format!("usage-{}", now_ms()), None);
         }
+        if let Some(before) = before.filter(|before| used < *before)
+            && let Some(id) = &self.compaction_notice
+            && let Some(mut entry) = self.hub.store.entry(id)
+            && now_ms() - entry.created_at <= 60_000
+            && entry.data["compaction"]["usageAfter"].is_null()
+        {
+            entry.data["compaction"]["usageBefore"] = before.into();
+            entry.data["compaction"]["usageAfter"] = used.into();
+            entry.data["compaction"]["contextSize"] = size.into();
+            entry.data["text"] = format!("Earlier context was summarized to make room. Reported context: {before} → {used} / {size}.").into();
+            self.hub.set_entry(id, &entry.data);
+        }
         if self.turn_session == self.session_id
             && let Err(error) = crate::chat::context_usage::record(&self.hub, &self.cfg, &sid, used, size)
         {
