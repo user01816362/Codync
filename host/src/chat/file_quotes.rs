@@ -20,7 +20,7 @@ pub fn annotate(store: &Store, entry: &Entry, meta: &Value, shared: bool, text: 
             ensure!(!chunk.is_empty() && bytes.len() + chunk.len() <= 1024 * 1024, "file is incomplete");
             bytes.extend(chunk);
         }
-        ensure!(format!("{:x}", Sha256::digest(&bytes)) == file.sha256, "file integrity check failed");
+        ensure!(files::digest_hex(&Sha256::digest(&bytes)) == file.sha256, "file integrity check failed");
     } else {
         let cfg = store.bot(&entry.bot_id)?.context("source conversation is unavailable")?.config;
         let (loaded, actual) =

@@ -32,11 +32,11 @@ pub async fn quote(hub: &Arc<Hub>, body: &Value) -> Result<Value> {
     let passage = str_arg(body, "text")?.trim();
     ensure!(!passage.is_empty() && passage.chars().count() <= 4000, "select between 1 and 4000 characters");
     let at = source.find(passage).context("select a literal passage in Source to quote this file accurately")?;
-    let digest = format!("{:x}", Sha256::digest(source.as_bytes()));
+    let digest = crate::chat::files::digest_hex(&Sha256::digest(source.as_bytes()));
     let chat = str_arg(body, "botId")?;
     let path = str_arg(body, "path")?;
     let identity = serde_json::to_vec(&json!([chat, path, digest, passage]))?;
-    let id = format!("workspace-quote:{:x}", Sha256::digest(&identity));
+    let id = format!("workspace-quote:{}", crate::chat::files::digest_hex(&Sha256::digest(&identity)));
     let mut snapshot = json!({"author":preview["botId"],"fileName":preview["name"],"workspacePath":path,"text":passage,"sha256":digest});
     if source.rfind(passage) == Some(at) {
         let start = source[..at].bytes().filter(|byte| *byte == b'\n').count() + 1;
