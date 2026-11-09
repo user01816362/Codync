@@ -55,7 +55,9 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, l: &Library) {
         .as_ref()
         .map_or(0, |items| items.iter().filter(|item| !matches!(item, LibraryItem::Artifact(_))).count());
     let mode = if l.files_only { "Files" } else { "All" };
-    let help = format!("{mode} · {count} files · ↵ open · F filter · n older · g source · R retry · f download · r rename · esc");
+    let help = format!(
+        "{mode} · {count} files · ↵ open · F filter · n older · g source · R retry · f download · r rename · esc"
+    );
     footer(buf, inner, None, &help);
 }
 
@@ -100,7 +102,13 @@ mod tests {
 
     #[test]
     fn rows_read_like_the_chat() {
-        let attachment = LibraryItem::Attachment { entry: "message".into(), id: "u".into(), name: "a.png".into(), size: 2048, at: 0 };
+        let attachment = LibraryItem::Attachment {
+            entry: "message".into(),
+            id: "u".into(),
+            name: "a.png".into(),
+            size: 2048,
+            at: 0,
+        };
         assert_eq!(label(&attachment), "▤ a.png · 2 KB");
         let file =
             crate::chat::files::SharedFile { id: "f".into(), name: "b.csv".into(), size: 9, sha256: String::new() };

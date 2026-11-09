@@ -6,7 +6,13 @@ use serde_json::{Value, json};
 
 impl Actor {
     pub(super) fn queue_paused(&self) -> bool {
-        self.hub.store.kv_get(&format!("queue.paused.{}", self.cfg.id)).as_deref() == Some("true")
+        match self.hub.store.kv_read(&format!("queue.paused.{}", self.cfg.id)) {
+            Ok(value) => value.as_deref() == Some("true"),
+            Err(error) => {
+                tracing::error!(%error, "queue state is unavailable; keeping user messages paused");
+                true
+            }
+        }
     }
 
     pub(super) fn save_managed_queue(&self) -> Result<()> {
@@ -39,6 +45,7 @@ impl Actor {
     }
 
     pub(super) fn control_queue(&mut self, action: &str, id: Option<&str>) -> Result<Value> {
+        self.hub.store.kv_read(&format!("queue.paused.{}", self.cfg.id))?;
         match action {
             "state" => {}
             "pause" | "resume" => {

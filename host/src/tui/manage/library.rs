@@ -85,7 +85,14 @@ impl App {
         };
         let bot = b.id.clone();
         self.sheet("libraryPage", json!({"botId": bot}), Reply::Library(bot.clone()));
-        self.overlays.push(Overlay::Library(Library { bot, items: None, cursor: 0, files_only: false, next_before: None, append: false }));
+        self.overlays.push(Overlay::Library(Library {
+            bot,
+            items: None,
+            cursor: 0,
+            files_only: false,
+            next_before: None,
+            append: false,
+        }));
     }
 
     pub(in crate::tui) fn library_key(&mut self, mut l: Library, k: KeyEvent) -> Option<Overlay> {
@@ -206,7 +213,9 @@ impl App {
                 if l.append {
                     l.items.get_or_insert_with(Vec::new).extend(items.clone());
                     l.append = false;
-                } else { l.items = Some(items.clone()); }
+                } else {
+                    l.items = Some(items.clone());
+                }
                 let count = l.visible().map_or(0, |items| items.len());
                 l.cursor = l.cursor.min(count.saturating_sub(1));
             }
@@ -293,7 +302,14 @@ mod tests {
         .expect("a card parses")
         .1;
         assert_eq!(app.artifact_title(&card).as_deref(), Some("Old"));
-        app.overlays.push(Overlay::Library(Library { bot: "bot".into(), items: None, cursor: 0, files_only: false, next_before: None, append: false }));
+        app.overlays.push(Overlay::Library(Library {
+            bot: "bot".into(),
+            items: None,
+            cursor: 0,
+            files_only: false,
+            next_before: None,
+            append: false,
+        }));
         let file = json!({"id": "x", "name": "a.csv", "size": 9, "sha256": "0".repeat(64)});
         app.library_loaded(
             "bot",

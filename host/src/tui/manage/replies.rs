@@ -96,7 +96,9 @@ impl App {
             Reply::Library(bot) => {
                 self.library_loaded(&bot, v["items"].as_array().map_or(&[], Vec::as_slice));
                 for overlay in &mut self.overlays {
-                    if let Overlay::Library(library) = overlay && library.bot == bot {
+                    if let Overlay::Library(library) = overlay
+                        && library.bot == bot
+                    {
                         library.next_before = v["nextBefore"].as_i64();
                     }
                 }

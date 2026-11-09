@@ -22,9 +22,17 @@ pub fn page(hub: &Hub, bot: &str, before: i64) -> Result<Value> {
         .into_iter()
         .map(|artifact| json!({"kind": "artifact", "at": artifact.updated_at, "artifact": artifact}))
         .collect();
-    let messages = if before == i64::MAX { hub.store.file_messages(bot, MAX_FILE_MESSAGES)? } else { hub.store.file_messages_before(bot, before, MAX_FILE_MESSAGES)? };
-    let next = (messages.len() == usize::try_from(MAX_FILE_MESSAGES)?).then(|| messages.last().map(|entry| entry.seq)).flatten();
-    if before != i64::MAX { items.clear(); }
+    let messages = if before == i64::MAX {
+        hub.store.file_messages(bot, MAX_FILE_MESSAGES)?
+    } else {
+        hub.store.file_messages_before(bot, before, MAX_FILE_MESSAGES)?
+    };
+    let next = (messages.len() == usize::try_from(MAX_FILE_MESSAGES)?)
+        .then(|| messages.last().map(|entry| entry.seq))
+        .flatten();
+    if before != i64::MAX {
+        items.clear();
+    }
     for e in messages {
         let (kind, files) = if e.kind == EntryKind::User.as_str() {
             ("attachment", &e.data["attachments"])
