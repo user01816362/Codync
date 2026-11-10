@@ -22,6 +22,7 @@ import kotlinx.serialization.json.*
     var kind by remember(groupId) { mutableStateOf("consultation") }
     var selected by remember(groupId) { mutableStateOf(group?.members.orEmpty().take(5).associateWith { groupId }) }
     var chair by remember(groupId) { mutableStateOf(selected.keys.firstOrNull().orEmpty()) }
+    var historyOpen by remember(groupId) { mutableStateOf(false) }
     var proposal by remember(groupId) { mutableStateOf("") }
     var attempt by remember(groupId) { mutableStateOf(0) }
     var busy by remember(groupId) { mutableStateOf(false) }
@@ -108,6 +109,21 @@ import kotlinx.serialization.json.*
                 if (status in listOf("paused", "running", "awaiting_owner")) CardSection("Owner proposal") {
                     row { FieldBox(proposal, { proposal = it.take(8000) }, "Proposal", minLines = 2, maxLines = 8) }
                     row { SecondaryButton("Publish proposal and reset responses", enabled = !disabled && proposal.isNotBlank()) { run("propose") } }
+                }
+                val history = meeting["history"]?.jsonArray.orEmpty()
+                if (history.isNotEmpty()) CardSection("Previous proposals") {
+                    row { SecondaryButton("${history.size} recorded versions") { historyOpen = !historyOpen } }
+                    if (historyOpen) for (saved in history) row {
+                        val version = saved.jsonObject
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Revision ${version["proposalRevision"]} · ${version.text("status")}", color = Palette.text)
+                            MarkdownText(version.text("proposal").orEmpty())
+                            for (delegate in meeting["delegates"]?.jsonArray.orEmpty()) {
+                                val d = delegate.jsonObject
+                                Text("${d.text("name")}: ${version["positions"]?.jsonObject?.get(d.text("botId").orEmpty())?.jsonObject?.text("position") ?: tr("Not answered")}", style = Type.caption, color = Palette.secondary)
+                            }
+                        }
+                    }
                 }
                 CardSection("Room actions") {
                     if (status in listOf("paused", "unresolved")) row { SecondaryButton("Start / Resume", enabled = !disabled && (meeting["spent"]?.jsonPrimitive?.intOrNull ?: 10) < 10) { run("resume") } }

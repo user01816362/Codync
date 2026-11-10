@@ -23,6 +23,18 @@ pub fn entry_for_store(store: &crate::store::Store, id: &str) -> Option<Entry> {
     store.entry(&format!("meeting:{id}")).filter(|e| e.data["meeting"].is_object())
 }
 
+pub fn visible(hub: &Hub, group: &BotConfig, actor: &str) -> bool {
+    entry(hub, &group.id).is_none_or(|e| current(hub, group, &e.data["meeting"], actor).is_ok())
+}
+
+pub fn access(hub: &Hub, id: &str, actor: &str) -> Result<()> {
+    if let Some(entry) = entry(hub, id) {
+        let group = hub.store.bot(id)?.context("meeting unavailable")?.config;
+        current(hub, &group, &entry.data["meeting"], actor)?;
+    }
+    Ok(())
+}
+
 fn room(hub: &Hub, id: &str) -> Result<(BotConfig, Entry)> {
     let group = hub.store.bot(id)?.filter(|r| !r.deleted && r.config.is_group()).context("unknown room")?.config;
     let state = entry(hub, id).context("this group is not a meeting room")?;
@@ -66,7 +78,7 @@ pub fn approval_detail(hub: &Hub, args: &Value) -> Result<String> {
         .iter()
         .map(|d| {
             let agent = hub.bot_name(d["botId"].as_str().unwrap_or_default());
-            let origin = d["groupId"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Personal".into());
+            let origin = d["groupId"].as_str().map_or_else(|| "Personal".into(), |id| hub.bot_name(id));
             format!("{agent} · {origin}")
         })
         .collect::<Vec<_>>()
@@ -96,7 +108,7 @@ pub fn create(hub: &Arc<Hub>, args: &Value, creator: Option<&str>) -> Result<Val
     for delegate in delegates.as_array_mut().context("delegates is required")? {
         delegate["name"] = hub.bot_name(string(delegate, "botId")?).into();
         delegate["department"] =
-            delegate["groupId"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Personal".into()).into();
+            delegate["groupId"].as_str().map_or_else(|| "Personal".into(), |id| hub.bot_name(id)).into();
     }
     let cfg: BotConfig = serde_json::from_value(json!({"id":"", "kind":"group", "name":name,
         "description":agenda,"members":ids,"createdBy":creator,"section":"Meetings"}))?;
@@ -155,6 +167,16 @@ fn current(hub: &Hub, group: &BotConfig, meeting: &Value, actor: &str) -> Result
         meeting["delegates"].as_array().is_some_and(|ds| ds.iter().any(|d| d["botId"] == actor)),
         "not an invited delegate"
     );
+    Ok(())
+}
+
+fn preserve_proposal(meeting: &mut Value) -> Result<()> {
+    if meeting["proposalRevision"].as_u64().unwrap_or(0) == 0 { return Ok(()); }
+    let version = json!({"proposalRevision":meeting["proposalRevision"],"proposal":meeting["proposal"],"positions":meeting["positions"],"status":meeting["status"],"approved":meeting["approved"]});
+    let mut history = meeting["history"].as_array().cloned().unwrap_or_default();
+    ensure!(history.len() < 32, "proposal history limit reached; archive this room and create a new scoped meeting");
+    history.push(version);
+    meeting["history"] = history.into();
     Ok(())
 }
 
@@ -235,7 +257,9 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
                 actor.is_none() || meeting["chair"] == actor.unwrap_or_default(),
                 "only the chair proposes a decision"
             );
-            meeting["proposal"] = bounded(args, "text", 8000)?.into();
+            let text = bounded(args, "text", 8000)?;
+            preserve_proposal(&mut meeting)?;
+            meeting["proposal"] = text.into();
             meeting["proposalRevision"] = (meeting["proposalRevision"].as_u64().unwrap_or(0) + 1).into();
             meeting["positions"] = json!({});
             meeting["approved"] = false.into();
@@ -271,7 +295,9 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
                 matches!(status.as_str(), "running" | "paused" | "awaiting_owner" | "unresolved"),
                 "room is closed"
             );
-            meeting["proposal"] = bounded(args, "text", 8000)?.into();
+            let text = bounded(args, "text", 8000)?;
+            preserve_proposal(&mut meeting)?;
+            meeting["proposal"] = text.into();
             meeting["proposalRevision"] = (meeting["proposalRevision"].as_u64().unwrap_or(0) + 1).into();
             meeting["positions"] = json!({});
             meeting["approved"] = false.into();
@@ -290,6 +316,7 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
             meeting["status"] = "resolved".into();
         }
         "reopen" => {
+            preserve_proposal(&mut meeting)?;
             meeting["status"] = "paused".into();
             meeting["approved"] = false.into();
             meeting["positions"] = json!({});
@@ -469,8 +496,10 @@ mod tests {
 
     fn act(hub: &Arc<Hub>, who: Option<&str>, command: &str, extra: Value) -> Result<Value> {
         let mut args = json!({"groupId":"room","rev":state(hub,"room")?["rev"],"action":command});
-        for (key, value) in extra.as_object().into_iter().flatten() {
-            args[key] = value.clone();
+        if let Value::Object(extra) = extra {
+            for (key, value) in extra {
+                args[key] = value;
+            }
         }
         action(hub, &args, who)
     }

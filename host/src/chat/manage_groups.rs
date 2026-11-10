@@ -77,22 +77,26 @@ pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result
         return crate::chat::meetings::create(hub, args, Some(bot));
     }
     match name {
-        "list_groups" => list(hub),
+        "list_groups" => list(hub, bot),
         "create_group" => create(hub, &source, args).await,
         "update_group" => update(hub, &source, args).await,
         _ => bail!("unknown groups tool: {name}"),
     }
 }
 
-fn list(hub: &Hub) -> Result<Value> {
+fn list(hub: &Hub, actor: &str) -> Result<Value> {
     let rows = hub.store.bots()?;
     let bots: Vec<Value> = rows
         .iter()
         .filter(|r| !r.deleted && !r.config.is_group())
         .map(|r| json!({"id": r.config.id, "name": r.config.name, "hidden": r.config.hidden}))
         .collect();
-    let groups: Vec<Value> =
-        rows.iter().filter(|r| !r.deleted && r.config.is_group()).map(|r| setup(hub, &r.config)).collect();
+    let groups: Vec<Value> = rows
+        .iter()
+        .filter(|r| !r.deleted && r.config.is_group())
+        .filter(|r| super::meetings::visible(hub, &r.config, actor))
+        .map(|r| setup(hub, &r.config))
+        .collect();
     Ok(json!({"groups": groups, "bots": bots}))
 }
 
@@ -147,6 +151,7 @@ async fn update(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Valu
         .filter(|r| !r.deleted && r.config.is_group())
         .map(|r| r.config)
         .context("unknown group")?;
+    anyhow::ensure!(super::meetings::visible(hub, &before, &source.id), "you are not invited to this room");
     let mut fields = Map::new();
     if let Some(name) = text(args, "name")? {
         fields.insert("name".into(), checked_name(&name)?.into());

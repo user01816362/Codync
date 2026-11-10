@@ -86,9 +86,9 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
     let source = string(data, "sourceChat")?;
     let origin = hub.store.bot(source)?.filter(|row| !row.deleted);
     let source_member = origin.as_ref().is_some_and(|row| {
-        row.config.id == sender.id || (row.config.is_group() && row.config.members.contains(&sender.id))
+        row.config.id == sender.id || (row.config.is_group() && row.config.members.contains(&sender.id) && super::meetings::visible(hub, &row.config, &sender.id))
     });
-    ensure!(source_member || destination.members.contains(&sender.id), "this mail is not addressed to you");
+    ensure!(source_member || (destination.members.contains(&sender.id) && super::meetings::visible(hub, &destination, &sender.id)), "this mail is not addressed to you");
     if name == "get_group_mail" {
         return Ok(json!({"mailId":entry.id,"groupId":entry.bot_id,"mail":data,
             "reply":hub.store.entry(&format!("{}:reply", entry.id)).map(|entry| entry.data)}));

@@ -40,6 +40,7 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
             .bots()?
             .into_iter()
             .filter(|row| !row.deleted && row.config.is_group())
+            .filter(|row| super::meetings::visible(hub, &row.config, bot))
             .map(|row| {
                 json!({"id":row.config.id,"name":row.config.name,"purpose":row.config.description,
                 "member":row.config.members.contains(&source.id)})
@@ -52,6 +53,8 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
         target.members.contains(&source.id),
         "you are not a member of this group; do not read or post to its conversation"
     );
+    super::meetings::access(hub, &target.id, bot)?;
+    if name == "post_group_message" { super::meetings::active(hub, &target.id, bot)?; }
     if name == "list_group_tasks" {
         let entries = hub.store.group_tasks(&target.id)?;
         let items: Vec<Value> = entries.iter().take(20).map(|entry| {
@@ -126,6 +129,7 @@ pub(super) fn source_chat(hub: &Hub, source: &BotConfig) -> Result<String> {
     let chat = hub.runtime(&source.id).lane.map_or_else(|| source.id.clone(), |lane| lane.chat);
     if chat != source.id {
         ensure!(group(hub, &chat)?.members.contains(&source.id), "you no longer belong to the source group");
+        super::meetings::access(hub, &chat, &source.id)?;
     }
     Ok(chat)
 }

@@ -16,6 +16,9 @@ struct MeetingRoom: View {
     @State private var notice: String?
     @State private var failure: String?
     @State private var attempt = 0
+    private var candidates: [Bot] {
+        model.bots.values.filter { bot in !bot.isGroup && (!bot.hidden || selected.contains(where: { $0.botId == bot.id })) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
     private var group: Bot? { model.bots[groupId] }
 
     var body: some View {
@@ -46,6 +49,21 @@ struct MeetingRoom: View {
                             CardSection("Owner proposal") {
                                 TextField("Proposal", text: $proposal, axis: .vertical).lineLimit(2...8).fieldBox()
                                 Button("Publish proposal and reset responses") { act("propose") }.disabled(proposal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+                        if let history = room.meeting.history, !history.isEmpty {
+                            CardSection("Previous proposals") {
+                                DisclosureGroup("\(history.count) recorded versions") {
+                                    ForEach(history, id: \.proposalRevision) { version in
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Revision \(version.proposalRevision) · \(version.status)").font(.headline)
+                                            MarkdownText(version.proposal)
+                                            ForEach(room.meeting.delegates, id: \.botId) { delegate in
+                                                Text("\(delegate.name ?? "Delegate"): \(version.positions[delegate.botId]?.position ?? "Not answered")").font(.caption)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                         CardSection("Room actions") {
@@ -85,7 +103,7 @@ struct MeetingRoom: View {
                 ChoicePicker(selection: $kind, options: ["consultation", "meeting", "decision"].map { ($0, $0) })
             }
             CardSection("Delegates · \(selected.count)/5") {
-                ForEach(model.roster.filter { !$0.isGroup }) { bot in
+                ForEach(candidates) { bot in
                     VStack(alignment: .leading, spacing: 8) {
                         Button {
                             if selected.contains(where: { $0.botId == bot.id }) { selected.removeAll { $0.botId == bot.id } }
@@ -139,7 +157,9 @@ struct MeetingRoom: View {
     private struct Delegate: Codable { let botId: String; var groupId: String? = nil; var name: String? = nil; var department: String? = nil }
     private struct Position: Decodable { let position: String; let reason: String }
     private struct Snapshot: Decodable { let groupId: String; let rev: Int64; let meeting: Info }
+    private struct Version: Decodable { let proposalRevision: Int; let proposal: String; let status: String; let positions: [String: Position] }
     private struct Info: Decodable {
+        let history: [Version]?
         let kind: String; let status: String; let agenda: String; let proposal: String; let proposalRevision: Int
         let delegates: [Delegate]; let positions: [String: Position]; let spent: Int; let limit: Int
     }

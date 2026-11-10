@@ -1,7 +1,7 @@
 import { MarkdownText } from '../thread/Markdown'
 import { useEffect, useState } from 'react'
 import { isGroup } from '@shared/models'
-import { Button, CardSection, ChoicePicker, IconButton } from '../../components/Controls'
+import { Button, CardSection, ChoicePicker, Disclosure, IconButton } from '../../components/Controls'
 import { ModalHeader, SheetPage } from '../../components/Overlay'
 import { Text } from '../../components/Text'
 import { HStack, VStack } from '../../components/Stack'
@@ -11,7 +11,7 @@ import { AutoTextArea, Field } from './parts'
 
 type Delegate = { botId: string; groupId?: string; name: string; department: string }
 type Position = { position: string; reason: string }
-type RoomState = { groupId: string; rev: number; meeting: { kind: string; status: string; agenda: string; proposal: string; proposalRevision: number; chair: string; delegates: Delegate[]; positions: Record<string, Position>; spent: number; limit: number; approved: boolean } }
+type RoomState = { groupId: string; rev: number; meeting: { kind: string; status: string; agenda: string; proposal: string; proposalRevision: number; chair: string; delegates: Delegate[]; positions: Record<string, Position>; spent: number; limit: number; approved: boolean; history?: { proposalRevision: number; proposal: string; status: string; approved: boolean; positions: Record<string, Position> }[] } }
 
 /** One host-owned meeting, rendered with ordinary profile cards and explicit owner actions. */
 export function MeetingRoom({ groupId, created }: { groupId?: string; created?: (id: string) => void }) {
@@ -23,6 +23,7 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
   const [kind, setKind] = useState('consultation')
   const [delegates, setDelegates] = useState<{ botId: string; groupId?: string }[]>([])
   const [chair, setChair] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [proposal, setProposal] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -89,6 +90,13 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
           {meeting.delegates.map(d => <VStack key={d.botId} gap={4}><Text>{d.name} · {d.department}</Text><Text tone="secondary">{meeting.positions[d.botId]?.position ?? 'Not answered'}{meeting.positions[d.botId]?.reason ? ` · ${meeting.positions[d.botId].reason}` : ''}</Text></VStack>)}
         </CardSection>
         {['paused', 'running', 'awaiting_owner'].includes(meeting.status) ? <CardSection title="Owner proposal"><AutoTextArea value={proposal} onChange={setProposal} minRows={2} maxRows={6} className="field-box" ariaLabel="Proposal" maxLength={8000} /><Button disabled={disabled || !proposal.trim()} onClick={() => void run('propose')}>Publish proposal and reset responses</Button></CardSection> : null}
+        {meeting.history?.length ? <CardSection title="Previous proposals"><Disclosure expanded={historyOpen} onToggle={() => setHistoryOpen(value => !value)} label={`${meeting.history.length} recorded versions`}>
+          {meeting.history.map(version => <VStack key={version.proposalRevision} gap={8}>
+            <Text weight="semibold">Revision {version.proposalRevision} · {version.status}{version.approved ? ' · User approved' : ''}</Text>
+            <MarkdownText text={version.proposal} />
+            {meeting.delegates.map(d => <Text key={d.botId} size="caption">{d.name} · {d.department}: {version.positions[d.botId]?.position ?? 'Not answered'}</Text>)}
+          </VStack>)}
+        </Disclosure></CardSection> : null}
         <HStack gap={8} wrap>
           {['paused', 'unresolved'].includes(meeting.status) ? <Button disabled={disabled || meeting.spent >= meeting.limit} onClick={() => void run('resume')}>Start / Resume</Button> : null}
           {meeting.status === 'running' ? <Button disabled={disabled} onClick={() => void run('pause')}>Pause</Button> : null}
