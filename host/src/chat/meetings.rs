@@ -603,8 +603,7 @@ mod tests {
         department.members = vec!["a".into()];
         hub.store.save_bot(&department).expect("revoke");
         assert!(
-            super::super::group_delivery::call(&hub, "b", "read_group_messages", &json!({"groupId":"room"}))
-                .is_err()
+            super::super::group_delivery::call(&hub, "b", "read_group_messages", &json!({"groupId":"room"})).is_err()
         );
         assert!(call(&hub, "b", "meeting_status", &json!({"groupId":"room"})).is_err());
         let config = hub.store.bot("room").expect("read").expect("room").config;
