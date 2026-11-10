@@ -18,7 +18,7 @@ pub async fn one_shot(hub: &Arc<Hub>, cfg: &BotConfig, system: &str, user: &str)
     let cwd = crate::service::data_dir().join("background");
     tokio::fs::create_dir_all(&cwd).await?;
     let cwd = cwd.to_string_lossy().into_owned();
-    if hub.store.kv_read(&format!("agent-env:{}", cfg.backend))?.is_some() {
+    if crate::market::vault::saved(&hub.store, &format!("agent-env:{}", cfg.backend))? {
         crate::market::vault::unlock(hub.clone()).await?;
     }
     let (env, grants) = crate::agent::auth::launch_env(&hub.store, &cfg.backend)?;

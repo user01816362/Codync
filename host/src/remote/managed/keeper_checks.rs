@@ -4,7 +4,6 @@
 
 use super::{is_managed, newer};
 use crate::agent::bot::Cmd;
-use crate::analytics::{self, KeeperState};
 use crate::environment::Environment;
 use crate::hub::Hub;
 use crate::keeper::client;
@@ -38,12 +37,6 @@ pub async fn on_start(hub: Arc<Hub>) {
             None
         }
     };
-    let state = match &keeper {
-        Some(status) if status.unlocked => KeeperState::Unlocked,
-        Some(_) => KeeperState::Locked,
-        None => KeeperState::Missing,
-    };
-    analytics::cloud_keeper_checked(&hub, state, sudo);
     if let Some(status) = &keeper {
         follow_host(&hub, &status.version).await;
     }

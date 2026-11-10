@@ -203,8 +203,8 @@ export class CloudModel extends Observable {
   }
 
   /**
-   * The cloud is on by default, so a computer without Tailscale is reachable away from home. It's
-   * turned on once per host identity, the first time it's seen off; after that off stays off.
+   * After explicit sign-in, offer the account relay once per host identity.
+   * Accountless operation never enables it; after the first choice, off stays off.
    */
   private applyCloudDefault() {
     const store = this.app.local

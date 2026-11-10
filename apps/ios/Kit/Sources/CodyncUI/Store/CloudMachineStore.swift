@@ -156,12 +156,8 @@ public final class CloudMachineStore {
     @discardableResult
     public func saveKey(_ key: String, provider: String) async -> Bool {
         await run(.savingKey(provider)) {
-            do {
-                let saved = try await cloud.saveCloudKey(key.trimmingCharacters(in: .whitespacesAndNewlines), provider: provider)
-                setCredential(saved, provider: provider)
-            } catch {
-                throw error
-            }
+            let saved = try await cloud.saveCloudKey(key.trimmingCharacters(in: .whitespacesAndNewlines), provider: provider)
+            setCredential(saved, provider: provider)
         }
     }
 
@@ -184,13 +180,9 @@ public final class CloudMachineStore {
         let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let named = typed.isEmpty ? suggestedName : typed
         return await run(.creating) {
-            do {
-                let made = try await cloud.createCloudMachine(provider: provider, name: named)
-                generation += 1
-                show(machines + [made])
-            } catch {
-                throw error
-            }
+            let made = try await cloud.createCloudMachine(provider: provider, name: named)
+            generation += 1
+            show(machines + [made])
         }
     }
 
@@ -198,12 +190,7 @@ public final class CloudMachineStore {
         let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty, typed != machines.first(where: { $0.id == id })?.name else { return }
         await run(.renaming(id)) {
-            let renamed: CloudMachine
-            do {
-                renamed = try await cloud.renameCloudMachine(id, name: typed)
-            } catch {
-                throw error
-            }
+            let renamed = try await cloud.renameCloudMachine(id, name: typed)
             generation += 1
             show(machines.map { $0.id == id ? renamed : $0 })
             if let computer = renamed.computerId { await onRenamed?(computer, renamed.name) }
