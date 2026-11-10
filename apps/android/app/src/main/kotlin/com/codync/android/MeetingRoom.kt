@@ -94,11 +94,11 @@ import kotlinx.serialization.json.*
             } else if (meeting != null) {
                 val status = meeting.text("status").orEmpty()
                 CardSection("${meeting.text("kind")} · $status") {
-                    row { Text(meeting.text("agenda").orEmpty(), color = Palette.text) }
+                    row { MarkdownText(meeting.text("agenda").orEmpty()) }
                     row { Text("${meeting["spent"]}/${meeting["limit"]} ${tr("discussion turns used")}", color = Palette.secondary) }
                 }
                 CardSection("Proposal · ${meeting["proposalRevision"]}") {
-                    row { Text(meeting.text("proposal").orEmpty().ifEmpty { tr("No proposal recorded.") }, color = Palette.text) }
+                    row { MarkdownText(meeting.text("proposal").orEmpty().ifEmpty { tr("No proposal recorded.") }) }
                     for (delegate in meeting["delegates"]?.jsonArray.orEmpty()) row {
                         val d = delegate.jsonObject
                         val position = meeting["positions"]?.jsonObject?.get(d.text("botId").orEmpty())?.jsonObject

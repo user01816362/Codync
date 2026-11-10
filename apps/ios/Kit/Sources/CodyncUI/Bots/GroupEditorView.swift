@@ -34,7 +34,7 @@ public struct GroupEditorView: View {
     /// Bots that can still join, filtered by the search.
     private var candidates: [Bot] {
         let q = query.trimmingCharacters(in: .whitespaces)
-        return model.roster.filter { !$0.isGroup && !members.contains($0.id) && (q.isEmpty || $0.name.localizedCaseInsensitiveContains(q)) }
+        return model.roster.filter { model.bots[groupId]?.meeting != true && !$0.isGroup && !members.contains($0.id) && (q.isEmpty || $0.name.localizedCaseInsensitiveContains(q)) }
     }
     private var canSave: Bool { !members.isEmpty && !saving && !model.isOffline }
 
@@ -67,7 +67,7 @@ public struct GroupEditorView: View {
                         }
                         Field("Group instructions", detail: "What this group works on. Each member keeps its own instructions.") {
                             TextField("What this group works on", text: $about, axis: .vertical)
-                                .lineLimit(3...8).fieldBox().disabled(saving)
+                                .lineLimit(3...8).fieldBox().disabled(saving || model.bots[groupId]?.meeting == true)
                         }
                     }
                     CardSection("Group activity") {
@@ -81,7 +81,7 @@ public struct GroupEditorView: View {
                             ForEach(picked) { bot in
                                 memberRow(bot) {
                                     IconButton("Remove \(bot.name)", systemImage: "xmark") { toggle(bot.id) }
-                                        .disabled(saving || members.count <= 1)
+                                        .disabled(saving || model.bots[groupId]?.meeting == true || members.count <= 1)
                                 }
                                 .transition(.opacity)
                             }

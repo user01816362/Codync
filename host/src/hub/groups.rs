@@ -43,6 +43,7 @@ impl Hub {
                 self.emit_bot(&group);
             }
         }
+        crate::chat::meetings::revalidate(self);
         Ok(())
     }
 }

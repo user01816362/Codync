@@ -1,3 +1,4 @@
+import { MarkdownText } from '../thread/Markdown'
 import { useEffect, useState } from 'react'
 import { isGroup } from '@shared/models'
 import { Button, CardSection, ChoicePicker, IconButton } from '../../components/Controls'
@@ -82,9 +83,9 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
         <Text size="caption" tone="secondary">Ten discussion turns and ten minutes maximum. All delegates must approve the same proposal before final user approval. The room starts paused.</Text>
         <Button disabled={disabled || !name.trim() || !agenda.trim() || delegates.length < 2 || !selected.has(chair)} onClick={() => void create()}>Create room and approve invitations</Button>
       </> : <>
-        <CardSection title={`${meeting.kind} · ${meeting.status}`}><Text dir="auto">{meeting.agenda}</Text><Text tone="secondary">{meeting.spent}/{meeting.limit} discussion turns used</Text></CardSection>
+        <CardSection title={`${meeting.kind} · ${meeting.status}`}><MarkdownText text={meeting.agenda} /><Text tone="secondary">{meeting.spent}/{meeting.limit} discussion turns used</Text></CardSection>
         <CardSection title={`Proposal · revision ${meeting.proposalRevision}`}>
-          <Text dir="auto">{meeting.proposal || 'No proposal recorded.'}</Text>
+          <MarkdownText text={meeting.proposal || 'No proposal recorded.'} />
           {meeting.delegates.map(d => <VStack key={d.botId} gap={4}><Text>{d.name} · {d.department}</Text><Text tone="secondary">{meeting.positions[d.botId]?.position ?? 'Not answered'}{meeting.positions[d.botId]?.reason ? ` · ${meeting.positions[d.botId].reason}` : ''}</Text></VStack>)}
         </CardSection>
         {['paused', 'running', 'awaiting_owner'].includes(meeting.status) ? <CardSection title="Owner proposal"><AutoTextArea value={proposal} onChange={setProposal} minRows={2} maxRows={6} className="field-box" ariaLabel="Proposal" maxLength={8000} /><Button disabled={disabled || !proposal.trim()} onClick={() => void run('propose')}>Publish proposal and reset responses</Button></CardSection> : null}

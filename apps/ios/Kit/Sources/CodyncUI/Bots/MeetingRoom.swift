@@ -29,11 +29,11 @@ struct MeetingRoom: View {
                     if let failure { Text(failure).foregroundStyle(Palette.danger).textSelection(.enabled) }
                     if let room {
                         CardSection("\(room.meeting.kind) · \(room.meeting.status)") {
-                            Text(room.meeting.agenda).writingDirection(strategy: .contentBased)
+                            MarkdownText(room.meeting.agenda)
                             Text("\(room.meeting.spent)/\(room.meeting.limit) discussion turns used").foregroundStyle(Palette.secondary)
                         }
                         CardSection("Proposal · revision \(room.meeting.proposalRevision)") {
-                            Text(room.meeting.proposal.isEmpty ? "No proposal recorded." : room.meeting.proposal)
+                            MarkdownText(room.meeting.proposal.isEmpty ? "No proposal recorded." : room.meeting.proposal)
                             ForEach(room.meeting.delegates, id: \.botId) { delegate in
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("\(delegate.name ?? model.bots[delegate.botId]?.name ?? "Delegate") · \(delegate.department ?? "Personal")")

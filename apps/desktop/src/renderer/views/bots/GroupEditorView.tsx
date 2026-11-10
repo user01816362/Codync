@@ -27,6 +27,7 @@ import { useTr } from '../../lib/use-language'
 export function GroupEditorView({ group }: { group: Bot }) {
   const tr = useTr()
   const store = useStore()
+  const isMeeting = (store.bots.get(group.id) ?? group).meeting === true
   const dismiss = useDismiss()
   const [name, setName] = useState(group.name)
   const [about, setAbout] = useState(group.description)
@@ -48,7 +49,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const picked = members.map((id) => store.bots.get(id)).filter((b): b is Bot => !!b)
   // Bots that can still join, filtered by the search.
   const q = query.trim().toLowerCase()
-  const candidates = store.roster.filter((b) => !isGroup(b) && !members.includes(b.id) && (!q || b.name.toLowerCase().includes(q)))
+  const candidates = store.roster.filter((b) => !isMeeting && !isGroup(b) && !members.includes(b.id) && (!q || b.name.toLowerCase().includes(q)))
   const canSave = members.length > 0 && !saving && !store.isOffline
   // "Alice, Bob" when no name is typed.
   const defaultName = picked.length ? picked.map((b) => b.name).join(', ') : 'Name'
@@ -88,7 +89,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
               <input dir="auto" className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
-              <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving} maxLength={4000} onChange={setAbout} />
+              <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving || isMeeting} maxLength={4000} onChange={setAbout} />
             </Field>
           </CardSection>
           <CardSection title="Group activity">
@@ -102,7 +103,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
               <div key={bot.id} className="member-row fade-in">
                 <BotAvatar bot={bot} size={32} animated={false} />
                 <span className="member-name">{bot.name}</span>
-                <IconButton title={tr('Remove {name}').replaceAll('{name}', () => bot.name)} icon="xmark" disabled={saving || members.length <= 1} onClick={() => toggle(bot.id)} />
+                <IconButton title={tr('Remove {name}').replaceAll('{name}', () => bot.name)} icon="xmark" disabled={saving || isMeeting || members.length <= 1} onClick={() => toggle(bot.id)} />
               </div>
             ))}
             {adding ? (
