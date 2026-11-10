@@ -8,6 +8,15 @@ use anyhow::Result;
 impl Hub {
     /// A group is busy while one of its members works in it: that member's status and activity.
     pub fn group_runtime(&self, group: &BotConfig) -> Runtime {
+        if let Some(room) = crate::chat::meetings::entry(self, &group.id)
+            && room.data["meeting"]["status"] == "awaiting_owner"
+        {
+            return Runtime {
+                status: BotStatus::NeedsInput,
+                activity: "Review meeting decision".into(),
+                ..Runtime::default()
+            };
+        }
         let busy = {
             let runtime = self.runtime.locked();
             group.members.iter().find_map(|m| {

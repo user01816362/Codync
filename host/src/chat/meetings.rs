@@ -537,8 +537,11 @@ mod tests {
         assert!(act(&hub, None, "approve", json!({})).is_err());
         act(&hub, Some("b"), "position", json!({"proposalRevision":1,"position":"approve","text":"Evidence supplied"}))
             .expect("second");
+        let config = hub.store.bot("room").expect("read").expect("room").config;
+        assert_eq!(hub.group_runtime(&config).status, crate::hub::BotStatus::NeedsInput);
         assert!(act(&hub, Some("a"), "approve", json!({})).is_err());
         act(&hub, None, "approve", json!({})).expect("owner approval");
+        assert_eq!(hub.group_runtime(&config).status, crate::hub::BotStatus::Idle);
         assert_eq!(state(&hub, "room").expect("state")["meeting"]["status"], "resolved");
         act(&hub, None, "report", json!({})).expect("report");
         act(&hub, None, "report", json!({})).expect("retry");
