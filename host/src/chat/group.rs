@@ -265,7 +265,7 @@ fn ask(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotConfig, lane
     Ok((member_prompt(hub, group, members, me, lane)?, shown))
 }
 
-fn members(hub: &Hub, group: &BotConfig) -> Vec<BotConfig> {
+pub(super) fn members(hub: &Hub, group: &BotConfig) -> Vec<BotConfig> {
     group
         .members
         .iter()
