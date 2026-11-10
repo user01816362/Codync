@@ -60,7 +60,8 @@ impl Hub {
             let mut cfg = patch::patched(&row.config, patch)?;
             if cfg.is_group() {
                 anyhow::ensure!(
-                    crate::chat::meetings::entry(self, &id).is_none() || (cfg.members == row.config.members && cfg.description == row.config.description),
+                    crate::chat::meetings::entry(self, &id).is_none()
+                        || (cfg.members == row.config.members && cfg.description == row.config.description),
                     "meeting delegates and agenda are fixed; create a new room to change representation"
                 );
                 cfg.members = crate::chat::group::valid_members(&self.store, &cfg.id, &cfg.members)?;

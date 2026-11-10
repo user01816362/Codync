@@ -179,14 +179,29 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
             "finish or pause an unresolved discussion before reporting"
         );
         validate_delegates(hub, &meeting["delegates"])?;
-        let positions = meeting["delegates"].as_array().context("invalid delegates")?.iter().map(|d| {
-            let position = &meeting["positions"][d["botId"].as_str().unwrap_or_default()];
-            format!("{} · {}: {} — {}", d["name"].as_str().unwrap_or("Delegate"), d["department"].as_str().unwrap_or("Personal"), position["position"].as_str().unwrap_or("not answered"), position["reason"].as_str().unwrap_or_default())
-        }).collect::<Vec<_>>().join("\n");
+        let positions = meeting["delegates"]
+            .as_array()
+            .context("invalid delegates")?
+            .iter()
+            .map(|d| {
+                let position = &meeting["positions"][d["botId"].as_str().unwrap_or_default()];
+                format!(
+                    "{} · {}: {} — {}",
+                    d["name"].as_str().unwrap_or("Delegate"),
+                    d["department"].as_str().unwrap_or("Personal"),
+                    position["position"].as_str().unwrap_or("not answered"),
+                    position["reason"].as_str().unwrap_or_default()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
         let summary = format!(
             "Meeting outcome: {} — {status}\nAgenda: {}\nProposal revision {}: {}\nRecorded positions:\n{positions}\nFinal user approval: {}",
-            group.name, meeting["agenda"].as_str().unwrap_or_default(), meeting["proposalRevision"],
-            meeting["proposal"].as_str().unwrap_or_default(), meeting["approved"].as_bool().unwrap_or(false)
+            group.name,
+            meeting["agenda"].as_str().unwrap_or_default(),
+            meeting["proposalRevision"],
+            meeting["proposal"].as_str().unwrap_or_default(),
+            meeting["approved"].as_bool().unwrap_or(false)
         );
         let mut destinations = Vec::new();
         for delegate in meeting["delegates"].as_array().context("invalid delegates")? {
@@ -328,8 +343,10 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
         let room_id = id.to_owned();
         let deadline = saved["meeting"]["deadline"].as_i64().unwrap_or(0);
         tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis((deadline - crate::store::now_ms()).max(0).unsigned_abs()))
-                .await;
+            tokio::time::sleep(std::time::Duration::from_millis(
+                (deadline - crate::store::now_ms()).max(0).unsigned_abs(),
+            ))
+            .await;
             if let Some(hub) = weak.upgrade()
                 && let Some(current) = entry(&hub, &room_id)
                 && current.data["meeting"]["status"] == "running"
