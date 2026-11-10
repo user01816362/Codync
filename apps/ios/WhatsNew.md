@@ -6,6 +6,27 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.43.1
+### zh-Hant
+- 修正延遲的群組回覆未通知提及成員的問題，保留可讀名稱與閱讀紀錄。
+- 改善 OpenCode 舊版本啟動相容性及模型拒絕後的狀態處理。
+- 自訂連接器不能再使用已安裝連接器的名稱。
+
+### en-US
+- Late group replies now notify the members they mention, retaining readable names and read receipts.
+- Improved older OpenCode startup compatibility and handling of model refusals.
+- Custom connectors now reject names already used by installed connectors.
+
+## zh-Hant
+- 新功能 Codync Cloud（Beta）：登入 Codync 帳號後，可以在你自己的 Boat（歐洲）或 InstaBox（美國）帳號上開雲端電腦，你的電腦沒開，bot 也能工作。Codync 不收費，機器由供應商依它的方案向你的帳號收費。在「管理電腦」的 Codync Cloud 區塊按 +。
+- 雲端電腦閒置時會睡著，傳訊息給它的 bot 就會醒來。每個帳號最多三台，各自命名。
+- 還沒有 InstaBox 帳號？它的免費方案有一台機器，在 InstaBox 的 key 頁面點「Get a free sandbox」。
+
+### en-US
+- New: Codync Cloud (beta). Signed in to a Codync account, start a cloud computer on your own Boat (EU) or InstaBox (US) account, so your bots work while your computer is off. Codync charges nothing; the provider bills your account under its own plan. In Manage computers, choose + in the Codync Cloud section.
+- A cloud computer sleeps while idle and wakes when you message one of its bots. Up to three per account, each with its own name.
+- No InstaBox account yet? Its free plan includes one machine: choose Get a free sandbox on InstaBox's key sheet.
+
 ## 2.42.1
 ### zh-Hant
 - 文字預覽新增搜尋與檢視偏好；資料庫可載入更早的檔案並定位原訊息，支援引用檔案、工作區與成品中的段落。

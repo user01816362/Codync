@@ -158,3 +158,12 @@ Terminal group settings also exposes Ctrl+P for the existing custom-image editor
 retain a text avatar; graphical clients show the normalized image. All department mutations
 remain host-validated. Terminal owner/handler fields resolve unique current display names
 (or explicit IDs) and reject ambiguous names instead of guessing.
+
+## Upstream synchronization
+
+Version 2.43.1 includes the upstream late-group-answer scheduler, OpenCode startup/refusal
+compatibility, connector-name validation, signed development release channels and version-bump
+tooling. Group display-name mentions, quoted-line filtering, department tools and read receipts
+remain in place. The local development Worker is isolated and includes no hosted-machine
+provisioning. Hosted Codync Cloud, provider-key custody, account enrollment UI and the support
+invitation are excluded. Existing telemetry removals and private relay remain unchanged.
