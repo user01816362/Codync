@@ -23,35 +23,36 @@ function computer(hasRosterSections = true) {
 function submenu(items: MenuItem[]) {
   assert.equal(items.length, 1)
   const [move] = items
-  assert.ok(move?.submenu && move.title === 'Move to section')
+  assert.ok(move?.submenu && move.title === 'Move to folder')
   return move.submenu
 }
 
 test('Move to section offers the other sections (hidden bots\' too), a new one, and out of its own', () => {
   const { store, calls, naming, bot } = computer()
   const rows = submenu(moveToSectionItems(bot('work'), store, (n) => naming.push(n)))
-  assert.deepEqual(rows.map((r) => r.title), ['archive', 'Home', 'New section…', 'Remove from section'])
+  assert.deepEqual(rows.map((r) => r.title), ['archive', 'Home', 'Work', 'Unassigned', 'New folder…'])
+  assert.equal(rows.find(row => row.title === 'Work')?.selected, true)
   // Section names show as the user typed them ("Home" stays "Home" in any language); the rest is translated.
-  assert.deepEqual(rows.map((r) => r.verbatim === true), [true, true, false, false])
+  assert.deepEqual(rows.map((r) => r.verbatim === true), [true, true, true, false, false])
   rows[1]!.action?.()
   rows[3]!.action?.()
-  rows[2]!.action?.()
-  assert.deepEqual(naming.map((n) => [n.title, n.name]), [['New section', '']])
+  rows[4]!.action?.()
+  assert.deepEqual(naming.map((n) => [n.title, n.name]), [['New folder', '']])
   naming[0]!.save('Side')
   assert.deepEqual(calls, [['move', 'work', 'Home'], ['move', 'work', null], ['move', 'work', 'Side']])
 })
 
-test('a bot in no section has nothing to be removed from', () => {
+test('a chat without a folder offers Unassigned as its current location', () => {
   const { store, bot } = computer()
-  assert.deepEqual(submenu(moveToSectionItems(bot('loose'), store, () => {})).map((r) => r.title), ['archive', 'Home', 'Work', 'New section…'])
+  assert.deepEqual(submenu(moveToSectionItems(bot('loose'), store, () => {})).map((r) => r.title), ['archive', 'Home', 'Work', 'Unassigned', 'New folder…'])
 })
 
 test('a header renames its section from its name, or removes it', () => {
   const { store, calls, naming } = computer()
   const items = sectionHeaderItems('Work', store, (n) => naming.push(n), (to) => calls.push(['rename', to]))
-  assert.deepEqual(items.map((i) => i.title), ['Rename section…', 'Remove section'])
+  assert.deepEqual(items.map((i) => i.title), ['Rename folder…', 'Ungroup chats'])
   items[0]!.action?.()
-  assert.deepEqual(naming.map((n) => [n.title, n.name]), [['Rename section', 'Work']])
+  assert.deepEqual(naming.map((n) => [n.title, n.name]), [['Rename folder', 'Work']])
   naming[0]!.save('Jobs')
   items[1]!.action?.()
   assert.deepEqual(calls, [['rename', 'Jobs'], ['rename', null]])

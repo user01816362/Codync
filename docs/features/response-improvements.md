@@ -194,3 +194,11 @@ References: [W3C structural direction](https://www.w3.org/International/question
 The local host is installed while the desktop app runs, regardless of the after-Quit preference. Closing the window leaves the menu-bar app running. With **Keep the host running after quitting** off, Quit waits for any in-flight installation before stopping and uninstalling the owned service. Failed stop/removal keeps the app open and reports an error instead of claiming cleanup succeeded. With the setting on, Quit leaves the host service running. Manually started development hosts and services belonging to a different installation are left alone. A staged app update prepares its host shutdown before ordinary Quit cleanup runs.
 
 The installation/Quit race, enabled preference and failed-removal paths were exercised with mocked OS commands against the actual host controller; no local services were modified. Existing quit-lifecycle checks cover normal close, Quit, update events and cancelled-Quit recovery. Real packaged-app shutdown remains to be checked on the installed build.
+
+## Desktop chat folders
+
+The main create menu includes **New folder…**, alongside **Organize chats…**. Folder creation asks for a bounded name and at least one chat, using the existing host-backed section assignments. The organizer supports bots and group chats, keeps selected chats across searches, toggles only the visible selections, blocks offline moves, reports partial failures and leaves failed selections available for retry. Existing names are selectable when organizing; a new-folder name collision is shown before moving chats.
+
+Chat context menus use **Move to folder**, with the current folder and **Unassigned** marked. Folder headers show a folder icon and retain collapse, unread counts, rename, ungroup and reorder behavior. Pinned chats remain in the pinned area, with their folder assignment preserved and their pinned status visible in the organizer. This model does not persist empty folders: a folder is represented by its member chats. Changes sync through existing host operations rather than a parallel local folder database.
+
+Validation: the existing folder ordering, section assignment and context-menu checks passed (25 checks). UI interaction remains unverified because local builds and launches are disabled.

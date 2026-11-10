@@ -7,20 +7,20 @@ import type { Naming } from './NameDialog'
 /** A bot row's "Move to section"; none while its computer runs a host without sections. */
 export function moveToSectionItems(bot: Bot, store: BotStore, askName: (naming: Naming) => void): MenuItem[] {
   if (!store.hasRosterSections) return []
-  const others = sectionNames(store.bots.values()).filter((name) => name !== bot.section)
+  const names = sectionNames(store.bots.values())
   const submenu: MenuItem[] = [
-    ...others.map((name) => ({ title: name, icon: 'tray', verbatim: true, action: () => store.sections.move(bot, name) })),
-    { title: 'New section…', icon: 'plus', divider: others.length > 0, action: () => askName({ title: 'New section', name: '', save: (name) => store.sections.move(bot, name) }) },
-    ...(bot.section ? [{ title: 'Remove from section', icon: 'minus.circle', action: () => store.sections.move(bot, null) }] : []),
+    ...names.map((name) => ({ title: name, icon: 'folder', verbatim: true, selected: name === bot.section, action: () => store.sections.move(bot, name) })),
+    { title: 'Unassigned', selected: !bot.section, divider: names.length > 0, action: () => store.sections.move(bot, null) },
+    { title: 'New folder…', icon: 'folder', divider: true, action: () => askName({ title: 'New folder', name: '', save: (name) => store.sections.move(bot, name) }) },
   ]
-  return [{ title: 'Move to section', icon: 'tray', submenu }]
+  return [{ title: 'Move to folder', icon: 'folder', submenu }]
 }
 
 /** A section header's right-click menu, `rename` taking the new name (null: remove it, its bots staying without one). None while the computer runs a host without sections. */
 export function sectionHeaderItems(section: string, store: BotStore, askName: (naming: Naming) => void, rename: (to: string | null) => void): MenuItem[] {
   if (!store.hasRosterSections) return []
   return [
-    { title: 'Rename section…', icon: 'pencil', action: () => askName({ title: 'Rename section', name: section, save: rename }) },
-    { title: 'Remove section', icon: 'xmark.circle', action: () => rename(null) },
+    { title: 'Rename folder…', icon: 'pencil', action: () => askName({ title: 'Rename folder', name: section, save: rename }) },
+    { title: 'Ungroup chats', icon: 'xmark.circle', action: () => rename(null) },
   ]
 }

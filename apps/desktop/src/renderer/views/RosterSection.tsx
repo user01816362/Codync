@@ -36,7 +36,8 @@ export function RosterSection({ name, count, unread, folded, compact, toggle, on
         }}>
         <HStack gap={5} justify={compact ? 'center' : undefined}>
           <span className={`computer-roster-chevron ${folded ? 'collapsed' : ''}`}><Icon name="chevron.down" size={9} /></span>
-          {!compact ? <Text size="caption" weight="semibold" truncate grow>{name}</Text> : null}
+          {!compact ? <Icon name="folder" size={13} color="var(--secondary)" /> : null}
+          {!compact ? <Text dir="auto" size="caption" weight="semibold" truncate grow>{name}</Text> : null}
           {!compact ? <Text size="caption" tone="tertiary" tabular>{count}</Text> : null}
           {folded && unread > 0 ? <span className="unread-badge">{unread}</span> : null}
         </HStack>
@@ -54,10 +55,10 @@ export function RosterLabel({ compact, drag, move }: { compact: boolean; drag?: 
   const tr = useTr()
   const label = useRef<HTMLButtonElement>(null)
   useSlide(label)
-  return <button ref={label} data-section-heading className="roster-label" {...drag} aria-label={tr('Bots')}
+  return <button ref={label} data-section-heading className="roster-label" {...drag} aria-label={tr('Unassigned')}
     onKeyDown={(e) => {
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); e.stopPropagation(); move?.(e.key === 'ArrowUp' ? -1 : 1) }
     }}>
-    {!compact ? <Text as="span" size="caption" weight="semibold" tone="secondary">{tr('Bots')}</Text> : null}
+    {!compact ? <Text as="span" size="caption" weight="semibold" tone="secondary">{tr('Unassigned')}</Text> : null}
   </button>
 }

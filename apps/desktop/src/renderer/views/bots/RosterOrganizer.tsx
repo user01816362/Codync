@@ -1,24 +1,40 @@
 import { useState } from 'react'
-import { BotAvatar, GroupAvatar } from '../../components/Avatar'
-import { Button, ChoicePicker, IconButton, SearchField } from '../../components/Controls'
+import { BotOrGroupAvatar } from '../../components/Avatar'
+import { Button, CardSection, ChoicePicker, IconButton, SearchField } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
-import { ModalHeader } from '../../components/Overlay'
+import { ModalHeader, SheetPage } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
-import { sectionNames } from '../../lib/roster-sections'
+import { limitSectionName, sectionName, sectionNames } from '../../lib/roster-sections'
+import { useModel } from '../../lib/observable'
+import { useTr } from '../../lib/use-language'
 import type { BotStore } from '../../store/bot-store'
-import { isGroup } from '@shared/models'
 import { Field } from './parts'
 
-/** A discoverable entry point to the existing host-backed sections, not a second folder model. */
-export function RosterOrganizer({ store }: { store: BotStore }) {
+/** Folder UI over the host's existing sections; assignments remain shared across devices. */
+export function RosterOrganizer({ store, creating = false, close }: { store: BotStore; creating?: boolean; close: () => void }) {
+  useModel(store)
+  const tr = useTr()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [section, setSection] = useState('')
+  const [created, setCreated] = useState(false)
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const bots = store.roster.filter(bot => bot.name.toLowerCase().includes(query.trim().toLowerCase()))
+  const names = sectionNames(store.bots.values())
+  const destination = sectionName(section)
+  const duplicate = creating && !created && destination !== null && names.includes(destination)
+  const count = [...selected].filter(id => store.bots.has(id)).length
+  const disabled = busy || store.isOffline
+  const allVisible = bots.length > 0 && bots.every(bot => selected.has(bot.id))
+  const toggle = (id: string) => setSelected(value => {
+    const next = new Set(value)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
   const move = async (to: string | null) => {
+    if (disabled || !count || (to !== null && (!destination || duplicate))) return
     setBusy(true)
     setNotice(null)
     let moved = 0
@@ -27,45 +43,51 @@ export function RosterOrganizer({ store }: { store: BotStore }) {
         const bot = store.bots.get(id)
         if (!bot) continue
         if (!await store.sections.move(bot, to)) {
-          setNotice(`${moved} chats moved. A move was refused; refresh and try again.`)
+          setNotice(`${moved} chats moved. Remaining chats were not moved. Try again when connected.`)
           return
         }
         moved += 1
+        if (creating) setCreated(true)
         setSelected(value => { const next = new Set(value); next.delete(id); return next })
       }
-      setNotice(`${moved} chats moved.`)
+      if (creating) close()
+      else setNotice(`${moved} chats moved.`)
     } catch (error: unknown) { setNotice(error instanceof Error ? error.message : String(error)) }
     finally { setBusy(false) }
   }
-  return <div className="sidechat">
-    <ModalHeader title="Organize chats" subtitle={store.computer.name} />
-    <div className="sidechat-scroll">
-      <VStack gap={16}>
-        <Text size="caption" tone="secondary">Sections organize bots and group chats on this computer. They do not change group membership, files or permissions. Pinned chats remain above their sections.</Text>
-        <Field label="Section">
-          <input className="field-box" aria-label="Section" placeholder="Choose or name a section" value={section} disabled={busy} onChange={event => setSection(event.target.value)} />
-          {sectionNames(store.bots.values()).length > 0 && <fieldset disabled={busy} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
-            <ChoicePicker selection={section} options={sectionNames(store.bots.values()).map(name => ({ id: name, label: name }))} onChange={name => { if (!busy) setSection(name) }} />
-          </fieldset>}
-        </Field>
+  return <SheetPage>
+    <ModalHeader title={creating ? 'New folder' : 'Organize chats'} subtitle={store.hostName} />
+    <div className="bot-form">
+      <div className="bot-form-content">
+        <CardSection title="Folder" footer="Folders organize chats on this computer. Pinned chats remain at the top. Group membership, files and permissions stay the same.">
+          <Field label="Folder name">
+            <input dir="auto" autoFocus={creating} className="field-box" aria-label={tr('Folder name')} placeholder={tr('Name your folder')} value={section}
+              disabled={disabled} onChange={event => setSection(limitSectionName(event.target.value))} />
+          </Field>
+          {!creating && names.length > 0 ? <ChoicePicker selection={section} options={names.map(name => ({ id: name, label: name }))} onChange={name => { if (!disabled) setSection(name) }} /> : null}
+        </CardSection>
+        {duplicate ? <Text tone="danger" role="status">{tr('A folder with this name already exists. Use Organize chats to move chats into it.')}</Text> : null}
+        {store.isOffline ? <Text tone="attention" role="status">{tr('Reconnect to this computer to organize chats.')}</Text> : null}
         <SearchField value={query} onChange={setQuery} prompt="Search chats" />
-        <HStack gap={8}>
-          <Button disabled={busy || selected.size === 0 || !section.trim()} onClick={() => void move(section.trim())}>Move selected</Button>
-          <Button kind="secondary" disabled={busy || selected.size === 0} onClick={() => void move(null)}>Remove from section</Button>
-          <IconButton title="Select visible chats" icon="checkmark.circle" disabled={busy} onClick={() => setSelected(new Set(bots.map(bot => bot.id)))} />
+        <CardSection title={`${tr('Chats')} · ${count} ${tr('selected')}`} footer={creating ? 'Choose at least one chat to create this folder.' : undefined}
+          accessory={<IconButton title={allVisible ? 'Deselect visible chats' : 'Select visible chats'} icon={allVisible ? 'minus.circle' : 'checkmark.circle'} disabled={disabled || !bots.length} onClick={() => setSelected(value => {
+            const next = new Set(value)
+            for (const bot of bots) { if (allVisible) next.delete(bot.id); else next.add(bot.id) }
+            return next
+          })} />}>
+          {bots.length === 0 ? <Text tone="secondary">{tr('No matching chats.')}</Text> : null}
+          {bots.map(bot => <button key={bot.id} className="group-action-row press" role="checkbox" aria-checked={selected.has(bot.id)} disabled={disabled} onClick={() => toggle(bot.id)}>
+            <BotOrGroupAvatar bot={bot} members={store.members(bot)} size={28} />
+            <VStack gap={2} grow><Text dir="auto">{bot.name}</Text><Text size="caption" tone="secondary">{bot.section || tr('Unassigned')}{bot.pinned ? ` · ${tr('Pinned')}` : ''}</Text></VStack>
+            <Icon name={selected.has(bot.id) ? 'checkmark.circle.fill' : 'circle'} size={20} />
+          </button>)}
+        </CardSection>
+        {notice ? <Text role="status" size="caption">{notice}</Text> : null}
+        <HStack gap={8} wrap>
+          <Button disabled={disabled || count === 0 || !destination || duplicate} onClick={() => void move(destination)}>{creating ? 'Create folder' : 'Move selected'}</Button>
+          {!creating ? <Button kind="secondary" disabled={disabled || count === 0} onClick={() => void move(null)}>Move to Unassigned</Button> : null}
         </HStack>
-        {notice && <Text role="status" size="caption">{notice}</Text>}
-        {bots.length === 0 && <Text tone="secondary">No matching chats.</Text>}
-        {bots.map(bot => <button key={bot.id} className="member-row press" role="checkbox" aria-checked={selected.has(bot.id)} disabled={busy} onClick={() => setSelected(value => {
-          const next = new Set(value)
-          if (next.has(bot.id)) next.delete(bot.id); else next.add(bot.id)
-          return next
-        })}>
-          {isGroup(bot) ? <GroupAvatar size={32} members={bot.members.flatMap(id => { const member = store.bots.get(id); return member ? [member] : [] })} /> : <BotAvatar bot={bot} size={32} animated={false} />}
-          <VStack gap={2} grow><Text>{bot.name}</Text><Text size="caption" tone="secondary">{bot.section || 'No section'}</Text></VStack>
-          <Icon name={selected.has(bot.id) ? 'checkmark.circle.fill' : 'circle'} size={20} />
-        </button>)}
-      </VStack>
+      </div>
     </div>
-  </div>
+  </SheetPage>
 }
