@@ -232,3 +232,5 @@
 .composer-menu .menu-panel {
   max-height: 300px;
 }
+
+.composer-box textarea, .composer-measure { text-align: start; unicode-bidi: plaintext; }

@@ -262,6 +262,7 @@ struct Composer: View {
     private var box: some View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField(placeholder, text: $input.text, selection: $input.selection, axis: .vertical)
+                .writingDirection(strategy: .contentBased)
                 .lineLimit(1...8)
                 .font(.body)
                 .textFieldStyle(.plain)

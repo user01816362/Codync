@@ -18,9 +18,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import java.text.Bidi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -71,27 +77,39 @@ val LocalNetworkImages = staticCompositionLocalOf<ImageLoader> { error("Missing 
 
 @Composable private fun MarkdownBlock(block: Block, ink: Color, openFile: ((String) -> Unit)?, allowMarkdownPreview: Boolean, inlineMath: Boolean) {
     val code = Palette.text.copy(alpha = 0.08f)
-    when (block) {
-        is Block.Paragraph -> Column {
-            val text = block.text.trim()
-            if (text.length > 4 && text.startsWith("$$") && text.endsWith("$$")) RichContentPreview(text.drop(2).dropLast(2), "math")
-            else if (inlineMath) RichContentPreview(block.text, "inline-math")
-            else Text(inline(block.text, code, openFile), style = Type.body, color = ink)
+    val prose = when (block) {
+        is Block.Paragraph -> block.text
+        is Block.Heading -> block.text
+        is Block.Bullet -> block.text
+        is Block.Quote -> block.text
+        else -> ""
+    }
+    val direction = remember(prose) {
+        if (Bidi(prose, Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT).baseIsLeftToRight()) LayoutDirection.Ltr else LayoutDirection.Rtl
+    }
+    CompositionLocalProvider(LocalLayoutDirection provides direction) {
+        when (block) {
+            is Block.Paragraph -> Column {
+                val text = block.text.trim()
+                if (text.length > 4 && text.startsWith("$$") && text.endsWith("$$")) RichContentPreview(text.drop(2).dropLast(2), "math")
+                else if (inlineMath) RichContentPreview(block.text, "inline-math")
+                else Text(inline(block.text, code, openFile), style = Type.body.copy(textDirection = TextDirection.Content, textAlign = TextAlign.Start), color = ink)
+            }
+            is Block.Heading -> Text(inline(block.text, code, openFile), style = when (block.level) {
+                1 -> Type.title3.bold; 2 -> Type.headline; else -> Type.subheadline.bold
+            }, color = ink)
+            is Block.Bullet -> Row(Modifier.padding(start = 16.dp * block.depth), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(block.marker, style = Type.body.monospacedDigit, color = Palette.secondary)
+                Text(inline(block.text, code, openFile), style = Type.body.copy(textDirection = TextDirection.Content, textAlign = TextAlign.Start), color = ink)
+            }
+            Block.Rule -> Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(1.dp).background(Palette.border))
+            is Block.Table -> MarkdownTable(block, code, ink, openFile)
+            is Block.Quote -> Row(Modifier.height(IntrinsicSize.Min)) {
+                Box(Modifier.width(3.dp).fillMaxHeight().background(Palette.border))
+                Text(inline(block.text, code, openFile), Modifier.padding(start = 10.dp), style = Type.body.copy(textDirection = TextDirection.Content, textAlign = TextAlign.Start), color = Palette.secondary)
+            }
+            is Block.Code -> RichContentPreview(block.text, block.language.lowercase(), allowMarkdownPreview)
         }
-        is Block.Heading -> Text(inline(block.text, code, openFile), style = when (block.level) {
-            1 -> Type.title3.bold; 2 -> Type.headline; else -> Type.subheadline.bold
-        }, color = ink)
-        is Block.Bullet -> Row(Modifier.padding(start = 16.dp * block.depth), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(block.marker, style = Type.body.monospacedDigit, color = Palette.secondary)
-            Text(inline(block.text, code, openFile), style = Type.body, color = ink)
-        }
-        Block.Rule -> Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(1.dp).background(Palette.border))
-        is Block.Table -> MarkdownTable(block, code, ink, openFile)
-        is Block.Quote -> Row(Modifier.height(IntrinsicSize.Min)) {
-            Box(Modifier.width(3.dp).fillMaxHeight().background(Palette.border))
-            Text(inline(block.text, code, openFile), Modifier.padding(start = 10.dp), style = Type.body, color = Palette.secondary)
-        }
-        is Block.Code -> RichContentPreview(block.text, block.language.lowercase(), allowMarkdownPreview)
     }
 }
 

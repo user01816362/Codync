@@ -53,7 +53,7 @@ export function AutoTextArea({ value, onChange, placeholder, minRows, maxRows, c
     el.style.height = '0px'
     el.style.height = `${Math.min(Math.max(el.scrollHeight, line * minRows + pad), line * maxRows + pad)}px`
   }, [value, minRows, maxRows])
-  return <textarea ref={ref} aria-label={ariaLabel} disabled={disabled} maxLength={maxLength} rows={minRows} className={className} value={value} placeholder={placeholder === undefined ? undefined : tr(placeholder)} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
+  return <textarea dir="auto" ref={ref} aria-label={ariaLabel} disabled={disabled} maxLength={maxLength} rows={minRows} className={className} value={value} placeholder={placeholder === undefined ? undefined : tr(placeholder)} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
 }
 
 /** The avatar's shape and color: each a wrapping, centered row of choices, ringed when picked. */

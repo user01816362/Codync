@@ -25,6 +25,7 @@ public struct MarkdownText: View, Equatable {
             }
         }
         .textSelection(.enabled)
+        .writingDirection(strategy: .contentBased)
     }
 
     /// Underlines keep links distinct in the monochrome theme; inline code gets a soft tint.
@@ -63,10 +64,7 @@ private struct MarkdownBlock: View, Equatable {
                 .font(level == 1 ? .title3.bold() : level == 2 ? .headline : .subheadline.bold())
                 .foregroundStyle(Palette.text)
         case let .bullet(t, marker, depth):
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(marker).foregroundStyle(Palette.secondary).monospacedDigit()
-                Text(MarkdownText.inline(t)).foregroundStyle(Palette.text)
-            }
+            Text("\(Text(marker).foregroundStyle(Palette.secondary).monospacedDigit()) \(Text(MarkdownText.inline(t)).foregroundStyle(Palette.text))")
             .font(.body)
             .padding(.leading, CGFloat(depth) * 16)
         case .rule:

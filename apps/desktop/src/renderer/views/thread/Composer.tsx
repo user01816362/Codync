@@ -241,8 +241,8 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
               </button>
             ) : null}
             <div className="composer-field">
-              <div ref={measure} className="composer-measure" aria-hidden="true">{draft + '\u200b'}</div>
-              <textarea
+              <div dir="auto" ref={measure} className="composer-measure" aria-hidden="true">{draft + '\u200b'}</div>
+              <textarea dir="auto"
                 ref={field}
                 rows={1}
                 value={draft}

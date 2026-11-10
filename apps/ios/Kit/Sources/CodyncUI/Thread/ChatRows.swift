@@ -187,6 +187,7 @@ struct UserBubble: View {
                 if let quote = entry.data.replyTo { QuoteLine(text: model.authorName(quote.author) + ": " + quote.text) }
                 if let text = entry.data.text, !text.isEmpty {
                     Text(text)
+                        .writingDirection(strategy: .contentBased)
                         .font(.body)
                         .foregroundStyle(Palette.text)
                         .textSelection(.enabled)

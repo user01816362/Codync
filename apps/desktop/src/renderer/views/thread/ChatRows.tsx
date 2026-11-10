@@ -112,7 +112,7 @@ export function QuoteRow({ quote, className }: { quote: ReplyQuote; className?: 
   return (
     <HStack gap={6} className={className ?? 'bubble-quote'}>
       <Icon name="text.bubble" size={12} color="var(--secondary)" />
-      <Text size="footnote" tone="secondary" truncate grow>{`${quote.selected ? 'Quoted from' : 'Replying to'} ${author}${quote.fileName || quote.artifactTitle ? ` · ${quote.fileName ?? quote.artifactTitle}${quote.startLine ? `:${quote.startLine}${quote.endLine !== quote.startLine ? `–${quote.endLine}` : ''}` : ''}` : ''}: “${messagePreview(quote.text)}”`}</Text>
+      <Text dir="auto" size="footnote" tone="secondary" truncate grow>{`${quote.selected ? 'Quoted from' : 'Replying to'} ${author}${quote.fileName || quote.artifactTitle ? ` · ${quote.fileName ?? quote.artifactTitle}${quote.startLine ? `:${quote.startLine}${quote.endLine !== quote.startLine ? `–${quote.endLine}` : ''}` : ''}` : ''}: “${messagePreview(quote.text)}”`}</Text>
     </HStack>
   )
 }
@@ -163,7 +163,7 @@ export function UserBubble({ entry, reply, edit }: { entry: Entry; reply?: () =>
             ]}
           >
             {entry.data.replyTo ? <QuoteRow quote={entry.data.replyTo} /> : null}
-            {entry.data.text}
+            <div dir="auto" className="message-prose">{entry.data.text}</div>
           </Bubble>
         ) : null}
         {(status && status !== 'sent') || entry.data.editedAt ? <UserStatus entry={entry} hovering={hovering} /> : null}

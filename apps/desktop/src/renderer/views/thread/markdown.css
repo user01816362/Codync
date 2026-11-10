@@ -39,8 +39,8 @@
 }
 .md-quote {
   color: var(--secondary);
-  padding-left: 10px;
-  box-shadow: inset 3px 0 0 var(--border);
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--border);
 }
 .md-table-scroll {
   overflow-x: auto;
@@ -102,3 +102,11 @@
 
 .md-inline-math { width: 100%; min-width: 0; }
 .md-inline-math .md-rendered-frame { width: 100%; border: 0; background: transparent; }
+
+/* Direction belongs to each prose block, independently of the app chrome. */
+.md-text, .md-table [dir="auto"] { text-align: start; unicode-bidi: plaintext; }
+.md-link { unicode-bidi: isolate; }
+.md-code-span { direction: ltr; unicode-bidi: isolate; }
+.md-code, .md-code-text { direction: ltr; text-align: left; unicode-bidi: isolate; }
+
+.message-prose { text-align: start; unicode-bidi: plaintext; white-space: pre-wrap; overflow-wrap: anywhere; }

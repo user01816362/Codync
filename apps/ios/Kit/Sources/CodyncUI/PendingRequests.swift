@@ -12,9 +12,9 @@ public struct PendingRequests: View {
     private struct Request: Identifiable {
         let store: BotStore
         let entry: Entry
-        var id: String { "\(store.computer.id)/\(entry.id)" }
-        var author: String { store.bots[entry.data.author ?? entry.botId]?.name ?? "Agent" }
-        var chat: String { store.bots[entry.botId]?.name ?? "Conversation" }
+        let id: String
+        let author: String
+        let chat: String
     }
 
     private var requests: [Request] {
@@ -23,7 +23,10 @@ public struct PendingRequests: View {
             for entries in store.entries.values {
                 for entry in entries where entry.kind == "permission" && entry.data.status == "pending" && entry.data.removed != true {
                     if accounts.selection?.computerId == store.computer.id && accounts.selection?.botId == entry.botId { continue }
-                    result.append(Request(store: store, entry: entry))
+                    result.append(Request(store: store, entry: entry,
+                        id: "\(store.computer.id)/\(entry.id)",
+                        author: store.bots[entry.data.author ?? entry.botId]?.name ?? "Agent",
+                        chat: store.bots[entry.botId]?.name ?? "Conversation"))
                 }
             }
         }
@@ -66,7 +69,7 @@ public struct PendingRequests: View {
                             }
                             if let error = current.store.lastError { Text(error).font(.footnote).foregroundStyle(Palette.danger) }
                             Button(L10n.tr("Open chat")) {
-                                accounts.selection = BotReference(computerId: current.store.computer.id, botId: current.entry.botId)
+                                accounts.selection = BotReference(accountId: accounts.accountId, computerId: current.store.computer.id, botId: current.entry.botId)
                                 showing = false
                             }.buttonStyle(.secondary)
                         } else {

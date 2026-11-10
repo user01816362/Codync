@@ -2,7 +2,7 @@ import { hasInlineMath } from './inline-math'
 import { RichContentPreview } from './RichContentPreview'
 import { memo, useContext, type ReactNode } from 'react'
 import { parseMarkdown, type Block } from './markdown-blocks.ts'
-import { inlinePattern, splitCodeSpans, unescapeInline } from './markdown-inline.ts'
+import { inlinePattern, unescapeInline } from './markdown-inline.ts'
 import { Hairline } from '../../components/Controls'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
@@ -15,18 +15,7 @@ import './markdown.css'
 
 /** Inline Markdown: `code` (tinted), **bold**, *italic*, ~~strike~~, [links](url). */
 export function inline(text: string, key = 'i', open?: ((path: string) => void) | null): ReactNode[] {
-  const out: ReactNode[] = []
-  // Code spans first: nothing inside them is styled.
-  splitCodeSpans(text).forEach((part, i) => {
-    if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) {
-      out.push(
-        <code key={`${key}${i}`} className="md-code-span">
-          {part.slice(1, -1)}
-        </code>,
-      )
-    } else if (part) out.push(...emphasis(part, `${key}${i}-`, open))
-  })
-  return out
+  return emphasis(text, key, open)
 }
 
 function emphasis(text: string, key: string, open?: ((path: string) => void) | null): ReactNode[] {
@@ -41,11 +30,13 @@ function emphasis(text: string, key: string, open?: ((path: string) => void) | n
     }
     if (m.index > 0) out.push(unescapeInline(rest.slice(0, m.index)))
     const k = `${key}${n++}`
-    if (m[1] !== undefined) {
+    if (m[8] !== undefined) {
+      out.push(<code key={k} dir="ltr" className="md-code-span">{m[8]}</code>)
+    } else if (m[1] !== undefined) {
       const url = m[2]!
       const path = workspacePath(url)
       out.push(
-        <a key={k} href={url} title={url} className="md-link" onClick={(e) => { e.preventDefault(); if (path !== null && open) open(path); else if (path === null) window.codync.app.openExternal(url) }}>
+        <a key={k} dir="auto" href={url} title={url} className="md-link" onClick={(e) => { e.preventDefault(); if (path !== null && open) open(path); else if (path === null) window.codync.app.openExternal(url) }}>
           {emphasis(m[1], `${k}-`, open)}
         </a>,
       )
@@ -63,16 +54,16 @@ const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences, inline
     case 'paragraph':
       return block.text.trim().startsWith('$$') && block.text.trim().endsWith('$$') && block.text.trim().length > 4
         ? <RichContentPreview source={block.text.trim().slice(2, -2)} language="math" />
-        : inlineMath ? <RichContentPreview source={block.text} language="inline-math" /> : <div className="md-text md-spaced md-body">{inline(block.text, 'i', open)}</div>
+        : inlineMath ? <RichContentPreview source={block.text} language="inline-math" /> : <div dir="auto" className="md-text md-spaced md-body">{inline(block.text, 'i', open)}</div>
     case 'heading':
       return (
-        <div className={`md-text md-spaced md-heading-${Math.min(block.level, 3)}`}>
+        <div dir="auto" className={`md-text md-spaced md-heading-${Math.min(block.level, 3)}`}>
           {inline(block.text, 'i', open)}
         </div>
       )
     case 'bullet':
       return (
-        <HStack align="baseline" gap={6} className="md-spaced md-body" style={{ paddingLeft: block.depth * 16 }}>
+        <HStack dir="auto" align="baseline" gap={6} className="md-spaced md-body md-list-row" style={{ paddingInlineStart: block.depth * 16 }}>
           <Text tone="secondary" className="md-marker">{block.marker}</Text>
           <span className="md-text md-bullet-text">{inline(block.text, 'i', open)}</span>
         </HStack>
@@ -86,18 +77,18 @@ const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences, inline
         <div className="md-table-scroll">
           <div className="md-table md-body" style={{ gridTemplateColumns: `repeat(${columns}, max-content)` }}>
             {cols.map((i) => (
-              <Text key={`h${i}`} weight="semibold">{inline(block.header[i] ?? '', `h${i}`, open)}</Text>
+              <Text dir="auto" key={`h${i}`} weight="semibold">{inline(block.header[i] ?? '', `h${i}`, open)}</Text>
             ))}
             {block.rows.map((row, r) => [
               <Hairline key={`l${r}`} style={{ gridColumn: `1 / span ${columns}` }} />,
-              ...cols.map((i) => <span key={`${r}-${i}`}>{inline(row[i] ?? '', `${r}-${i}`, open)}</span>),
+              ...cols.map((i) => <span dir="auto" key={`${r}-${i}`}>{inline(row[i] ?? '', `${r}-${i}`, open)}</span>),
             ])}
           </div>
         </div>
       )
     }
     case 'quote':
-      return <div className="md-text md-spaced md-body md-quote">{inline(block.text, 'i', open)}</div>
+      return <div dir="auto" className="md-text md-spaced md-body md-quote">{inline(block.text, 'i', open)}</div>
     case 'code':
       return <RichContentPreview source={block.text} language={block.language.toLowerCase()} renderMarkdown={literalFences ? undefined : text => <MarkdownText text={text} literalFences />} />
   }

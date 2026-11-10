@@ -178,3 +178,13 @@ Group editors use the shared profile cards, field surfaces and compact avatar co
 A compact Requests counter opens approvals from other chats without navigating away. Each request identifies its agent, chat and computer and uses the existing permission options and host response method. Requests never open automatically or advance under the pointer after a decision; the next request requires an explicit selection. Offline computers cannot receive approvals. Pending permissions are included in fresh and incremental snapshots even when older history was trimmed. Collaboration display preferences and execution routing are unchanged.
 
 Validation for this change uses GitHub CI. Real app interaction and accessibility walkthroughs were not run because local builds and launches are disabled for this workspace. Android source is updated without triggering its workflow.
+
+## Bidirectional message text
+
+Desktop prose blocks and composer fields resolve direction from their content using HTML `dir="auto"`; multiline prose and drafts use paragraph-aware bidi handling. List indentation and quote borders use logical start edges. Inline code is isolated LTR and links isolate their own direction. Composer measurement uses the same direction rules as the visible field. Code previews remain LTR across the offline renderer copies.
+
+iOS uses SwiftUI’s iOS 26 content-based writing direction for Markdown and composition, with list markers included in the native text paragraph. Android uses content-based text direction and the Unicode bidi engine for Markdown row layout. These rules apply to message content without changing app navigation direction or storing invisible formatting characters in messages. Native quote borders and nested-list indentation still need interaction checks in mixed-direction conversations.
+
+Desktop emphasis now parses enclosing formatting before its nested code spans, so bold text containing inline code no longer leaves literal emphasis markers.
+
+References: [W3C structural direction](https://www.w3.org/International/questions/qa-html-dir), [W3C inline isolation](https://www.w3.org/International/articles/inline-bidi-markup/), [SwiftUI content-based writing](https://developer.apple.com/documentation/swiftui/text/writingdirectionstrategy/contentbased), [Compose text direction](https://developer.android.com/reference/kotlin/androidx/compose/ui/text/style/TextDirection).

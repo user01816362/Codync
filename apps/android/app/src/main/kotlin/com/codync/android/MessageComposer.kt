@@ -46,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -245,7 +247,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
                     ctrlEnter
                 }
                 BasicTextField(state = text, enabled = !queuing, modifier = Modifier.weight(1f).focusRequester(focus).contentReceiver(receiver).then(sendKey).padding(vertical = 10.dp),
-                    textStyle = Type.body.copy(color = Palette.text), cursorBrush = SolidColor(Palette.accent),
+                    textStyle = Type.body.copy(color = Palette.text, textDirection = TextDirection.Content, textAlign = TextAlign.Start), cursorBrush = SolidColor(Palette.accent),
                     lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 8),
                     decorator = { input -> Box { if (text.text.isEmpty()) Text(placeholder, style = Type.body, color = Palette.tertiary, maxLines = 1, overflow = TextOverflow.Ellipsis); input() } })
                 Box(Modifier.padding(bottom = 4.dp)) {
