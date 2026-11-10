@@ -64,12 +64,12 @@ import kotlinx.serialization.json.*
                     row { ChoicePicker(kind, listOf("consultation", "meeting", "decision").map { it to it }, { kind = it }, enabled = !disabled) }
                 }
                 CardSection("Delegates · ${selected.size}/5") {
-                    for (bot in state.bots.filter { !it.isGroup }) row {
+                    for (bot in state.bots.filter { it.kind != "group" }) row {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SecondaryButton("${if (bot.id in selected) "✓" else "+"} ${bot.name}", enabled = !disabled && (bot.id in selected || selected.size < 5)) {
                                 selected = if (bot.id in selected) selected - bot.id else selected + (bot.id to "")
                             }
-                            if (bot.id in selected) ChoicePicker(selected[bot.id].orEmpty(), listOf("" to "Personal") + state.bots.filter { it.isGroup && !it.meeting && bot.id in it.members }.map { it.id to it.name }, { selected = selected + (bot.id to it) }, enabled = !disabled)
+                            if (bot.id in selected) ChoicePicker(selected[bot.id].orEmpty(), listOf("" to "Personal") + state.bots.filter { it.kind == "group" && !it.meeting && bot.id in it.members }.map { it.id to it.name }, { selected = selected + (bot.id to it) }, enabled = !disabled)
                         }
                     }
                 }

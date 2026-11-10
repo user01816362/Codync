@@ -69,7 +69,7 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
               setDelegates(ds => selected.has(bot.id) ? ds.filter(d => d.botId !== bot.id) : [...ds, { botId: bot.id }])
               if (!chair) setChair(bot.id)
             }}><Text dir="auto" grow>{bot.name}</Text><Text>{selected.has(bot.id) ? '✓' : '+'}</Text></button>
-            {selected.has(bot.id) ? <ChoicePicker selection={delegates.find(d => d.botId === bot.id)?.groupId ?? ''} options={[{ id: '', label: 'Personal' }, ...store.roster.filter(g => isGroup(g) && !g.meeting && g.members.includes(bot.id)).map(g => ({ id: g.id, label: g.name }))]} onChange={id => setDelegates(ds => ds.map(d => d.botId === bot.id ? { botId: d.botId, ...(id ? { groupId: id } : {}) } : d)))} /> : null}
+            {selected.has(bot.id) ? <ChoicePicker selection={delegates.find(d => d.botId === bot.id)?.groupId ?? ''} options={[{ id: '', label: 'Personal' }, ...store.roster.filter(g => isGroup(g) && !g.meeting && g.members.includes(bot.id)).map(g => ({ id: g.id, label: g.name }))]} onChange={id => setDelegates(ds => ds.map(d => d.botId === bot.id ? { botId: d.botId, ...(id ? { groupId: id } : {}) } : d))} /> : null}
           </VStack>)}
         </CardSection>
         <CardSection title="Chair"><ChoicePicker selection={chair} options={delegates.map(d => ({ id: d.botId, label: store.bots.get(d.botId)?.name ?? d.botId }))} onChange={setChair} /></CardSection>

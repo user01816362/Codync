@@ -24,7 +24,7 @@ const HELP: [(&str, &str, &str); 83] = [
     ("CHAT", "~", "pause / resume queued messages"),
     ("CHAT", "( )", "move next queued message earlier / later"),
     ("MANAGE", "O", "host storage and database compaction"),
-    ("GROUP", "^B ^T ^O ^P ^M", "inbox / tasks / storage / custom icon / meeting in group settings"),
+    ("GROUP", "^B ^T ^O ^P ^R", "inbox / tasks / storage / custom icon / meeting in group settings"),
     ("CHAT", "y", "allow once"),
     ("CHAT", "a", "always allow"),
     ("CHAT", "n", "reject"),
