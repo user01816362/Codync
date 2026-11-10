@@ -88,6 +88,8 @@ data class Bot(
     val resting: List<Resting> = emptyList(),
     /** What it keeps running on the computer. Empty from an older host, and for a group. */
     val devServers: List<DevServer> = emptyList(),
+    val meeting: Boolean = false,
+    val meetingDepartments: Map<String, String> = emptyMap(),
     val customIcon: CustomIcon? = null,
 ) {
     /** Its band in the roster: pinned bots, then the rest. Reordering stays inside a band. */

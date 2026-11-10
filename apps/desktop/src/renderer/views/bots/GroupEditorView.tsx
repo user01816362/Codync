@@ -1,3 +1,4 @@
+import { MeetingRoom } from './MeetingRoom'
 import { useRef, useState } from 'react'
 import { isGroup, type Bot } from '@shared/models'
 import { BotAvatar, BotOrGroupAvatar } from '../../components/Avatar'
@@ -36,6 +37,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const [library, setLibrary] = useState(false)
   const [artifact, setArtifact] = useState<string | null>(null)
   const [storage, setStorage] = useState(false)
+  const [meeting, setMeeting] = useState(false)
   const [tasks, setTasks] = useState(false)
   const [inbox, setInbox] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -90,6 +92,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
             </Field>
           </CardSection>
           <CardSection title="Group activity">
+            {(current ?? group)?.meeting ? <GroupActionRow title="Meeting room" icon="person.2" onClick={() => setMeeting(true)} /> : null}
             <GroupActionRow title="Group tasks" icon="checklist" onClick={() => setTasks(true)} />
             <GroupActionRow title="Group inbox" icon="tray" onClick={() => setInbox(true)} />
             <GroupActionRow title="Library" icon="folder" onClick={() => setLibrary(true)} />
@@ -147,6 +150,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
       </Sheet>
       <Sheet open={artifact !== null} onClose={() => setArtifact(null)} width={900} height={740}>{artifact ? <ArtifactView botId={group.id} artifactId={artifact} close={() => setArtifact(null)} /> : null}</Sheet>
       <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
+      <Sheet open={meeting} onClose={() => setMeeting(false)} width={640} height={740}><MeetingRoom groupId={group.id} /></Sheet>
       <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}><GroupTasks group={current ?? group} /></Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}><GroupInbox group={current ?? group} /></Sheet>
       <DeleteBotDialog bot={confirmDelete} onClose={() => setConfirmDelete(null)} onDeleted={dismiss} />

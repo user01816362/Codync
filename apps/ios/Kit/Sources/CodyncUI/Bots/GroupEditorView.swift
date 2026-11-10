@@ -16,6 +16,7 @@ public struct GroupEditorView: View {
     @State private var saving = false
     @State private var inbox = false
     @State private var storage = false
+    @State private var meeting = false
     @State private var tasks = false
     @State private var library = false
     @State private var artifact: ArtifactTarget?
@@ -70,6 +71,7 @@ public struct GroupEditorView: View {
                         }
                     }
                     CardSection("Group activity") {
+                        GroupSettingsAction(title: model.bots[groupId]?.meeting == true ? "Meeting room" : "Create meeting room", icon: "person.2") { meeting = true }
                         GroupSettingsAction(title: "Group tasks", icon: "checklist") { tasks = true }
                         GroupSettingsAction(title: "Group inbox", icon: "tray") { inbox = true }
                         GroupSettingsAction(title: "Library", icon: "folder") { library = true }
@@ -136,6 +138,7 @@ public struct GroupEditorView: View {
         }
         .background(Palette.background)
         .codyncSheet(isPresented: $storage) { StorageOverview() }
+        .codyncSheet(isPresented: $meeting) { MeetingRoom(groupId: groupId) }
         .codyncSheet(isPresented: $tasks) { GroupTasks(groupId: groupId) }
         .codyncSheet(isPresented: $library) {
             VStack { ModalHeader("Group Library"); ScrollView { LibraryView(botId: groupId) { artifact = $0 }.padding(20) } }

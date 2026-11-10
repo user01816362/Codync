@@ -5,6 +5,8 @@ import Foundation
 public struct Bot: Codable, Identifiable, Hashable, Sendable {
     public var id: String
     /// `agent`, or `group`: several bots and the user in one chat (it has no agent, folder or harness).
+    public var meeting: Bool = false
+    public var meetingDepartments: [String: String] = [:]
     public var kind: String
     /// A group's bots.
     public var members: [String]
@@ -115,6 +117,8 @@ extension Bot {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
+        meetingDepartments = try c.decodeIfPresent([String: String].self, forKey: .meetingDepartments) ?? [:]
+        meeting = try c.decodeIfPresent(Bool.self, forKey: .meeting) ?? false
         kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "agent"
         members = try c.decodeIfPresent([String].self, forKey: .members) ?? []
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Bot"

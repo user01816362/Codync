@@ -42,7 +42,7 @@ struct ChatRow: View {
             .padding(.top, groupStart ? 12 : 4)
         case "agent":
             VStack(alignment: .leading, spacing: 4) {
-                if chat?.isGroup == true, groupStart { AuthorLabel(botId: entry.data.author) }
+                if chat?.isGroup == true, groupStart { AuthorLabel(botId: entry.data.author, department: entry.data.author.flatMap { chat?.meetingDepartments[$0] }) }
                 AgentBubble(entry: entry, openTrace: openTrace, reply: reply, openArtifact: openArtifact)
                 ReactionsRow(entry: entry)
                     .padding(.leading, chat?.isGroup == true ? 34 : 0)
@@ -52,7 +52,7 @@ struct ChatRow: View {
             .padding(.top, groupStart ? 12 : 4)
         case "permission":
             VStack(alignment: .leading, spacing: 4) {
-                if chat?.isGroup == true { AuthorLabel(botId: entry.data.author) }
+                if chat?.isGroup == true { AuthorLabel(botId: entry.data.author, department: entry.data.author.flatMap { chat?.meetingDepartments[$0] }) }
                 PermissionCard(entry: entry, hostName: model.hostName, answering: model.answering[entry.id]) { option in
                     model.respond(entry, option: option)
                 }
@@ -93,13 +93,14 @@ struct AuthorLabel: View {
     let botId: String?
     /// The name for an author that isn't one of this computer's bots (a bot on another computer).
     var name: String?
+    var department: String? = nil
     @Environment(BotStore.self) private var model
 
     var body: some View {
         let bot = botId.flatMap { model.bots[$0] }
         HStack(spacing: 8) {
             if let bot { CharacterAvatar(bot: bot, size: 26, animated: false) }
-            Text(model.authorName(botId, fallback: name))
+            Text(model.authorName(botId, fallback: name) + (department.map { " · \($0)" } ?? ""))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(bot.map { AvatarPalette.color($0.avatarColor) } ?? Palette.secondary)
         }

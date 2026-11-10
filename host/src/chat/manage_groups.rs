@@ -14,7 +14,7 @@ use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
 
-pub const INSTRUCTIONS: &str = "You manage the user's group chats. list_groups shows every group with its members, \
+pub const INSTRUCTIONS: &str = "Use propose_meeting for a temporary cross-department consultation or decision, only when the user asks for that coordination. It always needs user approval and starts paused. You manage the user's group chats. list_groups shows every group with its members, \
 and the bots a member can be. create_group makes a group of bots; update_group renames it, rewrites what it works on, \
 or adds and removes members by their ids from list_groups. A group needs at least one bot, and a group can't be a \
 member of another. Each member answers in the group under its own instructions. Use this for what the user asked, \
@@ -23,6 +23,7 @@ when they deny one, don't retry it unasked. Deleting groups is the user's.";
 
 pub fn tools() -> Value {
     json!([
+        {"name":"propose_meeting","description":"Propose a temporary consultation, meeting or decision room. Always requires explicit user approval of agenda and delegates, even in Auto mode. A room starts paused.","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"agenda":{"type":"string"},"kind":{"enum":["consultation","meeting","decision"]},"chair":{"type":"string"},"delegates":{"type":"array","minItems":2,"maxItems":5,"items":{"type":"object","properties":{"botId":{"type":"string"},"groupId":{"type":"string"}},"required":["botId"]}}},"required":["name","agenda","kind","chair","delegates"]}},
         {
             "name": "list_groups",
             "description": "List the user's group chats with their members, and every bot a member can be.",
@@ -67,6 +68,13 @@ pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result
         hub.store.bot(bot)?.filter(|r| !r.deleted && !r.config.is_group()).map(|r| r.config).context("unknown bot")?;
     if !source.manage_groups {
         bail!("this bot may not manage groups: the user turns that on in its settings");
+    }
+    if name == "propose_meeting" {
+        let mut approving = source.clone();
+        approving.permission = crate::store::Permission::Ask;
+        let detail = format!("{}\n\nDelegates and departments: {}\nChair: {}\nThis enrolls these delegates in a separate room. Existing shared agent-session history and permissions still apply. Discussion is limited to ten turns and ten minutes; final decisions require the user's approval.", args["agenda"], args["delegates"], args["chair"]);
+        approve(hub, &approving, "Create meeting room and invite delegates".into(), detail).await?;
+        return crate::chat::meetings::create(hub, args, Some(bot));
     }
     match name {
         "list_groups" => list(hub),

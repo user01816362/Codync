@@ -39,6 +39,7 @@ impl App {
             && let Some(id) = g.group_id.clone()
         {
             let kind = match k.code {
+                KeyCode::Char('m') => Some("meeting"),
                 KeyCode::Char('b') => Some("inbox"),
                 KeyCode::Char('t') => Some("tasks"),
                 KeyCode::Char('o') => Some("storage"),

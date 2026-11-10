@@ -165,12 +165,12 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, busy: B
         }
         "agent" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (group && groupStart) AuthorLabel(entry.data.text("author"), state)
+            if (group && groupStart) AuthorLabel(entry.data.text("author"), state, department = state.bots.firstOrNull { it.id == entry.botId }?.meetingDepartments?.get(entry.data.text("author").orEmpty()))
             AgentBubble(entry, state, store, openTrace, reply, openArtifact)
             Box(Modifier.padding(start = if (group) 34.dp else 0.dp)) { ReactionsRow(entry, state, store) }
         }
         "permission" -> Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (group) AuthorLabel(entry.data.text("author"), state)
+            if (group) AuthorLabel(entry.data.text("author"), state, department = state.bots.firstOrNull { it.id == entry.botId }?.meetingDepartments?.get(entry.data.text("author").orEmpty()))
             PermissionCard(entry, state.hostName, answering = "permission:" + entry.id in state.busy) {
                 store.respond(entry, it)
             }
@@ -192,11 +192,11 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>, busy: B
 internal class ConnectionRequestActions(val openApp: (String, ComposioApp) -> Unit, val install: (String, MarketConnector) -> Unit)
 
 /** Who wrote a message: their avatar and name in their color, or [name] for a bot on another computer. */
-@Composable internal fun AuthorLabel(botId: String?, state: AppState, name: String? = null) {
+@Composable internal fun AuthorLabel(botId: String?, state: AppState, name: String? = null, department: String? = null) {
     val bot = state.bots.firstOrNull { it.id == botId }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (bot != null) CharacterAvatar(bot.avatarShape, bot.avatarColor, 26.dp, customImage = bot.customIcon?.dataUrl, customTinted = bot.customIcon?.tinted == true)
-        Text(state.authorName(botId, name), style = Type.subheadline.medium, color = bot?.let { AvatarPalette.tint(it.avatarColor) } ?: Palette.secondary)
+        Text(state.authorName(botId, name) + (department?.let { " · $it" } ?: ""), style = Type.subheadline.medium, color = bot?.let { AvatarPalette.tint(it.avatarColor) } ?: Palette.secondary)
     }
 }
 

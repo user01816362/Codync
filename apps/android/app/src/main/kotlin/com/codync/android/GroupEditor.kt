@@ -46,6 +46,7 @@ import com.codync.android.design.*
     var avatar by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var storage by remember { mutableStateOf(false) }
+    var meeting by remember { mutableStateOf(false) }
     var tasks by remember { mutableStateOf(false) }
     var library by remember { mutableStateOf(false) }
     var artifact by remember { mutableStateOf<OpenArtifact?>(null) }
@@ -93,6 +94,7 @@ import com.codync.android.design.*
             }
             CardSection("Group activity") {
                 if (draft.id != null) {
+                    row { GroupSettingsAction(if (state.bots.firstOrNull { it.id == draft.id }?.meeting == true) "Meeting room" else "Create meeting room", "person.2") { meeting = true } }
                     row { GroupSettingsAction("Group tasks", "checklist") { tasks = true } }
                     row { GroupSettingsAction("Group inbox", "tray") { inbox = true } }
                     row { GroupSettingsAction("Library", "folder") { library = true } }
@@ -127,6 +129,7 @@ import com.codync.android.design.*
         }
     }
     CodyncSheet(storage, { storage = false }) { StorageOverview(store) }
+    CodyncSheet(meeting, { meeting = false }) { draft.id?.let { MeetingRoom(it, state, store) } }
     CodyncSheet(tasks, { tasks = false }) { draft.id?.let { GroupTasks(it, state, store) } }
     CodyncSheet(library, { library = false }) {
         state.bots.firstOrNull { it.id == draft.id }?.let { group ->

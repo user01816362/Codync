@@ -82,7 +82,7 @@ pub fn with_members(store: &Store, members: &[String]) -> Result<Option<String>>
     Ok(store.bots()?.into_iter().find_map(|row| {
         let mut have = row.config.members.clone();
         have.sort();
-        (!row.deleted && row.config.is_group() && have == wanted).then_some(row.config.id)
+        (!row.deleted && row.config.is_group() && crate::chat::meetings::entry_for_store(store, &row.config.id).is_none() && have == wanted).then_some(row.config.id)
     }))
 }
 
@@ -94,6 +94,7 @@ pub fn start(hub: &Arc<Hub>, group: &BotConfig, lane: Lane) {
 
 /// Stop in `group`: ends its room turn and the member turns in it ([`Rooms::stop`]).
 pub fn stop(hub: &Hub, group: &str) {
+    crate::chat::meetings::stopped(hub, group);
     if !hub.groups.stop(group) {
         return;
     }
@@ -140,6 +141,9 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, turn: &Turn, asked: &m
             }
             if later.contains(&member.id) {
                 continue;
+            }
+            if !crate::chat::meetings::reserve(hub, group_id, &member.id)? {
+                break 'rounds;
             }
             let (prompt, shown) = ask(hub, &group, &members, member, lane)?;
             asked.insert(member.id.clone(), shown);
@@ -247,6 +251,7 @@ fn busy_elsewhere(hub: &Hub, member: &str, lane: &Lane) -> bool {
 /// A member's room turn starts: it shows the room as it is now, not as it was when the turn was queued (it may
 /// have waited behind another turn of the member's).
 pub fn refresh(hub: &Hub, turn: &mut GroupTurn, me: &str) -> Result<()> {
+    crate::chat::meetings::active(hub, &turn.lane.chat, me)?;
     let group = group(hub, &turn.lane.chat)?;
     let members = members(hub, &group);
     let me = members.iter().find(|m| m.id == me).ok_or_else(|| anyhow!("no longer in the group"))?;
@@ -451,6 +456,9 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
     out.push(String::new());
     out.push(crate::chat::group_delivery::INSTRUCTIONS.to_owned());
     out.push(crate::chat::group_mail::INSTRUCTIONS.to_owned());
+    if let Some(meeting) = crate::chat::meetings::prompt(hub, &group.id, &me.id) {
+        out.push(meeting);
+    }
     out.push(format!(
         "It's your turn, {}. Reply to the room if you have something worth adding, or reply exactly \"{PASS}\" if you don't.",
         me.name

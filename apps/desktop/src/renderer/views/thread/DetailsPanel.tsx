@@ -1,3 +1,4 @@
+import { MeetingRoom } from '../bots/MeetingRoom'
 import { useState } from 'react'
 import { Sheet } from '../../components/Overlay'
 import { StorageOverview } from '../bots/StorageOverview'
@@ -50,6 +51,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
 }) {
   const tr = useTr()
   const [storage, setStorage] = useState(false)
+  const [meeting, setMeeting] = useState(false)
   const [tasks, setTasks] = useState(false)
   const [inbox, setInbox] = useState(false)
   const [browsingWorkspace, setBrowsingWorkspace] = useState(false)
@@ -72,6 +74,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           <>
             <div className="group-details-content">
               <CardSection title="Group activity">
+            {bot?.meeting ? <GroupActionRow title="Meeting room" icon="person.2" onClick={() => setMeeting(true)} /> : null}
                 <GroupActionRow title="Group tasks" icon="checklist" onClick={() => setTasks(true)} />
                 <GroupActionRow title="Group inbox" icon="tray" onClick={() => setInbox(true)} />
                 <GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} />
@@ -111,6 +114,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
         )}
       </div>
       <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
+      <Sheet open={meeting} onClose={() => setMeeting(false)} width={640} height={740}><MeetingRoom groupId={botId} /></Sheet>
       <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}>{bot && group ? <GroupTasks group={bot} /> : null}</Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}>{bot && group ? <GroupInbox group={bot} /> : null}</Sheet>
       <Sheet open={browsingWorkspace} onClose={() => setBrowsingWorkspace(false)} width={600} height={640}>
@@ -130,7 +134,7 @@ function Identity({ bot }: { bot: Bot }) {
       <span className="details-name">{bot.name}</span>
       <span className="details-subtitle">
         {group ? (
-          `${bot.members.length} ${bot.members.length === 1 ? 'bot' : 'bots'}`
+          `${bot.meeting ? "Meeting · " : ""}${bot.members.length} ${bot.members.length === 1 ? 'bot' : 'bots'}`
         ) : (
           <>
             <AgentIcon registry={store.agentRegistry(bot.backend)} size={12} />

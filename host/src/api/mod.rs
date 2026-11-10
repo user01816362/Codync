@@ -24,7 +24,7 @@ pub use http::{public_router, router};
 use crate::api::devices::{Caller, Forbidden};
 use crate::hub::Hub;
 use crate::market;
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use axum::http::StatusCode;
 use serde_json::Value;
 use std::ops::ControlFlow;
@@ -76,6 +76,22 @@ pub async fn dispatch(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -
 }
 
 async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Result<Value> {
+    if method == "createMeeting" {
+        return crate::chat::meetings::create(hub, &b, None);
+    }
+    if method == "meetingSetup" {
+        let id = str_arg(&b, "groupId")?;
+        if crate::chat::meetings::entry(hub, id).is_some() { return crate::chat::meetings::state(hub, id); }
+        let group = hub.store.bot(id)?.filter(|r| !r.deleted && r.config.is_group()).context("unknown group")?.config;
+        let delegates: Vec<Value> = group.members.iter().take(5).map(|id| json!({"botId":id,"groupId":group.id})).collect();
+        return Ok(json!({"draft":{"name":group.name.chars().take(40).collect::<String>(),"agenda":group.description,"chair":group.members.first(),"delegates":delegates}}));
+    }
+    if method == "meetingState" {
+        return crate::chat::meetings::state(hub, str_arg(&b, "groupId")?);
+    }
+    if method == "meetingAction" {
+        return crate::chat::meetings::action(hub, &b, None);
+    }
     if method == "setIcon" {
         return crate::icons::set(hub, &b).await;
     }

@@ -8,6 +8,8 @@ import { normalizeDevServer, type DevServer } from './dev-servers.ts'
 export type BotStatus = 'idle' | 'working' | 'needsInput' | 'error'
 
 export interface Bot {
+  meeting?: boolean
+  meetingDepartments?: Record<string, string>
   customIcon?: import('./custom-icons').CustomIcon
   id: string
   /** `agent`, or `group`: several bots and the user in one chat. */

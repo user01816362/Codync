@@ -65,7 +65,7 @@ export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrac
     case 'agent':
       return (
         <VStack align="flex-start" gap={4} className={groupStart ? 'chat-row group-start' : 'chat-row'}>
-          {chat && isGroup(chat) && groupStart ? <AuthorLabel botId={entry.data.author} /> : null}
+          {chat && isGroup(chat) && groupStart ? <AuthorLabel botId={entry.data.author} chatId={entry.botId} /> : null}
           <AgentBubble entry={entry} openTrace={openTrace} reply={reply} openArtifact={openArtifact} />
           <VStack gap={4} className={chat && isGroup(chat) ? 'chat-row-indent' : undefined}>
             <ReactionsRow entry={entry} />
@@ -75,7 +75,7 @@ export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrac
     case 'permission':
       return (
         <VStack gap={4} className="chat-row group-start">
-          {chat && isGroup(chat) ? <AuthorLabel botId={entry.data.author} /> : null}
+          {chat && isGroup(chat) ? <AuthorLabel botId={entry.data.author} chatId={entry.botId} /> : null}
           <LivePermission entry={entry} />
         </VStack>
       )
@@ -94,13 +94,14 @@ function LivePermission({ entry }: { entry: Entry }) {
 }
 
 /** Who wrote a message: their avatar and name in their color, or `name` for a bot on another computer. */
-export function AuthorLabel({ botId, name }: { botId?: string | null; name?: string }) {
+export function AuthorLabel({ botId, name, chatId }: { botId?: string | null; name?: string; chatId?: string }) {
   const store = useStore()
   const bot = botId ? store.bots.get(botId) : undefined
+  const department = chatId && botId ? store.bots.get(chatId)?.meetingDepartments?.[botId] : undefined
   return (
     <HStack gap={8}>
       {bot ? <BotAvatar bot={bot} size={26} animated={false} /> : null}
-      <Text size="subheadline" weight="medium" tone="secondary" style={bot ? { color: avatarColor(bot.avatarColor) } : undefined}>{store.authorName(botId, name)}</Text>
+      <Text size="subheadline" weight="medium" tone="secondary" style={bot ? { color: avatarColor(bot.avatarColor) } : undefined}>{store.authorName(botId, name)}{department ? ` · ${department}` : ''}</Text>
     </HStack>
   )
 }

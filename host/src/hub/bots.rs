@@ -9,7 +9,15 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 impl Hub {
-    pub fn create_bot(self: &Arc<Self>, mut cfg: BotConfig) -> Result<Value> {
+    pub fn create_bot(self: &Arc<Self>, cfg: BotConfig) -> Result<Value> {
+        self.create_conversation(cfg, false)
+    }
+
+    pub(crate) fn create_meeting_bot(self: &Arc<Self>, cfg: BotConfig) -> Result<Value> {
+        self.create_conversation(cfg, true)
+    }
+
+    fn create_conversation(self: &Arc<Self>, mut cfg: BotConfig, meeting: bool) -> Result<Value> {
         cfg.id = uuid::Uuid::new_v4().to_string();
         cfg.created_at = crate::store::now_ms();
         cfg.position = self.new_bot_position()?;
@@ -21,7 +29,7 @@ impl Hub {
         if cfg.is_group() {
             cfg.members = crate::chat::group::valid_members(&self.store, &cfg.id, &cfg.members)?;
             // The same bots again: open the group they already share (Grok Bot's rule).
-            if let Some(existing) = crate::chat::group::with_members(&self.store, &cfg.members)? {
+            if !meeting && let Some(existing) = crate::chat::group::with_members(&self.store, &cfg.members)? {
                 return Ok(self.bot_value(&existing).unwrap_or(Value::Null));
             }
         }
@@ -51,6 +59,7 @@ impl Hub {
             let row = self.store.bot(&id)?.filter(|b| !b.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
             let mut cfg = patch::patched(&row.config, patch)?;
             if cfg.is_group() {
+                anyhow::ensure!(crate::chat::meetings::entry(self, &id).is_none() || cfg.members == row.config.members, "meeting delegates are fixed; create a new room to change representation");
                 cfg.members = crate::chat::group::valid_members(&self.store, &cfg.id, &cfg.members)?;
             }
             crate::agent::fallback::tidy(&mut cfg);
@@ -66,12 +75,14 @@ impl Hub {
             (row.config, cfg)
         };
         crate::network::publish(self);
+        let membership_changed = cfg.is_group() && cfg.members != before.members;
         if !cfg.is_group() {
             if crate::chat::memory::shared(&cfg) != crate::chat::memory::shared(&before) {
                 crate::chat::memory::changed(self, Some(&id));
             }
             self.send_cmd(&id, Cmd::Reconfigure(Box::new(cfg)))?;
         }
+        if membership_changed { crate::chat::meetings::revalidate(self); }
         self.emit_bot(&id);
         crate::usage::bots_changed(self);
         Ok(self.bot_value(&id).unwrap_or(Value::Null))
