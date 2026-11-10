@@ -71,8 +71,8 @@ export function GroupEditorView({ group }: { group: Bot }) {
   return (
     <SheetPage>
       <ModalHeader icon="person.2" title={tr(`Group chat`)} trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!canSave} onClick={save} />} />
-      <div className="group-scroll">
-        <div className="group-form">
+      <div className="bot-form group-scroll">
+        <div className="bot-form-content group-form">
           <CardSection title="Profile">
             <ValueRow label="Avatar">
               <button ref={avatarRef} className="avatar-button small" aria-label={tr('Edit group avatar')} title={tr('Edit group avatar')} onClick={() => setAvatar(value => !value)}>
@@ -83,7 +83,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
               </AnchoredPanel>
             </ValueRow>
             <Field label={tr('Name')}>
-              <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
+              <input dir="auto" className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
               <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving} maxLength={4000} onChange={setAbout} />

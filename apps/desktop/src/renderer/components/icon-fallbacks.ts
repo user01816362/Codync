@@ -179,6 +179,7 @@ const map: Record<string, IconNode> = {
   'stop.fill': L.Square,
   terminal: L.Terminal,
   'text.bubble': L.MessageSquareText,
+  internaldrive: L.HardDrive,
   tray: L.Inbox,
   'tray.and.arrow.up': L.ArchiveRestore,
   trash: L.Trash2,

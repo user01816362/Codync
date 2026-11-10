@@ -354,8 +354,21 @@ button.member-row:hover {
 }
 .group-action-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .group-action-row:disabled { opacity: 0.45; }
-.group-form .member-row, .group-details-content .member-row { width: 100%; margin: 0; padding: 4px 0; }
+.group-form .member-row, .group-details-content .member-row { width: 100%; margin: 0; padding: 4px 8px; }
 .group-icon-options { padding: 16px; max-width: min(400px, calc(100vw - 40px)); }
 .group-library { padding: 16px; overflow-y: auto; min-height: 0; }
 .group-details-content { display: flex; flex-direction: column; gap: 20px; padding: 16px; min-width: 0; }
 .group-details-content .outlined-card { border: 0; background: var(--surface); }
+
+/* Action rows fill only their shared card row, including its padded hit area. */
+.card-row:has(> .group-action-row) { padding: 0; }
+.group-action-row { min-height: 52px; padding: 12px 16px; transition: background-color var(--hover), transform var(--press); }
+.group-action-row > :first-child { flex: none; width: 24px; }
+.group-action-row > :last-child { flex: none; }
+.card-row:first-child > .group-action-row { border-start-start-radius: var(--radius-l); border-start-end-radius: var(--radius-l); }
+.card-row:last-child > .group-action-row { border-end-start-radius: var(--radius-l); border-end-end-radius: var(--radius-l); }
+.group-action-row:hover:not(:disabled) { background: var(--bubble-agent); }
+.group-action-row:focus-visible { outline-offset: -3px; }
+.group-details-content .member-open { padding: 4px 0; text-align: start; }
+.group-details-content .member-row:focus-within { background: var(--bubble-agent); }
+.group-form .member-row:has(> .member-add-icon):focus-visible { outline-offset: -2px; }

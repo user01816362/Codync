@@ -173,7 +173,7 @@ iPhone analytics remain removed. No private-relay implementation changes are req
 
 ## Group profile and pending requests
 
-Group editors use the shared profile cards, field surfaces and compact avatar controls on desktop, iOS and Android. Group activity links open tasks, inbox and library; member editing keeps at least one member. The desktop details panel uses the same card spacing and includes a tasks shortcut.
+Group editors use the shared profile cards, field surfaces and compact avatar controls on desktop, iOS and Android. Group activity links open tasks, inbox and library; member editing keeps at least one member. The desktop details panel uses the same card spacing and includes a tasks shortcut. Group navigation rows fill their card hit areas with inset keyboard focus and rounded hover boundaries; member rows keep their hover targets inside the card. The storage symbol is registered for macOS export and the desktop fallback.
 
 A compact Requests counter opens approvals from other chats without navigating away. Each request identifies its agent, chat and computer and uses the existing permission options and host response method. Requests never open automatically or advance under the pointer after a decision; the next request requires an explicit selection. Offline computers cannot receive approvals. Pending permissions are included in fresh and incremental snapshots even when older history was trimmed. Collaboration display preferences and execution routing are unchanged.
 
