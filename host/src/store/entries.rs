@@ -216,16 +216,20 @@ impl Store {
     }
 
     /// Entries changed after `since`. A fresh client (`since == 0`) only gets the
-    /// newest `cap` entries per bot and pages older ones in with `history`.
+    /// newest `cap` entries per bot and pages older ones in with `history`. Pending
+    /// permissions are always included, including after reconnect with a trimmed cache.
     pub fn entries_since(&self, since: i64, cap: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let sql = if since == 0 {
             format!(
                 "SELECT {ENTRY_COLS} FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY bot_id ORDER BY seq DESC) AS rn FROM entries)
-                 WHERE rn <= ?2 AND rev > ?1 ORDER BY seq"
+                 WHERE (rn <= ?2 OR (kind = 'permission' AND json_extract(data, '$.status') = 'pending')) AND rev > ?1 ORDER BY seq"
             )
         } else {
-            format!("SELECT {ENTRY_COLS} FROM entries WHERE rev > ?1 AND ?2 > 0 ORDER BY seq")
+            format!(
+                "SELECT {ENTRY_COLS} FROM entries
+                 WHERE (rev > ?1 OR (kind = 'permission' AND json_extract(data, '$.status') = 'pending')) AND ?2 > 0 ORDER BY seq"
+            )
         };
         let mut st = c.prepare(&sql)?;
         Ok(st.query_map(params![since, cap], row_entry)?.collect::<rusqlite::Result<_>>()?)

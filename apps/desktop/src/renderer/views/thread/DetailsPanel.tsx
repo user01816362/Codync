@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Sheet } from '../../components/Overlay'
 import { StorageOverview } from '../bots/StorageOverview'
+import { GroupTasks } from '../bots/GroupTasks'
+import { GroupActionRow } from '../bots/GroupActionRow'
 import { GroupInbox } from '../bots/GroupInbox'
 import { WorkspaceBrowser } from '../bots/WorkspaceBrowser'
 import { useFilePreview } from './FilePreview'
@@ -8,7 +10,7 @@ import { hasLibrary } from '@shared/artifacts'
 import { isGroup, isWorking, type Bot } from '@shared/models'
 import { AgentIcon } from '../../components/AgentIcon'
 import { BotAvatar, BotOrGroupAvatar } from '../../components/Avatar'
-import { IconButton, RowLabel, Switch, TabChoice } from '../../components/Controls'
+import { CardSection, IconButton, RowLabel, Switch, TabChoice } from '../../components/Controls'
 import { LeadAgentBadge } from '../../components/LeadAgentBadge'
 import { Icon } from '../../components/Icon'
 import { HStack, VStack } from '../../components/Stack'
@@ -48,6 +50,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
 }) {
   const tr = useTr()
   const [storage, setStorage] = useState(false)
+  const [tasks, setTasks] = useState(false)
   const [inbox, setInbox] = useState(false)
   const [browsingWorkspace, setBrowsingWorkspace] = useState(false)
   const preview = useFilePreview()
@@ -65,12 +68,17 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
       </div>
       <div className="details-scroll">
         {bot ? <Identity bot={bot} /> : null}
-        <button className="member-row press" onClick={() => setStorage(true)}><Icon name="externaldrive" size={18} /> Host storage</button>
         {bot && group ? (
           <>
-            <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
-            <TabChoice label="Group details" selection={tab === 'library' ? 'library' : 'details'} options={[{ id: 'details', label: 'Members' }, { id: 'library', label: 'Library' }]} onChange={setTab} />
-            {tab === 'library' ? <LibraryView botId={botId} openArtifact={openArtifact} /> : <GroupMembersList group={bot} editGroup={editGroup} />}
+            <div className="group-details-content">
+              <CardSection title="Group activity">
+                <GroupActionRow title="Group tasks" icon="checklist" onClick={() => setTasks(true)} />
+                <GroupActionRow title="Group inbox" icon="tray" onClick={() => setInbox(true)} />
+                <GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} />
+              </CardSection>
+              <TabChoice label="Group details" selection={tab === 'library' ? 'library' : 'details'} options={[{ id: 'details', label: 'Members' }, { id: 'library', label: 'Library' }]} onChange={setTab} />
+              {tab === 'library' ? <LibraryView botId={botId} openArtifact={openArtifact} /> : <CardSection title="Members"><GroupMembersList group={bot} editGroup={editGroup} /></CardSection>}
+            </div>
           </>
         ) : (
           <>
@@ -78,6 +86,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
             <div key={tab} className="details-tab fade-in">
               {tab === 'details' ? (
                 <>
+                  <CardSection><GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} /></CardSection>
                   {bot ? <section className="details-section">
                     <Text className="details-section-title">{tr('Reported context')}</Text>
                     <Text as="div" size="callout" tone="secondary">{bot.contextUsage
@@ -102,6 +111,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
         )}
       </div>
       <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
+      <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}>{bot && group ? <GroupTasks group={bot} /> : null}</Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}>{bot && group ? <GroupInbox group={bot} /> : null}</Sheet>
       <Sheet open={browsingWorkspace} onClose={() => setBrowsingWorkspace(false)} width={600} height={640}>
         <WorkspaceBrowser botId={botId} open={(owner, path) => { setBrowsingWorkspace(false); preview?.({ botId: owner, path }) }} />

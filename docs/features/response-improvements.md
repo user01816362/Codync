@@ -170,3 +170,11 @@ hosted-computer setup. Continue without an account remains the primary onboardin
 Host relay enrollment is opt-in; custom/private relay configuration works independently.
 The support invitation remains disabled. Telemetry is off on host, desktop and Android;
 iPhone analytics remain removed. No private-relay implementation changes are required.
+
+## Group profile and pending requests
+
+Group editors use the shared profile cards, field surfaces and compact avatar controls on desktop, iOS and Android. Group activity links open tasks, inbox and library; member editing keeps at least one member. The desktop details panel uses the same card spacing and includes a tasks shortcut.
+
+A compact Requests counter opens approvals from other chats without navigating away. Each request identifies its agent, chat and computer and uses the existing permission options and host response method. Requests never open automatically or advance under the pointer after a decision; the next request requires an explicit selection. Offline computers cannot receive approvals. Pending permissions are included in fresh and incremental snapshots even when older history was trimmed. Collaboration display preferences and execution routing are unchanged.
+
+Validation for this change uses GitHub CI. Real app interaction and accessibility walkthroughs were not run because local builds and launches are disabled for this workspace. Android source is updated without triggering its workflow.

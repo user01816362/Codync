@@ -11,6 +11,7 @@ public struct GroupEditorView: View {
     @State private var about: String
     @State private var members: [String]
     @State private var query = ""
+    @State private var avatar = false
     @State private var adding = false
     @State private var saving = false
     @State private var inbox = false
@@ -34,7 +35,7 @@ public struct GroupEditorView: View {
         let q = query.trimmingCharacters(in: .whitespaces)
         return model.roster.filter { !$0.isGroup && !members.contains($0.id) && (q.isEmpty || $0.name.localizedCaseInsensitiveContains(q)) }
     }
-    private var canSave: Bool { !members.isEmpty && !saving }
+    private var canSave: Bool { !members.isEmpty && !saving && !model.isOffline }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -47,69 +48,77 @@ public struct GroupEditorView: View {
                 }
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    VStack(spacing: 10) {
-                        if let icon = model.icons["bot:\(groupId)"] { CustomIconView(icon: icon, size: 84) }
-                        else { GroupAvatar(members: picked, size: 84) }
-
-                    }
-                    .frame(maxWidth: .infinity)
-                    CustomIconEditor(target: "bot:\(groupId)")
-                    Button("Host storage") { storage = true }.buttonStyle(SecondaryButtonStyle())
-                    Button("Group tasks") { tasks = true }.buttonStyle(SecondaryButtonStyle())
-                    Button("Library") { library = true }.buttonStyle(SecondaryButtonStyle())
-                    Button("Group inbox") { inbox = true }.buttonStyle(SecondaryButtonStyle())
-                    Field("Name") {
-                        TextField(defaultName, text: $name).fieldBox().disabled(saving)
-                    }
-                    Field("Group instructions", detail: "What this group works on. Each member keeps its own instructions.") {
-                        TextField("What this group works on", text: $about, axis: .vertical)
-                            .lineLimit(3...8).fieldBox().disabled(saving)
-                    }
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(L10n.tr("Members"))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Palette.secondary)
-                            .padding(.bottom, 4)
-                        ForEach(picked) { bot in
-                            memberRow(bot) {
-                                IconButton("Remove \(bot.name)", systemImage: "xmark") { toggle(bot.id) }
-                                    .disabled(saving || members.count <= 1)
+                VStack(alignment: .leading, spacing: 24) {
+                    CardSection("Profile") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Button { withAnimation(Motion.layout) { avatar.toggle() } } label: {
+                                ValueRow("Avatar") {
+                                    if let icon = model.icons["bot:\(groupId)"] { CustomIconView(icon: icon, size: 28) }
+                                    else { GroupAvatar(members: picked, size: 28) }
+                                }.contentShape(Rectangle())
                             }
-                            .transition(.opacity)
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Edit group avatar")
+                            if avatar { CustomIconEditor(target: "bot:\(groupId)").transition(.opacity) }
                         }
-                        if adding {
-                            TextField("Search bots", text: $query)
-                                .fieldBox(fill: Palette.surface)
-                                .onSubmit { if let first = candidates.first { toggle(first.id) } }
-                                .padding(.vertical, 6)
-                            ForEach(candidates) { bot in
-                                Button { toggle(bot.id) } label: {
-                                    memberRow(bot, dimmed: true) {
-                                        Image(systemName: "plus.circle").font(.system(size: 18)).foregroundStyle(Palette.secondary)
+                        Field("Name") {
+                            TextField(defaultName, text: $name).fieldBox().disabled(saving)
+                        }
+                        Field("Group instructions", detail: "What this group works on. Each member keeps its own instructions.") {
+                            TextField("What this group works on", text: $about, axis: .vertical)
+                                .lineLimit(3...8).fieldBox().disabled(saving)
+                        }
+                    }
+                    CardSection("Group activity") {
+                        GroupSettingsAction(title: "Group tasks", icon: "checklist") { tasks = true }
+                        GroupSettingsAction(title: "Group inbox", icon: "tray") { inbox = true }
+                        GroupSettingsAction(title: "Library", icon: "folder") { library = true }
+                    }
+                    CardSection("Members") {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(picked) { bot in
+                                memberRow(bot) {
+                                    IconButton("Remove \(bot.name)", systemImage: "xmark") { toggle(bot.id) }
+                                        .disabled(saving || members.count <= 1)
+                                }
+                                .transition(.opacity)
+                            }
+                            if adding {
+                                TextField("Search bots", text: $query)
+                                    .fieldBox(fill: Palette.surface)
+                                    .onSubmit { if let first = candidates.first { toggle(first.id) } }
+                                    .padding(.vertical, 6)
+                                ForEach(candidates) { bot in
+                                    Button { toggle(bot.id) } label: {
+                                        memberRow(bot, dimmed: true) {
+                                            Image(systemName: "plus.circle").font(.system(size: 18)).foregroundStyle(Palette.secondary)
+                                        }
                                     }
+                                    .buttonStyle(PressScale())
+                                    .accessibilityLabel("Add \(bot.name)")
+                                }
+                            } else if !candidates.isEmpty {
+                                Button { withAnimation(Motion.layout) { adding = true } } label: {
+                                    HStack(spacing: 14) {
+                                        Image(systemName: "plus").font(.system(size: 16)).foregroundStyle(Palette.secondary).frame(width: 32)
+                                        Text(L10n.tr("Add Member")).foregroundStyle(Palette.secondary)
+                                        Spacer(minLength: 0)
+                                    }
+                                    .frame(minHeight: 48)
+                                    .contentShape(Rectangle())
                                 }
                                 .buttonStyle(PressScale())
-                                .accessibilityLabel("Add \(bot.name)")
                             }
-                        } else if !candidates.isEmpty {
-                            Button { withAnimation(Motion.layout) { adding = true } } label: {
-                                HStack(spacing: 14) {
-                                    Image(systemName: "plus").font(.system(size: 16)).foregroundStyle(Palette.secondary).frame(width: 32)
-                                    Text(L10n.tr("Add Member")).foregroundStyle(Palette.secondary)
-                                    Spacer(minLength: 0)
-                                }
-                                .frame(minHeight: 48)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PressScale())
+                            Text(L10n.tr("Everyone answers in turn unless you @mention someone."))
+                                .font(.caption)
+                                .foregroundStyle(Palette.tertiary)
+                                .padding(.top, 10)
                         }
-                        Text(L10n.tr("Everyone answers in turn unless you @mention someone."))
-                            .font(.caption)
-                            .foregroundStyle(Palette.tertiary)
-                            .padding(.top, 10)
+                        .animation(Motion.layout, value: members)
                     }
-                    .animation(Motion.layout, value: members)
+                    CardSection("Computer") {
+                        GroupSettingsAction(title: "Host storage", icon: "internaldrive") { storage = true }
+                    }
                     if let error {
                         Text(L10n.tr(error)).font(.footnote).foregroundStyle(Palette.danger).transition(.opacity)
                     }
@@ -119,8 +128,8 @@ public struct GroupEditorView: View {
                             .buttonStyle(PressScale())
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
                 .padding(.bottom, 24)
             }
             .scrollDismissesKeyboard(.interactively)

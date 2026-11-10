@@ -1,18 +1,20 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { isGroup, type Bot } from '@shared/models'
 import { BotAvatar, BotOrGroupAvatar } from '../../components/Avatar'
-import { IconButton, Spinner } from '../../components/Controls'
+import { CardSection, IconButton, Spinner, ValueRow } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { Dialog, ModalHeader, Sheet, SheetPage, useDismiss } from '../../components/Overlay'
-import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { GroupActionRow } from './GroupActionRow'
+import { LibraryView } from '../library/LibraryView'
+import { ArtifactView } from '../library/ArtifactView'
 import { CustomIconEditor } from './CustomIconEditor'
 import { StorageOverview } from './StorageOverview'
 import { GroupTasks } from './GroupTasks'
 import { GroupInbox } from './GroupInbox'
 import { errorText } from './drafts'
-import { AutoTextArea, Field } from './parts'
+import { AnchoredPanel, AutoTextArea, Field } from './parts'
 import './bots.css'
 import { useTr } from '../../lib/use-language'
 
@@ -29,6 +31,10 @@ export function GroupEditorView({ group }: { group: Bot }) {
   const [about, setAbout] = useState(group.description)
   const [members, setMembers] = useState<string[]>(group.members)
   const [query, setQuery] = useState('')
+  const avatarRef = useRef<HTMLButtonElement>(null)
+  const [avatar, setAvatar] = useState(false)
+  const [library, setLibrary] = useState(false)
+  const [artifact, setArtifact] = useState<string | null>(null)
   const [storage, setStorage] = useState(false)
   const [tasks, setTasks] = useState(false)
   const [inbox, setInbox] = useState(false)
@@ -41,7 +47,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   // Bots that can still join, filtered by the search.
   const q = query.trim().toLowerCase()
   const candidates = store.roster.filter((b) => !isGroup(b) && !members.includes(b.id) && (!q || b.name.toLowerCase().includes(q)))
-  const canSave = members.length > 0 && !saving
+  const canSave = members.length > 0 && !saving && !store.isOffline
   // "Alice, Bob" when no name is typed.
   const defaultName = picked.length ? picked.map((b) => b.name).join(', ') : 'Name'
   const current = store.bots.get(group.id)
@@ -52,6 +58,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
   }
 
   const save = () => {
+    if (!canSave) return
     setSaving(true)
     setError(null)
     store
@@ -66,21 +73,28 @@ export function GroupEditorView({ group }: { group: Bot }) {
       <ModalHeader icon="person.2" title={tr(`Group chat`)} trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!canSave} onClick={save} />} />
       <div className="group-scroll">
         <div className="group-form">
-          <div className="group-identity">
-            <BotOrGroupAvatar bot={current ?? group} members={picked} size={84} />
-          </div>
-          <button className="member-row press" onClick={() => setStorage(true)}><Icon name="externaldrive" size={20} /> Host storage</button>
-          <CustomIconEditor target={`bot:${group.id}`} />
-          <Field label={tr('Name')}>
-            <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
-            <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving} maxLength={4000} onChange={setAbout} />
-          </Field>
-          <button className="member-row press" onClick={() => setTasks(true)}><Icon name="checklist" size={20} /> Group tasks</button>
-          <button className="member-row press" onClick={() => setInbox(true)}><Icon name="tray" size={20} /> Group inbox</button>
-          <VStack>
-            <div className="group-section-title">{tr("Members")} · {members.length}</div>
+          <CardSection title="Profile">
+            <ValueRow label="Avatar">
+              <button ref={avatarRef} className="avatar-button small" aria-label={tr('Edit group avatar')} title={tr('Edit group avatar')} onClick={() => setAvatar(value => !value)}>
+                <BotOrGroupAvatar bot={current ?? group} members={picked} size={28} />
+              </button>
+              <AnchoredPanel open={avatar} onClose={() => setAvatar(false)} anchor={avatarRef}>
+                <div className="group-icon-options"><CustomIconEditor target={`bot:${group.id}`} /></div>
+              </AnchoredPanel>
+            </ValueRow>
+            <Field label={tr('Name')}>
+              <input className="field-box" value={name} placeholder={defaultName} aria-label={tr('Name')} maxLength={40} disabled={saving} onChange={(e) => setName(e.target.value)} />
+            </Field>
+            <Field label={tr('Group instructions')} detail={tr('What this group works on. Each member keeps its own instructions.')}>
+              <AutoTextArea className="field-box" ariaLabel={tr('Group instructions')} value={about} placeholder="What this group works on" minRows={3} maxRows={8} disabled={saving} maxLength={4000} onChange={setAbout} />
+            </Field>
+          </CardSection>
+          <CardSection title="Group activity">
+            <GroupActionRow title="Group tasks" icon="checklist" onClick={() => setTasks(true)} />
+            <GroupActionRow title="Group inbox" icon="tray" onClick={() => setInbox(true)} />
+            <GroupActionRow title="Library" icon="folder" onClick={() => setLibrary(true)} />
+          </CardSection>
+          <CardSection title={`${tr('Members')} · ${members.length}`} footer="Everyone answers in turn unless you @mention someone. Keep at least one member in the group.">
             {picked.map((bot) => (
               <div key={bot.id} className="member-row fade-in">
                 <BotAvatar bot={bot} size={32} animated={false} />
@@ -94,7 +108,8 @@ export function GroupEditorView({ group }: { group: Bot }) {
                   className="field-box fade-in group-search"
                   autoFocus
                   value={query}
-                  placeholder="Search bots"
+                  placeholder={tr("Search bots")}
+                  aria-label={tr("Search bots")}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.nativeEvent.isComposing && candidates[0]) toggle(candidates[0].id)
@@ -117,8 +132,8 @@ export function GroupEditorView({ group }: { group: Bot }) {
                 <Text tone="secondary" className="member-name">{tr(`Add Member`)}</Text>
               </button>
             ) : null}
-            <Text as="div" size="caption" tone="tertiary" className="group-note">{tr(`Everyone answers in turn unless you @mention someone.`)} {tr("Keep at least one member in the group.")}</Text>
-          </VStack>
+          </CardSection>
+          <CardSection title="Computer"><GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} /></CardSection>
           {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
           {current ? (
             <button className="press group-delete" onClick={() => setConfirmDelete(current)}>
@@ -127,6 +142,10 @@ export function GroupEditorView({ group }: { group: Bot }) {
           ) : null}
         </div>
       </div>
+      <Sheet open={library} onClose={() => setLibrary(false)} width={640} height={740}>
+        <SheetPage><ModalHeader title="Group Library" /><div className="group-library"><LibraryView botId={group.id} openArtifact={setArtifact} /></div></SheetPage>
+      </Sheet>
+      <Sheet open={artifact !== null} onClose={() => setArtifact(null)} width={900} height={740}>{artifact ? <ArtifactView botId={group.id} artifactId={artifact} close={() => setArtifact(null)} /> : null}</Sheet>
       <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
       <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}><GroupTasks group={current ?? group} /></Sheet>
       <Sheet open={inbox} onClose={() => setInbox(false)} width={600} height={640}><GroupInbox group={current ?? group} /></Sheet>

@@ -128,6 +128,7 @@ struct RootView: View {
             }
         }
         .tint(Palette.text)
+        .safeAreaInset(edge: .top, spacing: 0) { PendingRequests() }
         // Opening a bot (notification, widget, link) always lands on the Bots tab.
         .onChange(of: accounts.selection) { _, ref in
             if ref != nil { app.tab = .bots }

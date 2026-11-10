@@ -228,7 +228,7 @@ textarea.field-box {
   font-weight: 600;
 }
 
-/* Group editor (Grok Bot's group details): identity on top, then a plain member list. */
+/* Group settings use the same filled cards and field surfaces as bot settings. */
 .group-scroll {
   flex: 1;
   min-height: 0;
@@ -237,8 +237,9 @@ textarea.field-box {
 .group-form {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 8px 20px 24px;
+  gap: 24px;
+  padding: 14px;
+  font-size: var(--text-callout);
 }
 .group-identity {
   display: flex;
@@ -341,3 +342,20 @@ button.member-row:hover {
   gap: 6px;
   color: var(--text);
 }
+
+.group-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 32px;
+  text-align: start;
+  color: var(--text);
+}
+.group-action-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.group-action-row:disabled { opacity: 0.45; }
+.group-form .member-row, .group-details-content .member-row { width: 100%; margin: 0; padding: 4px 0; }
+.group-icon-options { padding: 16px; max-width: min(400px, calc(100vw - 40px)); }
+.group-library { padding: 16px; overflow-y: auto; min-height: 0; }
+.group-details-content { display: flex; flex-direction: column; gap: 20px; padding: 16px; min-width: 0; }
+.group-details-content .outlined-card { border: 0; background: var(--surface); }

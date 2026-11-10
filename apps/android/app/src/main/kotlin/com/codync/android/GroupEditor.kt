@@ -43,6 +43,7 @@ import com.codync.android.design.*
     val dismiss = LocalDismissModal.current
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var query by remember { mutableStateOf("") }
+    var avatar by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var storage by remember { mutableStateOf(false) }
     var tasks by remember { mutableStateOf(false) }
@@ -61,46 +62,64 @@ import com.codync.android.design.*
     Column(Modifier.fillMaxSize().background(Palette.background)) {
         ModalHeader("Group chat") {
             if (saving) Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { Spinner() }
-            else IconButton("Save", "checkmark", enabled = draft.members.isNotEmpty()) {
+            else IconButton("Save", "checkmark", enabled = draft.members.isNotEmpty() && state.actualConnection is com.codync.android.core.LinkState.Ready) {
                 store.saveGroup(draft) { dismiss() }
             }
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp)) {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                val icon = state.icons["bot:${draft.id}"]
-                if (icon != null) StaticCustomIcon(icon.dataUrl, icon.tinted, 84.dp)
-                else GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 84.dp)
-            }
-            draft.id?.let { CustomIconEditor("bot:$it", state, store) }
-            SecondaryButton("Host storage") { storage = true }
-            if (draft.id != null) SecondaryButton("Group tasks") { tasks = true }
-            if (draft.id != null) SecondaryButton("Library") { library = true }
-            if (draft.id != null) SecondaryButton("Group inbox") { inbox = true }
-            Field("Name") {
-                FieldBox(draft.name, { draft = draft.copy(name = it) }, defaultName)
-            }
-            Field("Group instructions", "What this group works on. Each member keeps its own instructions.") {
-                FieldBox(draft.description, { draft = draft.copy(description = it) }, "What this group works on", minLines = 3, maxLines = 8)
-            }
-            Column(Modifier.fillMaxWidth().animateContentSize(Motion.layoutSize)) {
-                Text("Members", Modifier.padding(bottom = 4.dp), style = Type.subheadline.semibold, color = Palette.secondary)
-                for (bot in picked) MemberRow(bot, state.bots) { IconButton("Remove ${bot.name}", "xmark", enabled = !saving && draft.members.size > 1) { toggle(bot.id) } }
-                if (adding) {
-                    Box(Modifier.padding(vertical = 6.dp)) {
-                        FieldBox(query, { query = it }, "Search bots", fill = Palette.surface, imeAction = ImeAction.Done,
-                            actions = KeyboardActions(onDone = { candidates.firstOrNull()?.let { toggle(it.id) } }))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            CardSection("Profile") {
+                row {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 32.dp).plainButton { avatar = !avatar }, verticalAlignment = Alignment.CenterVertically) {
+                            Text(tr("Avatar"), Modifier.weight(1f), style = Type.body, color = Palette.text)
+                            val icon = state.icons["bot:${draft.id}"]
+                            if (icon != null) StaticCustomIcon(icon.dataUrl, icon.tinted, 28.dp)
+                            else GroupAvatar(picked.map { AvatarFace(it.avatarShape, it.avatarColor, it.status) }, 28.dp)
+                        }
+                        AnimatedVisibility(avatar) { draft.id?.let { CustomIconEditor("bot:$it", state, store) } }
                     }
-                    for (bot in candidates) Box(Modifier.plainButton { toggle(bot.id) }.semantics(mergeDescendants = true) { contentDescription = "Add ${bot.name}" }) {
-                        MemberRow(bot, state.bots, dimmed = true) { Symbol("plus.circle", size = 20.dp, tint = Palette.secondary) }
-                    }
-                } else if (candidates.isNotEmpty()) Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).plainButton { adding = true },
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) { Symbol("plus", size = 18.dp, tint = Palette.secondary) }
-                    Text("Add Member", style = Type.body, color = Palette.secondary)
                 }
-                Text("Everyone answers in turn unless you @mention someone.", Modifier.padding(top = 10.dp), style = Type.caption, color = Palette.tertiary)
+                row {
+                    Field("Name") {
+                        FieldBox(draft.name, { draft = draft.copy(name = it) }, defaultName)
+                    }
+                }
+                row {
+                    Field("Group instructions", "What this group works on. Each member keeps its own instructions.") {
+                        FieldBox(draft.description, { draft = draft.copy(description = it) }, "What this group works on", minLines = 3, maxLines = 8)
+                    }
+                }
             }
+            CardSection("Group activity") {
+                if (draft.id != null) {
+                    row { GroupSettingsAction("Group tasks", "checklist") { tasks = true } }
+                    row { GroupSettingsAction("Group inbox", "tray") { inbox = true } }
+                    row { GroupSettingsAction("Library", "folder") { library = true } }
+                }
+            }
+            CardSection("Members") {
+                row {
+                    Column(Modifier.fillMaxWidth().animateContentSize(Motion.layoutSize)) {
+                        for (bot in picked) MemberRow(bot, state.bots) { IconButton("Remove ${bot.name}", "xmark", enabled = !saving && draft.members.size > 1) { toggle(bot.id) } }
+                        if (adding) {
+                            Box(Modifier.padding(vertical = 6.dp)) {
+                                FieldBox(query, { query = it }, "Search bots", fill = Palette.surface, imeAction = ImeAction.Done,
+                                    actions = KeyboardActions(onDone = { candidates.firstOrNull()?.let { toggle(it.id) } }))
+                            }
+                            for (bot in candidates) Box(Modifier.plainButton { toggle(bot.id) }.semantics(mergeDescendants = true) { contentDescription = "Add ${bot.name}" }) {
+                                MemberRow(bot, state.bots, dimmed = true) { Symbol("plus.circle", size = 20.dp, tint = Palette.secondary) }
+                            }
+                        } else if (candidates.isNotEmpty()) Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).plainButton { adding = true },
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) { Symbol("plus", size = 18.dp, tint = Palette.secondary) }
+                            Text("Add Member", style = Type.body, color = Palette.secondary)
+                        }
+                        Text("Everyone answers in turn unless you @mention someone.", Modifier.padding(top = 10.dp), style = Type.caption, color = Palette.tertiary)
+                    }
+                }
+            }
+            CardSection("Computer") { row { GroupSettingsAction("Host storage", "internaldrive") { storage = true } } }
             AnimatedVisibility(state.error != null, enter = fadeIn(Motion.fade()), exit = fadeOut(Motion.fade())) {
                 Text(state.error.orEmpty(), style = Type.footnote, color = Palette.danger)
             }
@@ -131,5 +150,15 @@ import com.codync.android.design.*
         BotAvatar(bot, bots, 32.dp)
         Text(bot.name, Modifier.weight(1f), style = Type.body, color = if (dimmed) Palette.secondary else Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
         trailing()
+    }
+}
+
+/** A full-width action using the shared settings-card surface. */
+@Composable private fun GroupSettingsAction(title: String, icon: String, action: () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 32.dp).plainButton(action = action),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Symbol(icon, size = 18.dp)
+        Text(tr(title), Modifier.weight(1f), style = Type.body, color = Palette.text)
+        Symbol("chevron.right", size = 11.dp, tint = Palette.tertiary)
     }
 }

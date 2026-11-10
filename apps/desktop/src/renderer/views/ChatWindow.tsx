@@ -1,3 +1,4 @@
+import { PendingRequests } from './PendingRequests'
 import { RosterOrganizer } from './bots/RosterOrganizer'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { WindowCommand } from '@shared/ipc'
@@ -474,6 +475,7 @@ function ChatSplitView() {
         </div>
       ) : null}
 
+      <PendingRequests />
       <SearchPalette open={searching} items={visibleRoster} onPick={(ref) => app.select(ref)} onClose={() => setSearching(false)} />
       <Sheet open={editing !== null} onClose={() => setEditing(null)} width={520} height={Math.min(680, sheetHeight)}>
         {editing ? (

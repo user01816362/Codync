@@ -1,0 +1,22 @@
+.requests-chip {
+  position: fixed;
+  top: 64px;
+  right: 20px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  max-width: calc(100vw - 40px);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--hover), transform var(--press);
+}
+.requests-chip:hover { background: var(--bubble-agent); }
+.requests-content { display: flex; flex-direction: column; gap: 16px; padding: 16px; min-height: 0; overflow-y: auto; }
+.requests-source { overflow-wrap: anywhere; text-align: start; }
+.requests-card .agent-inset { padding: 0; max-width: 100%; }
+.requests-card .permission-card { max-width: 100%; }
