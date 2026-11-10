@@ -299,14 +299,18 @@ if (yieldsToInstall()) {
     // host the running one is using.
     let quitState: 'idle' | 'stopping' | 'stopped' = 'idle'
     app.on('before-quit', (event) => {
-      if (quitState === 'stopped') return
+      if (quitState === 'stopped' || event.defaultPrevented) return
       if (host.keepRunningAfterQuit()) return
       event.preventDefault()
       if (quitState === 'stopping') return
       quitState = 'stopping'
-      void host.stopForQuit().finally(() => {
+      void host.stopForQuit().then(() => {
         quitState = 'stopped'
         app.quit()
+      }).catch((error: unknown) => {
+        quitState = 'idle'
+        quitLifecycle.cancelQuit()
+        dialog.showErrorBox('Couldn’t stop the host', error instanceof Error ? error.message : String(error))
       })
     })
     host.start()

@@ -14,6 +14,10 @@ export class QuitLifecycle {
     this.quitting = true
   }
 
+  cancelQuit() {
+    this.quitting = false
+  }
+
   closeToBackground(event: { preventDefault(): void }, hide: () => void) {
     if (this.quitting) return
     event.preventDefault()

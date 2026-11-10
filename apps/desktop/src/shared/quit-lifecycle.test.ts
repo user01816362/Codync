@@ -53,3 +53,10 @@ test('explicit shutdown allows a previously hidden window to close', () => {
   lifecycle.beginQuit()
   assert.deepEqual(close(), { prevented: false, hidden: false })
 })
+
+test('a cancelled Quit restores close-to-background behavior', () => {
+  const { lifecycle, close } = fixture()
+  lifecycle.beginQuit()
+  lifecycle.cancelQuit()
+  assert.deepEqual(close(), { prevented: true, hidden: true })
+})

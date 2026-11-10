@@ -188,3 +188,9 @@ iOS uses SwiftUI’s iOS 26 content-based writing direction for Markdown and com
 Desktop emphasis now parses enclosing formatting before its nested code spans, so bold text containing inline code no longer leaves literal emphasis markers.
 
 References: [W3C structural direction](https://www.w3.org/International/questions/qa-html-dir), [W3C inline isolation](https://www.w3.org/International/articles/inline-bidi-markup/), [SwiftUI content-based writing](https://developer.apple.com/documentation/swiftui/text/writingdirectionstrategy/contentbased), [Compose text direction](https://developer.android.com/reference/kotlin/androidx/compose/ui/text/style/TextDirection).
+
+## Desktop host lifetime
+
+The local host is installed while the desktop app runs, regardless of the after-Quit preference. Closing the window leaves the menu-bar app running. With **Keep the host running after quitting** off, Quit waits for any in-flight installation before stopping and uninstalling the owned service. Failed stop/removal keeps the app open and reports an error instead of claiming cleanup succeeded. With the setting on, Quit leaves the host service running. Manually started development hosts and services belonging to a different installation are left alone. A staged app update prepares its host shutdown before ordinary Quit cleanup runs.
+
+The installation/Quit race, enabled preference and failed-removal paths were exercised with mocked OS commands against the actual host controller; no local services were modified. Existing quit-lifecycle checks cover normal close, Quit, update events and cancelled-Quit recovery. Real packaged-app shutdown remains to be checked on the installed build.

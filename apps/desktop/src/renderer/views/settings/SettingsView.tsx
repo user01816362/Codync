@@ -242,7 +242,7 @@ function GeneralSettings() {
         </Switch>
         <SwitchRow
           title="Keep the host running after quitting"
-          detail="Off, quitting also stops this computer's host. On, bots keep working after the window closes."
+          detail="Off, Quit stops the host and removes its background service. On, bots keep working after Quit. Closing the window keeps the app running in either mode."
           on={keepRunning}
           onChange={(on) => void window.codync.host.setKeepRunningAfterQuit(on).then(setKeepRunning)}
         />

@@ -94,6 +94,7 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   private loop: NodeJS.Timeout | null = null
   private generation = 0
   private installing = false
+  private installation: Promise<void> | null = null
   private replacedStale = false
   private expectedHash: string | null = null
   private failures = 0
@@ -177,6 +178,15 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   async install() {
     const bin = this.binary
     if (this.quitting || this.preparingForUpdate || this.installing || !bin || devPort !== null) return
+    this.installation = this.performInstall(bin)
+    try {
+      await this.installation
+    } finally {
+      this.installation = null
+    }
+  }
+
+  private async performInstall(bin: string) {
     this.installing = true
     this.stopLoop()
     prefs.set('hostUninstalled', false)
@@ -240,13 +250,23 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     if (this.keepRunningAfterQuit()) return
     this.quitting = true
     this.stopLoop()
+    // An installer already past its guard can create the service after Quit starts.
+    // Drain it before checking ownership or removing anything.
+    await this.installation
     const bin = this.binary
     if (devPort !== null || !bin || !serviceRuns(bin)) return
     try {
-      await run(bin, ['uninstall'])
-    } finally {
+      const stopped = await run(bin, ['stop'])
+      if (stopped.status !== 0) throw new Error(stopped.output || 'The host could not be stopped.')
+      const removed = await run(bin, ['uninstall'])
+      if (removed.status !== 0 || serviceInstalled()) throw new Error(removed.output || 'The host service could not be removed.')
+      prefs.set('hostRestartAfterAppUpdate', false)
       this.setLocal(null)
       this.setState({ kind: 'notInstalled' })
+    } catch (error) {
+      this.quitting = false
+      this.setState({ kind: 'failed', message: error instanceof Error ? error.message : String(error) })
+      throw error
     }
   }
 
