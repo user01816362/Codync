@@ -171,7 +171,9 @@ fn current(hub: &Hub, group: &BotConfig, meeting: &Value, actor: &str) -> Result
 }
 
 fn preserve_proposal(meeting: &mut Value) -> Result<()> {
-    if meeting["proposalRevision"].as_u64().unwrap_or(0) == 0 { return Ok(()); }
+    if meeting["proposalRevision"].as_u64().unwrap_or(0) == 0 {
+        return Ok(());
+    }
     let version = json!({"proposalRevision":meeting["proposalRevision"],"proposal":meeting["proposal"],"positions":meeting["positions"],"status":meeting["status"],"approved":meeting["approved"]});
     let mut history = meeting["history"].as_array().cloned().unwrap_or_default();
     ensure!(history.len() < 32, "proposal history limit reached; archive this room and create a new scoped meeting");

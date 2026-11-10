@@ -54,7 +54,9 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
         "you are not a member of this group; do not read or post to its conversation"
     );
     super::meetings::access(hub, &target.id, bot)?;
-    if name == "post_group_message" { super::meetings::active(hub, &target.id, bot)?; }
+    if name == "post_group_message" {
+        super::meetings::active(hub, &target.id, bot)?;
+    }
     if name == "list_group_tasks" {
         let entries = hub.store.group_tasks(&target.id)?;
         let items: Vec<Value> = entries.iter().take(20).map(|entry| {
