@@ -63,6 +63,16 @@ fn validate_delegates(hub: &Hub, delegates: &Value) -> Result<Vec<String>> {
     Ok(ids)
 }
 
+/// Persist only declared delegate identity fields, never arbitrary tool-input material.
+fn delegate_presentation(hub: &Hub, raw: &Value) -> Result<Value> {
+    let delegates = raw.as_array().context("delegates is required")?.iter().map(|delegate| {
+        let id = string(delegate, "botId")?;
+        let group = delegate["groupId"].as_str();
+        Ok(json!({"botId":id,"groupId":group,"name":hub.bot_name(id),"department":group.map_or_else(|| "Personal".to_owned(), |id| hub.bot_name(id))}))
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(Value::Array(delegates))
+}
+
 /// A readable, bounded invitation preview, validated before the approval card opens.
 pub fn approval_detail(hub: &Hub, args: &Value) -> Result<String> {
     let name = bounded(args, "name", 40)?;
@@ -104,12 +114,7 @@ pub fn create(hub: &Arc<Hub>, args: &Value, creator: Option<&str>) -> Result<Val
     let ids = validate_delegates(hub, &args["delegates"])?;
     let chair = string(args, "chair")?;
     ensure!(ids.iter().any(|id| id == chair), "chair must be a delegate");
-    let mut delegates = args["delegates"].clone();
-    for delegate in delegates.as_array_mut().context("delegates is required")? {
-        delegate["name"] = hub.bot_name(string(delegate, "botId")?).into();
-        delegate["department"] =
-            delegate["groupId"].as_str().map_or_else(|| "Personal".into(), |id| hub.bot_name(id)).into();
-    }
+    let delegates = delegate_presentation(hub, &args["delegates"])?;
     let cfg: BotConfig = serde_json::from_value(json!({"id":"", "kind":"group", "name":name,
         "description":agenda,"members":ids,"createdBy":creator,"section":"Meetings"}))?;
     let group = hub.create_meeting_bot(cfg)?;
@@ -611,5 +616,17 @@ mod tests {
         assert!(call(&hub, "b", "meeting_status", &json!({"groupId":"room"})).is_err());
         let config = hub.store.bot("room").expect("read").expect("room").config;
         assert!(!visible(&hub, &config, "b"));
+    }
+
+    #[test]
+    fn invitation_material_is_projected_to_verified_delegate_identity() {
+        let hub = fixture();
+        let raw = json!([{"botId":"a","groupId":"dept","name":"Spoofed","department":"Wrong","privateMaterial":"unapproved"},{"botId":"b"}]);
+        validate_delegates(&hub, &raw).expect("members");
+        let normalized = delegate_presentation(&hub, &raw).expect("presentation");
+        assert_eq!(normalized[0]["name"], "Alpha");
+        assert_eq!(normalized[0]["department"], "Development");
+        assert!(normalized[0].get("privateMaterial").is_none());
+        assert_eq!(normalized[1]["department"], "Personal");
     }
 }
