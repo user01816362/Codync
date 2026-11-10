@@ -1,6 +1,6 @@
 # Temporary meeting rooms
 
-Status: initial implementation awaiting CI and real-app verification, 2026-11-10. The sections below distinguish the researched target from the first version. Defaults are product choices, not measured optimal values.
+Status: initial implementation, 2026-11-10. Build validation is tracked in GitHub Actions; real-app interaction remains unverified. The sections below distinguish the researched target from the first version. Defaults are product choices, not measured optimal values.
 
 ## Recommendation
 
@@ -93,4 +93,4 @@ The initial version adds persisted meeting metadata in existing transcript recor
 
 The richer independent-first-opinion phase, configurable quorum/budgets, automatic invitation policies, isolated agent sessions, cross-host meetings, task conversion and configurable report recipients remain outside this first version. Consultation and meeting presets can be completed by the owner with an explicit summary. Decision rooms require explicit approval from every delegate on the same proposal and final user approval. Previous proposal versions and their recorded positions are preserved (up to 32 versions). Nonmember bots do not discover private room agendas through department listing; direct group reads/posts and mail inspection also enforce room access. Source department membership is revalidated, and only the user may publish outcomes to represented departments. Delivery is recorded separately from comprehension; publication does not automatically wake destination groups.
 
-No real-device interaction checks have run under the no-local-build restriction. CI has not yet validated the implementation. The host enforces representation and decision revisions; this does not guarantee decision correctness.
+No real-device interaction checks have run under the no-local-build restriction. CI results must be checked for the installed revision. Discussion counts include scheduled member turns, passes, failed requests and queued turns. A host restart pauses interrupted rooms without replaying tools or resetting the budget. The host enforces representation and decision revisions; this does not guarantee decision correctness.

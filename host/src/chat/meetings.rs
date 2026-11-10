@@ -457,6 +457,24 @@ pub fn stopped(hub: &Hub, id: &str) {
     let _ = save(hub, &previous, meeting);
 }
 
+/// A host restart pauses interrupted rooms without replaying model/tool work or resetting budgets.
+pub fn restore(hub: &Hub) -> Result<()> {
+    for row in hub.store.bots()?.into_iter().filter(|row| !row.deleted && row.config.is_group()) {
+        let Some(previous) = entry(hub, &row.config.id) else { continue };
+        let mut meeting = previous.data["meeting"].clone();
+        if meeting["status"] != "running" {
+            continue;
+        }
+        let remaining = (meeting["deadline"].as_i64().unwrap_or(0) - crate::store::now_ms()).max(0);
+        meeting["remainingMs"] = remaining.into();
+        meeting["startedAt"] = Value::Null;
+        let status = if remaining > 0 { "paused" } else { "unresolved" };
+        meeting["status"] = status.into();
+        save(hub, &previous, meeting)?;
+    }
+    Ok(())
+}
+
 pub fn revalidate(hub: &Hub) {
     let Ok(rows) = hub.store.bots() else { return };
     for row in rows.into_iter().filter(|r| !r.deleted && r.config.is_group()) {
@@ -534,6 +552,9 @@ mod tests {
         act(&hub, Some("a"), "position", json!({"proposalRevision":1,"position":"approve","text":"Reviewed"}))
             .expect("vote");
         act(&hub, None, "propose", json!({"text":"Changed"})).expect("revision");
+        let history = state(&hub, "room").expect("state")["meeting"]["history"].clone();
+        assert_eq!(history[0]["proposal"], "First");
+        assert_eq!(history[0]["positions"]["a"]["position"], "approve");
         assert!(state(&hub, "room").expect("state")["meeting"]["positions"].as_object().expect("positions").is_empty());
         assert!(
             act(&hub, Some("b"), "position", json!({"proposalRevision":1,"position":"approve","text":"Old"})).is_err()
@@ -556,5 +577,37 @@ mod tests {
             super::super::group::with_members(&hub.store, &["a".into(), "b".into()]).expect("lookup"),
             Some("dept".into())
         );
+    }
+
+    #[test]
+    fn restarted_rooms_pause_without_resetting_their_budget() {
+        let hub = fixture();
+        let saved = entry(&hub, "room").expect("entry");
+        let mut data = saved.data.clone();
+        data["meeting"]["status"] = "running".into();
+        data["meeting"]["spent"] = 6.into();
+        data["meeting"]["deadline"] = (crate::store::now_ms() + 600_000).into();
+        hub.set_entry_if_revision(&saved, &data).expect("save");
+        restore(&hub).expect("restore");
+        let result = state(&hub, "room").expect("state");
+        assert_eq!(result["meeting"]["status"], "paused");
+        assert_eq!(result["meeting"]["spent"], 6);
+        assert!(result["meeting"]["remainingMs"].as_i64().is_some_and(|ms| ms > 0 && ms <= 600_000));
+        assert!(!reserve(&hub, "room", "a").expect("paused"));
+    }
+
+    #[test]
+    fn revoked_department_membership_blocks_existing_group_access() {
+        let hub = fixture();
+        let mut department = hub.store.bot("dept").expect("read").expect("department").config;
+        department.members = vec!["a".into()];
+        hub.store.save_bot(&department).expect("revoke");
+        assert!(
+            super::super::group_delivery::call(&hub, "b", "read_group_messages", &json!({"groupId":"room"}))
+                .is_err()
+        );
+        assert!(call(&hub, "b", "meeting_status", &json!({"groupId":"room"})).is_err());
+        let config = hub.store.bot("room").expect("read").expect("room").config;
+        assert!(!visible(&hub, &config, "b"));
     }
 }
