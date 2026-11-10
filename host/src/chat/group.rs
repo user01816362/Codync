@@ -82,7 +82,11 @@ pub fn with_members(store: &Store, members: &[String]) -> Result<Option<String>>
     Ok(store.bots()?.into_iter().find_map(|row| {
         let mut have = row.config.members.clone();
         have.sort();
-        (!row.deleted && row.config.is_group() && crate::chat::meetings::entry_for_store(store, &row.config.id).is_none() && have == wanted).then_some(row.config.id)
+        (!row.deleted
+            && row.config.is_group()
+            && crate::chat::meetings::entry_for_store(store, &row.config.id).is_none()
+            && have == wanted)
+            .then_some(row.config.id)
     }))
 }
 

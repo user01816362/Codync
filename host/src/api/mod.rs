@@ -81,10 +81,15 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
     }
     if method == "meetingSetup" {
         let id = str_arg(&b, "groupId")?;
-        if crate::chat::meetings::entry(hub, id).is_some() { return crate::chat::meetings::state(hub, id); }
+        if crate::chat::meetings::entry(hub, id).is_some() {
+            return crate::chat::meetings::state(hub, id);
+        }
         let group = hub.store.bot(id)?.filter(|r| !r.deleted && r.config.is_group()).context("unknown group")?.config;
-        let delegates: Vec<Value> = group.members.iter().take(5).map(|id| json!({"botId":id,"groupId":group.id})).collect();
-        return Ok(json!({"draft":{"name":group.name.chars().take(40).collect::<String>(),"agenda":group.description,"chair":group.members.first(),"delegates":delegates}}));
+        let delegates: Vec<Value> =
+            group.members.iter().take(5).map(|id| json!({"botId":id,"groupId":group.id})).collect();
+        return Ok(
+            json!({"draft":{"name":group.name.chars().take(40).collect::<String>(),"agenda":group.description,"chair":group.members.first(),"delegates":delegates}}),
+        );
     }
     if method == "meetingState" {
         return crate::chat::meetings::state(hub, str_arg(&b, "groupId")?);

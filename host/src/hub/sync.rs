@@ -12,7 +12,13 @@ impl Hub {
         let mut v = serde_json::to_value(cfg).expect("BotConfig is plain data and always serializes");
         let meeting = crate::chat::meetings::entry(self, &cfg.id);
         v["meeting"] = meeting.is_some().into();
-        let departments: serde_json::Map<String, Value> = meeting.as_ref().and_then(|e| e.data["meeting"]["delegates"].as_array()).into_iter().flatten().filter_map(|d| Some((d["botId"].as_str()?.to_owned(), d["department"].clone()))).collect();
+        let departments: serde_json::Map<String, Value> = meeting
+            .as_ref()
+            .and_then(|e| e.data["meeting"]["delegates"].as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|d| Some((d["botId"].as_str()?.to_owned(), d["department"].clone())))
+            .collect();
         v["meetingDepartments"] = departments.into();
         v["managedWorkspace"] = crate::agent::workspace::is_managed(cfg).into();
         // Null where there is no switch to show.

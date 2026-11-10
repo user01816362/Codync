@@ -416,7 +416,10 @@ impl Hub {
     /// Empties a chat's transcript. The bot's agent starts a new conversation, so it doesn't carry on from what
     /// the user cleared; its saved memory stays. Open apps drop the entries they hold.
     pub fn clear_chat(&self, id: &str) -> Result<()> {
-        anyhow::ensure!(crate::chat::meetings::entry(self, id).is_none(), "archive or delete a meeting room instead of clearing its decision record");
+        anyhow::ensure!(
+            crate::chat::meetings::entry(self, id).is_none(),
+            "archive or delete a meeting room instead of clearing its decision record"
+        );
         let group = self.store.bot(id)?.is_some_and(|r| r.config.is_group());
         if !group {
             self.send_cmd(id, Cmd::NewSession)?;

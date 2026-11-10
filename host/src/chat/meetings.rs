@@ -38,7 +38,11 @@ fn validate_delegates(hub: &Hub, delegates: &Value) -> Result<Vec<String>> {
         ensure!(!ids.iter().any(|i| i == id), "each agent can represent only one department per room");
         let bot = hub.store.bot(id)?.filter(|r| !r.deleted && !r.config.is_group()).context("delegate unavailable")?;
         if let Some(origin) = delegate["groupId"].as_str() {
-            let department = hub.store.bot(origin)?.filter(|r| !r.deleted && r.config.is_group()).context("department unavailable")?;
+            let department = hub
+                .store
+                .bot(origin)?
+                .filter(|r| !r.deleted && r.config.is_group())
+                .context("department unavailable")?;
             ensure!(entry(hub, origin).is_none(), "a meeting cannot represent a department");
             ensure!(department.config.members.contains(&bot.config.id), "delegate is not a current department member");
         }
@@ -59,7 +63,8 @@ pub fn create(hub: &Arc<Hub>, args: &Value, creator: Option<&str>) -> Result<Val
     let mut delegates = args["delegates"].clone();
     for delegate in delegates.as_array_mut().context("delegates is required")? {
         delegate["name"] = hub.bot_name(string(delegate, "botId")?).into();
-        delegate["department"] = delegate["groupId"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Personal".into()).into();
+        delegate["department"] =
+            delegate["groupId"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Personal".into()).into();
     }
     let cfg: BotConfig = serde_json::from_value(json!({"id":"", "kind":"group", "name":name,
         "description":agenda,"members":ids,"createdBy":creator,"section":"Meetings"}))?;
@@ -80,7 +85,9 @@ pub fn create(hub: &Arc<Hub>, args: &Value, creator: Option<&str>) -> Result<Val
 
 pub fn state(hub: &Hub, id: &str) -> Result<Value> {
     let (group, entry) = room(hub, id)?;
-    if entry.data["meeting"]["status"] == "running" && entry.data["meeting"]["deadline"].as_i64().unwrap_or(0) <= crate::store::now_ms() {
+    if entry.data["meeting"]["status"] == "running"
+        && entry.data["meeting"]["deadline"].as_i64().unwrap_or(0) <= crate::store::now_ms()
+    {
         let mut meeting = entry.data["meeting"].clone();
         meeting["status"] = "unresolved".into();
         meeting["remainingMs"] = 0.into();
@@ -94,8 +101,15 @@ pub fn state(hub: &Hub, id: &str) -> Result<Value> {
 
 fn save(hub: &Hub, previous: &Entry, meeting: Value) -> Result<Value> {
     let mut data = previous.data.clone();
-    data["text"] = format!("{} room — {} · proposal {} · {}/{} turns", meeting["kind"].as_str().unwrap_or("Meeting"),
-        meeting["status"].as_str().unwrap_or("paused"), meeting["proposalRevision"], meeting["spent"], meeting["limit"]).into();
+    data["text"] = format!(
+        "{} room — {} · proposal {} · {}/{} turns",
+        meeting["kind"].as_str().unwrap_or("Meeting"),
+        meeting["status"].as_str().unwrap_or("paused"),
+        meeting["proposalRevision"],
+        meeting["spent"],
+        meeting["limit"]
+    )
+    .into();
     data["meeting"] = meeting;
     hub.set_entry_if_revision(previous, &data)?.context("room changed on another device; refresh and try again")?;
     hub.emit_bot(&previous.bot_id);
@@ -106,7 +120,10 @@ fn current(hub: &Hub, group: &BotConfig, meeting: &Value, actor: &str) -> Result
     ensure!(group.members.iter().any(|id| id == actor), "you are no longer a room member");
     let invited = validate_delegates(hub, &meeting["delegates"])?;
     ensure!(invited.iter().all(|id| group.members.contains(id)), "a required delegate left the room");
-    ensure!(meeting["delegates"].as_array().is_some_and(|ds| ds.iter().any(|d| d["botId"] == actor)), "not an invited delegate");
+    ensure!(
+        meeting["delegates"].as_array().is_some_and(|ds| ds.iter().any(|d| d["botId"] == actor)),
+        "not an invited delegate"
+    );
     Ok(())
 }
 
@@ -125,16 +142,40 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
     ensure!(status != "archived" || command == "reopen", "reopen the room before changing it");
     if command == "report" {
         ensure!(actor.is_none(), "only the user publishes department outcomes");
-        ensure!(matches!(status.as_str(), "resolved" | "unresolved" | "cancelled"), "finish or pause an unresolved discussion before reporting");
+        ensure!(
+            matches!(status.as_str(), "resolved" | "unresolved" | "cancelled"),
+            "finish or pause an unresolved discussion before reporting"
+        );
         validate_delegates(hub, &meeting["delegates"])?;
-        let summary = format!("Meeting outcome: {} — {}\nAgenda: {}\nProposal revision {}: {}\nRecorded positions: {}\nFinal user approval: {}", group.name, status, meeting["agenda"], meeting["proposalRevision"], meeting["proposal"], meeting["positions"], meeting["approved"]);
+        let summary = format!(
+            "Meeting outcome: {} — {}\nAgenda: {}\nProposal revision {}: {}\nRecorded positions: {}\nFinal user approval: {}",
+            group.name,
+            status,
+            meeting["agenda"],
+            meeting["proposalRevision"],
+            meeting["proposal"],
+            meeting["positions"],
+            meeting["approved"]
+        );
         let mut destinations = Vec::new();
         for delegate in meeting["delegates"].as_array().context("invalid delegates")? {
             if let Some(destination) = delegate["groupId"].as_str() {
-                if destinations.iter().any(|id| id == destination) { continue; }
-                let target = hub.store.bot(destination)?.filter(|r| !r.deleted && r.config.is_group()).context("department unavailable")?;
+                if destinations.iter().any(|id| id == destination) {
+                    continue;
+                }
+                let target = hub
+                    .store
+                    .bot(destination)?
+                    .filter(|r| !r.deleted && r.config.is_group())
+                    .context("department unavailable")?;
                 let key = format!("meeting-report:{id}:{}:{destination}", meeting["proposalRevision"]);
-                hub.add_entry_once(&key, &Lane::main(&target.config.id), EntryKind::Agent, hub.store.max_turn(destination), &json!({"text":summary,"final":true,"author":meeting["chair"],"meetingOutcome":id}))?;
+                hub.add_entry_once(
+                    &key,
+                    &Lane::main(&target.config.id),
+                    EntryKind::Agent,
+                    hub.store.max_turn(destination),
+                    &json!({"text":summary,"final":true,"author":meeting["chair"],"meetingOutcome":id}),
+                )?;
                 hub.emit_bot(destination);
                 destinations.push(destination.to_owned());
             }
@@ -144,12 +185,17 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
     match command {
         "propose" => {
             ensure!(matches!(status.as_str(), "running" | "paused" | "awaiting_owner"), "room is closed");
-            ensure!(actor.is_none() || meeting["chair"] == actor.unwrap_or_default(), "only the chair proposes a decision");
+            ensure!(
+                actor.is_none() || meeting["chair"] == actor.unwrap_or_default(),
+                "only the chair proposes a decision"
+            );
             meeting["proposal"] = bounded(args, "text", 8000)?.into();
             meeting["proposalRevision"] = (meeting["proposalRevision"].as_u64().unwrap_or(0) + 1).into();
             meeting["positions"] = json!({});
             meeting["approved"] = false.into();
-            if status == "awaiting_owner" { meeting["status"] = "paused".into(); }
+            if status == "awaiting_owner" {
+                meeting["status"] = "paused".into();
+            }
         }
         "position" => {
             ensure!(matches!(status.as_str(), "running" | "paused" | "awaiting_owner"), "room is closed");
@@ -159,16 +205,26 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
             let position = string(args, "position")?;
             ensure!(matches!(position, "approve" | "object" | "abstain"), "invalid position");
             meeting["positions"][actor] = json!({"position":position,"reason":bounded(args,"text",2000)?,"proposalRevision":meeting["proposalRevision"]});
-            let all = meeting["delegates"].as_array().context("invalid delegates")?.iter().all(|d| {
-                d["botId"].as_str().is_some_and(|id| meeting["positions"][id]["position"] == "approve")
-            });
-            if all { meeting["status"] = "awaiting_owner".into(); }
-            else if status == "awaiting_owner" { meeting["status"] = "paused".into(); }
+            let all = meeting["delegates"]
+                .as_array()
+                .context("invalid delegates")?
+                .iter()
+                .all(|d| d["botId"].as_str().is_some_and(|id| meeting["positions"][id]["position"] == "approve"));
+            if all {
+                meeting["status"] = "awaiting_owner".into();
+            } else if status == "awaiting_owner" {
+                meeting["status"] = "paused".into();
+            }
         }
         "approve" => {
             validate_delegates(hub, &meeting["delegates"])?;
             ensure!(status == "awaiting_owner", "all delegates must explicitly approve the current proposal first");
-            ensure!(meeting["delegates"].as_array().is_some_and(|ds| ds.iter().all(|d| d["botId"].as_str().is_some_and(|id| group.members.iter().any(|member| member == id)))), "a required delegate left the room");
+            ensure!(
+                meeting["delegates"].as_array().is_some_and(|ds| ds
+                    .iter()
+                    .all(|d| d["botId"].as_str().is_some_and(|id| group.members.iter().any(|member| member == id)))),
+                "a required delegate left the room"
+            );
             meeting["approved"] = true.into();
             meeting["status"] = "resolved".into();
         }
@@ -179,12 +235,20 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
             meeting["proposalRevision"] = (meeting["proposalRevision"].as_u64().unwrap_or(0) + 1).into();
         }
         "pause" | "archive" | "cancel" => {
-            meeting["status"] = match command { "archive" => "archived", "cancel" => "cancelled", _ => "paused" }.into();
+            meeting["status"] = match command {
+                "archive" => "archived",
+                "cancel" => "cancelled",
+                _ => "paused",
+            }
+            .into();
         }
         "resume" => {
             ensure!(matches!(status.as_str(), "paused" | "unresolved"), "room cannot be resumed in its current state");
             validate_delegates(hub, &meeting["delegates"])?;
-            ensure!(meeting["spent"].as_u64().unwrap_or(10) < 10, "discussion budget exhausted; start a new scoped meeting");
+            ensure!(
+                meeting["spent"].as_u64().unwrap_or(10) < 10,
+                "discussion budget exhausted; start a new scoped meeting"
+            );
             let remaining = meeting["remainingMs"].as_i64().unwrap_or(0);
             ensure!(remaining > 0, "discussion time budget exhausted");
             meeting["status"] = "running".into();
@@ -193,26 +257,38 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
         }
         _ => anyhow::bail!("unknown meeting action"),
     }
-    if meeting["status"] != "running" && let Some(started) = meeting["startedAt"].as_i64() {
-        meeting["remainingMs"] = (meeting["remainingMs"].as_i64().unwrap_or(0) - (crate::store::now_ms() - started)).max(0).into();
+    if meeting["status"] != "running"
+        && let Some(started) = meeting["startedAt"].as_i64()
+    {
+        meeting["remainingMs"] =
+            (meeting["remainingMs"].as_i64().unwrap_or(0) - (crate::store::now_ms() - started)).max(0).into();
         meeting["startedAt"] = Value::Null;
     }
     let saved = save(hub, &previous, meeting)?;
-    if saved["meeting"]["status"] != "running" { super::group::stop(hub, id); }
+    if saved["meeting"]["status"] != "running" {
+        super::group::stop(hub, id);
+    }
     if command == "archive" || command == "reopen" {
         hub.update_bot(&json!({"id":id,"section":if command == "archive" {"Archived meetings"} else {"Meetings"}}))?;
     }
     if command == "resume" {
-        let text = format!("Meeting agenda: {}. Review the current proposal using meeting_status. The chair records a proposal; each delegate records their own position. Silence is not approval.", saved["meeting"]["agenda"].as_str().unwrap_or_default());
+        let text = format!(
+            "Meeting agenda: {}. Review the current proposal using meeting_status. The chair records a proposal; each delegate records their own position. Silence is not approval.",
+            saved["meeting"]["agenda"].as_str().unwrap_or_default()
+        );
         hub.add_entry(&Lane::main(id), EntryKind::User, hub.store.max_turn(id), &json!({"text":text}));
         super::group::start(hub, &group, Lane::main(id));
         let weak = Arc::downgrade(hub);
         let room_id = id.to_owned();
         let deadline = saved["meeting"]["deadline"].as_i64().unwrap_or(0);
         tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis((deadline - crate::store::now_ms()).max(0) as u64)).await;
-            if let Some(hub) = weak.upgrade() && let Some(current) = entry(&hub, &room_id)
-                && current.data["meeting"]["status"] == "running" && current.data["meeting"]["deadline"] == deadline {
+            tokio::time::sleep(std::time::Duration::from_millis((deadline - crate::store::now_ms()).max(0) as u64))
+                .await;
+            if let Some(hub) = weak.upgrade()
+                && let Some(current) = entry(&hub, &room_id)
+                && current.data["meeting"]["status"] == "running"
+                && current.data["meeting"]["deadline"] == deadline
+            {
                 let _ = state(&hub, &room_id);
             }
         });
@@ -224,7 +300,9 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
 pub fn reserve(hub: &Hub, id: &str, actor: &str) -> Result<bool> {
     let Some(previous) = entry(hub, id) else { return Ok(true) };
     let mut meeting = previous.data["meeting"].clone();
-    if meeting["status"] != "running" { return Ok(false); }
+    if meeting["status"] != "running" {
+        return Ok(false);
+    }
     let group = hub.store.bot(id)?.context("room unavailable")?.config;
     let valid = current(hub, &group, &meeting, actor).is_ok();
     let spent = meeting["spent"].as_u64().unwrap_or(10);
@@ -242,7 +320,10 @@ pub fn prompt(hub: &Hub, id: &str, actor: &str) -> Option<String> {
     let entry = entry(hub, id)?;
     let meeting = &entry.data["meeting"];
     let delegate = meeting["delegates"].as_array()?.iter().find(|d| d["botId"] == actor)?;
-    Some(format!("Meeting room: {}. You represent {} as {}. Chair: {}. Use meeting_status(groupId) and meeting_action with the current revision to propose (chair only) or record your own approve/object/abstain position. Do not infer agreement from silence. Shared agent-session history still applies: do not disclose unrelated private conversation material. Room id: {id}", meeting["kind"], delegate["department"], delegate["name"], meeting["chair"]))
+    Some(format!(
+        "Meeting room: {}. You represent {} as {}. Chair: {}. Use meeting_status(groupId) and meeting_action with the current revision to propose (chair only) or record your own approve/object/abstain position. Do not infer agreement from silence. Shared agent-session history still applies: do not disclose unrelated private conversation material. Room id: {id}",
+        meeting["kind"], delegate["department"], delegate["name"], meeting["chair"]
+    ))
 }
 
 pub fn tools() -> Vec<Value> {
@@ -264,14 +345,20 @@ pub fn active(hub: &Hub, id: &str, actor: &str) -> Result<()> {
     let Some(entry) = entry(hub, id) else { return Ok(()) };
     let group = hub.store.bot(id)?.context("meeting unavailable")?.config;
     current(hub, &group, &entry.data["meeting"], actor)?;
-    ensure!(entry.data["meeting"]["status"] == "running" && entry.data["meeting"]["deadline"].as_i64().unwrap_or(0) > crate::store::now_ms(), "meeting is paused, closed or expired");
+    ensure!(
+        entry.data["meeting"]["status"] == "running"
+            && entry.data["meeting"]["deadline"].as_i64().unwrap_or(0) > crate::store::now_ms(),
+        "meeting is paused, closed or expired"
+    );
     Ok(())
 }
 
 pub fn stopped(hub: &Hub, id: &str) {
     let Some(previous) = entry(hub, id) else { return };
     let mut meeting = previous.data["meeting"].clone();
-    if meeting["status"] != "running" { return; }
+    if meeting["status"] != "running" {
+        return;
+    }
     meeting["remainingMs"] = (meeting["deadline"].as_i64().unwrap_or(0) - crate::store::now_ms()).max(0).into();
     meeting["startedAt"] = Value::Null;
     meeting["status"] = "paused".into();
@@ -283,7 +370,8 @@ pub fn revalidate(hub: &Hub) {
     for row in rows.into_iter().filter(|r| !r.deleted && r.config.is_group()) {
         if let Some(entry) = entry(hub, &row.config.id)
             && entry.data["meeting"]["status"] == "running"
-            && validate_delegates(hub, &entry.data["meeting"]["delegates"]).is_err() {
+            && validate_delegates(hub, &entry.data["meeting"]["delegates"]).is_err()
+        {
             super::group::stop(hub, &row.config.id);
         }
     }

@@ -77,7 +77,14 @@ impl App {
                 "Meeting room",
                 "Inspect the current room below. Actions: resume, pause, propose, approve, report, cancel, archive, reopen. Final approval requires every delegate to approve the same proposal. For a new room, create explicitly approves the displayed invitations. Shared agent-session history still applies.",
                 if data["draft"].is_object() {
-                    vec![input("action", "Action", "create", false), input("name", "Name", data["draft"]["name"].as_str().unwrap_or_default(), false), input("agenda", "Agenda", data["draft"]["agenda"].as_str().unwrap_or_default(), true), input("kind", "Room kind", "consultation", false), input("chair", "Chair ID", data["draft"]["chair"].as_str().unwrap_or_default(), false), input("delegates", "Delegates JSON", &data["draft"]["delegates"].to_string(), true)]
+                    vec![
+                        input("action", "Action", "create", false),
+                        input("name", "Name", data["draft"]["name"].as_str().unwrap_or_default(), false),
+                        input("agenda", "Agenda", data["draft"]["agenda"].as_str().unwrap_or_default(), true),
+                        input("kind", "Room kind", "consultation", false),
+                        input("chair", "Chair ID", data["draft"]["chair"].as_str().unwrap_or_default(), false),
+                        input("delegates", "Delegates JSON", &data["draft"]["delegates"].to_string(), true),
+                    ]
                 } else {
                     vec![input("action", "Action", "pause", false), input("text", "Proposal", "", true)]
                 },
@@ -131,7 +138,11 @@ impl App {
             saving: false,
             submit: Submit::Department { group, kind, data, request_id },
         };
-        if let Submit::Department { kind, data, .. } = &fields.submit && kind == "meeting" { fields.note = format!("{}\n{}", fields.note, data); }
+        if let Submit::Department { kind, data, .. } = &fields.submit
+            && kind == "meeting"
+        {
+            fields.note = format!("{}\n{}", fields.note, data);
+        }
         department_choice(&mut fields);
         self.overlays.push(Overlay::Fields(Box::new(fields)));
     }
@@ -156,11 +167,21 @@ impl App {
         let result = (|| -> Result<(&'static str, Value), String> {
             if kind == "meeting" {
                 if data["draft"].is_object() {
-                    if action != "create" { return Err("Enter create to approve these invitations.".into()); }
-                    let delegates: Value = serde_json::from_str(values.get("delegates").and_then(Value::as_str).unwrap_or("[]")).map_err(|e| e.to_string())?;
-                    return Ok(("createMeeting", json!({"name":values.get("name"),"agenda":values.get("agenda"),"kind":values.get("kind"),"chair":values.get("chair"),"delegates":delegates})));
+                    if action != "create" {
+                        return Err("Enter create to approve these invitations.".into());
+                    }
+                    let delegates: Value =
+                        serde_json::from_str(values.get("delegates").and_then(Value::as_str).unwrap_or("[]"))
+                            .map_err(|e| e.to_string())?;
+                    return Ok((
+                        "createMeeting",
+                        json!({"name":values.get("name"),"agenda":values.get("agenda"),"kind":values.get("kind"),"chair":values.get("chair"),"delegates":delegates}),
+                    ));
                 }
-                return Ok(("meetingAction", json!({"groupId":group,"rev":data["rev"],"action":action,"text":values.get("text")})));
+                return Ok((
+                    "meetingAction",
+                    json!({"groupId":group,"rev":data["rev"],"action":action,"text":values.get("text")}),
+                ));
             }
             if kind == "storage" {
                 return Ok((

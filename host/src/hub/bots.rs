@@ -59,7 +59,10 @@ impl Hub {
             let row = self.store.bot(&id)?.filter(|b| !b.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
             let mut cfg = patch::patched(&row.config, patch)?;
             if cfg.is_group() {
-                anyhow::ensure!(crate::chat::meetings::entry(self, &id).is_none() || cfg.members == row.config.members, "meeting delegates are fixed; create a new room to change representation");
+                anyhow::ensure!(
+                    crate::chat::meetings::entry(self, &id).is_none() || cfg.members == row.config.members,
+                    "meeting delegates are fixed; create a new room to change representation"
+                );
                 cfg.members = crate::chat::group::valid_members(&self.store, &cfg.id, &cfg.members)?;
             }
             crate::agent::fallback::tidy(&mut cfg);
@@ -82,7 +85,9 @@ impl Hub {
             }
             self.send_cmd(&id, Cmd::Reconfigure(Box::new(cfg)))?;
         }
-        if membership_changed { crate::chat::meetings::revalidate(self); }
+        if membership_changed {
+            crate::chat::meetings::revalidate(self);
+        }
         self.emit_bot(&id);
         crate::usage::bots_changed(self);
         Ok(self.bot_value(&id).unwrap_or(Value::Null))
