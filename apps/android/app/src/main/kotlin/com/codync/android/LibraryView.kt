@@ -55,7 +55,6 @@ import com.kyant.shapes.RoundedRectangle
     var filesOnly by remember(bot.id) { mutableStateOf(false) }
     LaunchedEffect(bot.id, online, attempt) { if (online) store.loadLibrary(bot.id) }
     val items = state.artifacts.library(bot.id, state.library[bot.id].orEmpty())
-    var renaming by remember { mutableStateOf<Artifact?>(null) }
     val fileItems = items.filter { it !is LibraryItem.ArtifactItem }
     val visible = (if (filesOnly) fileItems else items).filter { item ->
         val name = when (item) { is LibraryItem.ArtifactItem -> item.artifact.title; is LibraryItem.FileItem -> item.file.name; is LibraryItem.AttachmentItem -> item.file.name }
@@ -63,6 +62,7 @@ import com.kyant.shapes.RoundedRectangle
     }
     var textFile by remember(bot.id) { mutableStateOf<LibraryItem.FileItem?>(null) }
     var textAttachment by remember(bot.id) { mutableStateOf<Attachment?>(null) }
+    var naming by remember { mutableStateOf<Naming?>(null) }
     var image by remember { mutableStateOf<Attachment?>(null) }
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -80,7 +80,7 @@ import com.kyant.shapes.RoundedRectangle
                             if (index > 0) Hairline(Modifier.padding(horizontal = 16.dp))
                             when (item) {
                                 is LibraryItem.ArtifactItem -> ArtifactRow(item.artifact, { open(OpenArtifact(bot.id, item.artifact.id, item.artifact.title, item.artifact.entryId)) },
-                                    { renaming = item.artifact }) { store.shareArtifact(bot.id, item.artifact.id, item.artifact.title) }
+                                    { naming = Naming("Rename artifact", item.artifact.title) { store.renameArtifact(bot.id, item.artifact.id, it) } }) { store.shareArtifact(bot.id, item.artifact.id, item.artifact.title) }
                                 is LibraryItem.FileItem -> FileRow(item, bot.id, state, store, { show(item.entryId) }) { textFile = item }
                                 is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store, { show(item.entryId) }, { image = item.file }) { attachmentEntryId = item.entryId; textAttachment = item.file }
                             }
@@ -93,9 +93,7 @@ import com.kyant.shapes.RoundedRectangle
         }
         state.libraryCursor[bot.id]?.let { cursor -> SecondaryButton("Load older files", enabled = online && "library:${bot.id}" !in state.busy) { store.loadLibrary(bot.id, cursor) } }
     }
-    // The artifact as composed: Save closes the dialog (clearing `renaming`) before it renames.
-    val target = renaming
-    RenameArtifactDialog(target?.title, { renaming = null }) { title -> target?.let { store.renameArtifact(bot.id, it.id, title) } }
+    NameDialog(naming, "Artifact title", { naming = null })
     AttachmentImageSheet(image, bot.id, state, store) { image = null }
     CodyncSheet(textFile, { textFile = null }) { SharedTextPreview(it.file, it.entryId, store) }
     CodyncSheet(textAttachment, { textAttachment = null }) { AttachmentTextPreview(it, bot.id, store, attachmentEntryId) }

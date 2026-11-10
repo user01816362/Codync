@@ -93,7 +93,7 @@ private class ComputerRoster(private val context: Context, val key: String) {
     var confirmDelete by remember { mutableStateOf<Pair<String, Bot>?>(null) }
     // The chat to empty, once the user confirms.
     var confirmClear by remember { mutableStateOf<Pair<String, Bot>?>(null) }
-    var naming by remember { mutableStateOf<SectionNaming?>(null) }
+    var naming by remember { mutableStateOf<Naming?>(null) }
     val context = LocalContext.current
     var folded by remember { mutableStateOf(FoldedSections.load(context)) }
     var hidden by remember { mutableStateOf(RosterComputers.hidden(context)) }
@@ -173,9 +173,9 @@ private class ComputerRoster(private val context: Context, val key: String) {
                 }
                 if (grouped && (movingComputer || id in collapsed)) continue
                 botLines(state, store, roster, folded, grouped, agentLogos, RosterActions(toggleSection,
-                    rename = { name -> naming = SectionNaming("Rename section", name) { renameSection(roster, store, name, it) } },
+                    rename = { name -> naming = Naming("Rename section", name) { renameSection(roster, store, name, it) } },
                     remove = { name -> renameSection(roster, store, name, null) },
-                    newSection = { bot -> naming = SectionNaming("New section", "") { store.setSection(bot.id, it) } },
+                    newSection = { bot -> naming = Naming("New section", "") { store.setSection(bot.id, it) } },
                     edit = { bot -> edit(id, bot) }, delete = { bot -> confirmDelete = id to bot }, clear = { bot -> confirmClear = id to bot }))
             }
         }
@@ -195,7 +195,7 @@ private class ComputerRoster(private val context: Context, val key: String) {
             confirmDelete?.let { (id, bot) -> accounts.store(id)?.deleteBot(bot) {} }
         })
     }
-    SectionNameDialog(naming) { naming = null }
+    NameDialog(naming, "Section name", { naming = null }, ::limitSectionName, ::sectionName)
 }
 
 /** A computer's heading (and, while it needs one, its update notice) that drags to reorder the computers. */

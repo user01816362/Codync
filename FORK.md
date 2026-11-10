@@ -1,7 +1,6 @@
 # Codync setup
 
-Based on [leepokai/Codync](https://github.com/leepokai/Codync), this version runs without an
-account and without the hosted Codync cloud.
+Based on [leepokai/Codync](https://github.com/leepokai/Codync), this version works without an account by default, with optional account and hosted-computer features.
 
 ## What changed
 
@@ -9,13 +8,26 @@ account and without the hosted Codync cloud.
 |---|---|
 | Host pairing | Direct pairing (LAN, Tailscale or Cloudflare Tunnel) and a configured private relay support phones without an account. The computer asks before allowing a new phone; the hosted Codync relay still requires account proof. |
 | Host telemetry | Off, always. The settings switch and `codync-host analytics on` cannot turn it back on. |
-| Codync account UI | Hidden in iPhone, Android and desktop apps when this repository has no Codync cloud configuration. Pair computers directly with a QR code. |
+| Codync account UI | Optional on iPhone, Android and desktop. Continue without an account is the primary onboarding action; sign in later from the account menu. |
 | iPhone analytics | Usage analytics and crash reporting have been removed from the iPhone app. |
-| Host cloud | No built-in cloud address. The computer is local-only unless `CODYNC_CLOUD_URL` (or an address saved in Settings) names one. |
+| Host cloud | The built-in account relay is off until explicitly enabled. Explicit custom/private relay addresses continue working independently. |
 | Remote access | Wi-Fi, Tailscale and a named Cloudflare Tunnel are available without a Codync account. Cloudflare exposes only the phone channel and a minimal health check. |
-| App configs | `apps/shared/Config/{main,dev}.plist` ship an empty Clerk key and cloud URL, so every client takes its existing signed-out path. |
-| iPhone / Android | Pairing omits the certificate when the build has no cloud, instead of failing with "Connect to the internet to pair". |
+| App configs | Public upstream account configuration is bundled. Phone SDKs initialize only after an explicit sign-in choice; first launch and accountless onboarding do not initialize them. |
+| iPhone / Android | Signed-out QR pairing works without an account certificate. Wi-Fi, Tailscale, Cloudflare Tunnel and configured private relays remain available. |
 | CI | [Build workflow](.github/workflows/build.yml) builds an unsigned Apple Silicon macOS app on every push to `main`; the standalone `.github/workflows/ios-ipa.yml` builds an unsigned iPhone IPA. |
+
+## Optional accounts and hosted computers
+
+Sign-in enables the upstream account address book, approved device access and hosted Cloud
+computer controls. Creating a hosted computer remains an explicit action. The provider bills
+your account, and the Codync account service holds encrypted provider and vault keys; see
+[privacy](web/content/docs/privacy.mdx). No service is deployed by installing this app.
+
+Continue without an account keeps direct pairing and remote direct routes. An account choice
+belongs to this app; it does not delete a hosted computer or revoke other devices. A computer's
+relay remains controlled separately in its connection settings. Existing private-relay
+configuration is preserved. Telemetry remains off on the host, desktop and Android; iPhone
+analytics/crash reporting remain removed. The support invitation stays disabled.
 
 ## Chat and agent features added in this version
 

@@ -112,6 +112,12 @@ export const docSections: { title: string; pages: DocPage[] }[] = [
           "Pair a phone without a Codync account, then connect over Wi-Fi, Tailscale, Cloudflare Tunnel or your own HTTPS URL.",
       },
       {
+        slug: "codync-cloud",
+        title: "Codync Cloud",
+        description:
+          "Run your bots on a cloud computer on your own Boat or InstaBox account: free from Codync, asleep while idle, woken by a message.",
+      },
+      {
         slug: "linux-servers",
         title: "Linux servers",
         description:

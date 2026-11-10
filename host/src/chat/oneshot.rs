@@ -21,7 +21,7 @@ pub async fn one_shot(hub: &Arc<Hub>, cfg: &BotConfig, system: &str, user: &str)
     if hub.store.kv_read(&format!("agent-env:{}", cfg.backend))?.is_some() {
         crate::market::vault::unlock(hub.clone()).await?;
     }
-    let env = crate::agent::auth::launch_env(&hub.store, &cfg.backend)?;
+    let (env, grants) = crate::agent::auth::launch_env(&hub.store, &cfg.backend)?;
     let candidates = crate::agent::bot::launch_commands(cfg)?;
     let workspace = cwd.as_str();
     let mut conn = crate::agent::bot::start_first(candidates, &env, |candidate, mut env, _| async move {
@@ -30,6 +30,7 @@ pub async fn one_shot(hub: &Arc<Hub>, cfg: &BotConfig, system: &str, user: &str)
         crate::agent::bot::start_agent(&command[0], workspace, &env, Duration::from_mins(1)).await
     })
     .await?;
+    conn.acp.hold(grants);
     let acp = conn.acp.clone();
     let result = async {
         let mut params = json!({"cwd": cwd, "mcpServers": []});

@@ -96,15 +96,10 @@ import kotlin.math.sin
             else tr("Your {count} computers stay paired. If you sign in with an account used on this phone before, scan their codes again. Add to account brings each into your account.")
                 .replace("{count}", signedOutComputers.toString()),
                 Modifier.fillMaxWidth().padding(bottom = 4.dp), style = Type.footnote, color = Palette.secondary)
-            if (state.account.configured) {
-                SignInButtons(state, store)
-                Column(Modifier.fillMaxWidth().heightIn(min = 44.dp).plainButton(action = start),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
-                    Text(tr("Continue without an account"), style = Type.footnote.medium, color = Palette.text)
-                    Text(tr("Only on the same Wi-Fi or Tailscale as your computer"), style = Type.caption2, color = Palette.secondary,
-                        textAlign = TextAlign.Center)
-                }
-            } else WideButton("Get started", action = start)
+            WideButton(if (state.account.configured) "Continue without an account" else "Get started", action = start)
+            Text(tr("Connect over Wi-Fi, Tailscale, Cloudflare Tunnel or your private relay. No Codync account required."),
+                style = Type.caption2, color = Palette.secondary, textAlign = TextAlign.Center)
+            if (state.account.configured) SignInButtons(state, store)
             // Restoring sign-in failed (the only account error): Clerk retries on its own with a backoff of up to a minute; Try again asks now.
             state.account.error?.let {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -188,8 +183,8 @@ private val CREW = listOf(
     val busy = "session" in state.busy
     val enabled = state.account.ready && !busy
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        WideButton(enabled = enabled, busy = busy, height = SIGN_IN_HEIGHT, action = { store.signIn(SignInProvider.Apple) }) {
-            Symbol("apple.logo", size = 20.dp, tint = Palette.onAccent)
+        WideButton(primary = false, enabled = enabled, busy = busy, height = SIGN_IN_HEIGHT, action = { store.signIn(SignInProvider.Apple) }) {
+            Symbol("apple.logo", size = 20.dp)
             Text(tr("Continue with Apple"))
         }
         WideButton(primary = false, enabled = enabled, busy = busy, height = SIGN_IN_HEIGHT, action = { store.signIn(SignInProvider.Google) }) {

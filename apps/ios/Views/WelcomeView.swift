@@ -78,28 +78,15 @@ struct WelcomeView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.bottom, 4)
             }
-            if account.isConfigured {
-                SignInButtons().disabled(!account.isReady)
-                Button(action: start) {
-                    VStack(spacing: 2) {
-                        Text(L10n.tr("Continue without an account")).font(.footnote.weight(.medium))
-                            .foregroundStyle(Palette.text)
-                        Text(L10n.tr("Only on the same Wi-Fi or Tailscale as your computer"))
-                            .font(.caption2)
-                            .foregroundStyle(Palette.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(PressScale())
-            } else {
-                Button(action: start) {
-                    Text(L10n.tr("Get started")).font(.headline).frame(maxWidth: .infinity, minHeight: 50)
-                }
-                .buttonStyle(.primary)
+            Button(action: start) {
+                Text(L10n.tr(account.isConfigured ? "Continue without an account" : "Get started"))
+                    .font(.headline).frame(maxWidth: .infinity, minHeight: 50)
             }
+            .buttonStyle(.primary)
+            Text(L10n.tr("Connect over Wi-Fi, Tailscale, Cloudflare Tunnel or your private relay. No Codync account required."))
+                .font(.caption2).foregroundStyle(Palette.secondary)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            if account.isConfigured { SignInButtons().disabled(!account.isReady) }
             if let message = account.errorMessage {
                 Text(message).font(.footnote).foregroundStyle(Palette.danger)
                     .transition(.opacity)

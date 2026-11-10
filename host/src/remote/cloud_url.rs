@@ -70,15 +70,26 @@ pub fn when_on(store: &Store) -> Option<Address> {
     }
     let (env_url, env_token) = (std::env::var("CODYNC_CLOUD_URL").ok(), std::env::var("CODYNC_CLOUD_TOKEN").ok());
     let (saved_url, saved_token) = (store.kv_get(SAVED_URL), store.kv_get(SAVED_TOKEN));
-    // Fork: no built-in cloud. The computer is local-only unless a person names an address
-    // (`CODYNC_CLOUD_URL`, or one saved in Settings); `Environment::cloud_url` still names the
-    // official addresses so a saved one is recognized as a Codync cloud.
+    // The built-in account relay is opt-in. Explicit custom/private relay addresses keep working.
+    let builtin = match store.kv_get(ENABLED).as_deref() {
+        Some("true") => Environment::current().cloud_url(),
+        _ => "",
+    };
     resolve(
         off,
         Candidate { url: env_url.as_deref(), token: env_token.as_deref() },
         Candidate { url: saved_url.as_deref(), token: saved_token.as_deref() },
-        "",
+        builtin,
     )
+}
+
+/// The cloud a Codync Cloud computer's keeper gets its vault key from: `CODYNC_CLOUD_URL`, else this build's.
+#[cfg(unix)]
+pub fn keeper_cloud_url() -> String {
+    let env = std::env::var("CODYNC_CLOUD_URL").ok();
+    let builtin = Environment::current().cloud_url();
+    resolve(false, Candidate { url: env.as_deref(), token: None }, Candidate::default(), builtin)
+        .map_or_else(|| builtin.to_owned(), |address| address.url)
 }
 
 /// The cloud base URL in use, or `None` when the cloud is off.

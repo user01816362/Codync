@@ -2,10 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Fork: no account and no Codync cloud in development builds either. -->
 	<key>clerkPublishableKey</key>
-	<string></string>
+	<string>pk_test_c3VubnktbW9sbHVzay04NjUxLmNsZXJrLmFjY291bnRzLmRldiQ</string>
 	<key>cloudURL</key>
-	<string></string>
+	<string>https://dev-api.codync.dev</string>
 </dict>
 </plist>

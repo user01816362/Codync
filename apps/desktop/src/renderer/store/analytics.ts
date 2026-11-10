@@ -1,9 +1,12 @@
 import { useEffect } from 'react'
-import type { Link, Screen } from '@shared/analytics'
-import { AnalyticsQueue } from '../lib/analytics-queue'
+import type { AnalyticsEvent, Link, Screen } from '@shared/analytics'
+import type { AnalyticsSender } from '../lib/analytics-queue'
 
-/** This window's app-level analytics; `AppModel` connects it to this computer's host once it answers. */
-export const analytics = new AnalyticsQueue()
+/** Telemetry remains disabled for both local and account-connected hosts. */
+export const analytics = {
+  track(_event: AnalyticsEvent) {},
+  connect(_sender: AnalyticsSender | null) {},
+}
 
 /** A screen, sheet or tab is shown: once when it appears, and again when `key` changes. */
 export function useScreenViewed(screen: Screen | null, key: unknown = null) {

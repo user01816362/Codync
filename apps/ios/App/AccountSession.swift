@@ -10,7 +10,9 @@ import Observation
 @MainActor
 @Observable
 final class AccountSession {
-    private let clerk: Clerk?
+    private var clerk: Clerk?
+    private let publishableKey: String?
+    private static let consentKey = "accountServicesEnabled"
     private(set) var isBusy = false
     var errorMessage: String?
 
@@ -36,7 +38,7 @@ final class AccountSession {
     }
     var supportsMultipleAccounts: Bool { clerk?.environment?.authConfig.singleSessionMode == false }
 
-    var isConfigured: Bool { clerk != nil }
+    var isConfigured: Bool { publishableKey != nil }
     /// Clerk restores the persisted Keychain session during configuration. Don't offer a fresh sign-in
     /// until that restore has completed, or an update can briefly look like a signed-out install.
     var isReady: Bool { clerk?.isLoaded ?? true }
@@ -79,18 +81,25 @@ final class AccountSession {
             .flatMap { URL(string: $0.trimmingCharacters(in: .whitespacesAndNewlines)) }
             .flatMap { Pairing.isCloudURL($0) ? $0 : nil }
         let key = (env["CODYNC_CLERK_PUBLISHABLE_KEY"] ?? config?.clerkPublishableKey ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard key.hasPrefix("pk_test_") || key.hasPrefix("pk_live_") else {
-            clerk = nil
-            return
+        publishableKey = key.hasPrefix("pk_test_") || key.hasPrefix("pk_live_") ? key : nil
+        clerk = nil
+        if (UserDefaults.standard.bool(forKey: Self.consentKey) && !UserDefaults.standard.bool(forKey: "withoutAccount"))
+            || env["CODYNC_DEV_SIGN_IN_TICKET"] != nil {
+            enableAccountServices()
         }
+    }
+
+    /// Account services start only after the user chooses sign-in, or restores that explicit choice.
+    private func enableAccountServices() {
+        guard clerk == nil, let key = publishableKey else { return }
+        UserDefaults.standard.set(true, forKey: Self.consentKey)
         let scheme = Bundle.main.bundleIdentifier ?? "com.pokai.Codync"
         clerk = Clerk.configure(publishableKey: key, options: .init(
             telemetryEnabled: false,
             redirectConfig: .init(redirectUrl: "\(scheme)://callback", callbackUrlScheme: scheme)
         ))
-        // Clerk's own launch refresh tries three times within a few seconds, then only logs.
         Task { restoreGaveUp = !(await waitUntilReady(timeout: .seconds(10))) }
-        if key.hasPrefix("pk_test_"), let ticket = env["CODYNC_DEV_SIGN_IN_TICKET"], !ticket.isEmpty {
+        if key.hasPrefix("pk_test_"), let ticket = ProcessInfo.processInfo.environment["CODYNC_DEV_SIGN_IN_TICKET"], !ticket.isEmpty {
             Task { await signInForDevelopment(ticket: ticket) }
         }
     }
@@ -130,11 +139,16 @@ final class AccountSession {
 
     func signIn(provider: SignInProvider) async {
         guard !isBusy else { return }
+        enableAccountServices()
         guard let clerk else { return }
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
         do {
+            guard await waitUntilReady(timeout: .seconds(20)) else {
+                errorMessage = "Couldn't load sign-in. Check your connection and try again."
+                return
+            }
             // Every provider uses Clerk's transfer flow and activates the same kind of session.
             let name: String
             let result: TransferFlowResult
@@ -182,6 +196,7 @@ final class AccountSession {
         defer { isBusy = false }
         do {
             try await clerk.auth.signOut(sessionId: sessionID)
+            if !isSignedIn { UserDefaults.standard.set(false, forKey: Self.consentKey) }
         } catch {
             errorMessage = "Couldn't sign out. Check your connection and try again."
         }
@@ -221,6 +236,35 @@ final class AccountSession {
             errorMessage = "Couldn't switch accounts. Check your connection or sign in again."
         }
     }
+
+    #if DEBUG
+    /// End-to-end tests (`CODYNC_TEST_SIGN_IN`, docs/guides/cloud-computer-testing.md): signs in a Clerk test address
+    /// (`…+clerk_test@…`, whose code is always 424242 on a development instance), creating it the first time.
+    func signInTestAccount(_ email: String) async {
+        enableAccountServices()
+        guard let clerk, !isSignedIn, email.contains("+clerk_test@") else { return }
+        do {
+            let sessionID: String?
+            do {
+                let signIn = try await clerk.auth.signInWithEmailCode(emailAddress: email).verifyCode("424242")
+                NSLog("CODYNC_TEST_SIGN_IN: sign-in %@", String(describing: signIn.status))
+                sessionID = signIn.createdSessionId
+            } catch {
+                NSLog("CODYNC_TEST_SIGN_IN: no account yet (%@), signing up", String(describing: error))
+                // The instance asks for a password at sign-up; later sign-ins use the email code.
+                let password = UUID().uuidString + UUID().uuidString
+                let signUp = try await clerk.auth.signUp(emailAddress: email, password: password).sendEmailCode().verifyEmailCode("424242")
+                NSLog("CODYNC_TEST_SIGN_IN: sign-up %@, missing %@", String(describing: signUp.status), String(describing: signUp.missingFields))
+                sessionID = signUp.createdSessionId
+            }
+            if let sessionID { try await clerk.auth.setActive(sessionId: sessionID) }
+            NSLog("CODYNC_TEST_SIGN_IN: done, session %@", sessionID ?? "none")
+        } catch {
+            errorMessage = "Test sign-in failed: \(error.localizedDescription)"
+            NSLog("CODYNC_TEST_SIGN_IN: failed: %@", String(describing: error))
+        }
+    }
+    #endif
 
     func handle(_ url: URL) async {
         guard let clerk else { return }

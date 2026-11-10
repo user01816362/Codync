@@ -2,6 +2,7 @@ package com.codync.android
 
 import android.app.Activity
 import android.content.Context
+import java.lang.ref.WeakReference
 import com.clerk.api.Clerk
 import com.clerk.api.ClerkConfigurationOptions
 import com.clerk.api.hostedauth.HostedAuthCancellationException
@@ -14,6 +15,9 @@ import com.clerk.api.user.delete
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -42,34 +46,58 @@ data class AccountState(val ready: Boolean = false, val configured: Boolean = Na
 object NativeAccounts {
     val configured = BuildConfig.CLERK_PUBLISHABLE_KEY.startsWith("pk_test_") || BuildConfig.CLERK_PUBLISHABLE_KEY.startsWith("pk_live_")
 
+    private val servicesEnabled = MutableStateFlow(false)
+    private var activity = WeakReference<Activity>(null)
+    private const val CONSENT = "accountServicesEnabled"
+
     fun initialize(activity: Activity) {
-        if (configured) Clerk.initialize(activity, BuildConfig.CLERK_PUBLISHABLE_KEY,
+        this.activity = WeakReference(activity)
+        val consent = activity.getSharedPreferences("account-mode", Context.MODE_PRIVATE).getBoolean(CONSENT, false) &&
+            !activity.getSharedPreferences("codync-account", Context.MODE_PRIVATE).getBoolean("without_account", false)
+        val ticket = BuildConfig.CLERK_PUBLISHABLE_KEY.startsWith("pk_test_") &&
+            File(activity.filesDir, "dev-sign-in-ticket").exists()
+        if (configured && (consent || ticket)) enableServices(activity)
+    }
+
+    private fun enableServices(activity: Activity) {
+        if (!configured || servicesEnabled.value) return
+        activity.getSharedPreferences("account-mode", Context.MODE_PRIVATE).edit().putBoolean(CONSENT, true).apply()
+        Clerk.initialize(activity, BuildConfig.CLERK_PUBLISHABLE_KEY,
             ClerkConfigurationOptions(enableDebugMode = false, telemetryEnabled = false))
+        servicesEnabled.value = true
     }
 
     fun observe(scope: CoroutineScope, update: suspend (AccountState) -> Unit) = scope.launch {
-        if (!configured) { update(AccountState(ready = true)); return@launch }
-        combine(Clerk.isInitialized, Clerk.sessionFlow, Clerk.sessionsFlow,
-            Clerk.multiSessionModeIsEnabledFlow, Clerk.initializationError) { ready, selected, sessions, multiple, error ->
-            val accounts = sessions.filter { it.status == Session.SessionStatus.ACTIVE && it.expireAt > System.currentTimeMillis() }
-                .mapNotNull { session -> session.user?.let { user -> SavedAccount(user.id, session.id,
-                    user.primaryEmailAddress?.emailAddress ?: "Codync account", user.imageUrl.takeIf { it.startsWith("https://") }) } }
-                .distinctBy(SavedAccount::userId)
-            AccountState(ready, true, selected?.usableUserId(), accounts, multiple,
-                if (error != null && !ready) "Couldn't restore sign-in. Check your connection and retry." else null)
-        }.collect { update(it) }
+        servicesEnabled.collectLatest { enabled ->
+            if (!enabled) update(AccountState(ready = true))
+            else {
+                combine(Clerk.isInitialized, Clerk.sessionFlow, Clerk.sessionsFlow,
+                    Clerk.multiSessionModeIsEnabledFlow, Clerk.initializationError) { ready, selected, sessions, multiple, error ->
+                    val accounts = sessions.filter { it.status == Session.SessionStatus.ACTIVE && it.expireAt > System.currentTimeMillis() }
+                        .mapNotNull { session -> session.user?.let { user -> SavedAccount(user.id, session.id,
+                            user.primaryEmailAddress?.emailAddress ?: "Codync account", user.imageUrl.takeIf { it.startsWith("https://") }) } }
+                        .distinctBy(SavedAccount::userId)
+                    AccountState(ready, true, selected?.usableUserId(), accounts, multiple,
+                        if (error != null && !ready) "Couldn't restore sign-in. Check your connection and retry." else null)
+                }.collect { update(it) }
+            }
+        }
     }
 
     /** The signed-in account right now; `observe` reports the same once its flows catch up. */
-    fun activeUserId(): String? = if (configured) Clerk.activeSession?.usableUserId() else null
+    fun activeUserId(): String? = if (servicesEnabled.value) Clerk.activeSession?.usableUserId() else null
 
     private fun Session.usableUserId(): String? = takeIf { it.status == Session.SessionStatus.ACTIVE && it.expireAt > System.currentTimeMillis() }?.user?.id
 
-    internal suspend fun signIn(provider: SignInProvider) = when (provider) {
+    internal suspend fun signIn(provider: SignInProvider) {
+        enableServices(requireNotNull(activity.get()) { "Open the app to sign in." })
+        withTimeout(20_000L) { Clerk.isInitialized.first { it } }
+        when (provider) {
         SignInProvider.Apple -> oauthSignIn(OAuthProvider.APPLE, "Apple")
         SignInProvider.Google -> oauthSignIn(OAuthProvider.GOOGLE, "Google")
         SignInProvider.GitHub -> oauthSignIn(OAuthProvider.GITHUB, "GitHub")
         SignInProvider.Hosted -> hostedSignIn()
+        }
     }
 
     /** [name] words the messages as the iPhone does (`AccountSession.signIn`), so they share its translations. */
@@ -98,7 +126,8 @@ object NativeAccounts {
         val file = File(context.filesDir, "dev-sign-in-ticket")
         val ticket = withContext(Dispatchers.IO) { file.takeIf(File::exists)?.readText()?.trim().also { file.delete() } }
         if (ticket.isNullOrEmpty()) return
-        Clerk.isInitialized.first { it }
+        enableServices(requireNotNull(activity.get()) { "Open the app to sign in." })
+        withTimeout(20_000L) { Clerk.isInitialized.first { it } }
         if (activeUserId() != null) return
         when (val result = Clerk.auth.signInWithTicket(ticket)) {
             // Clerk's own text, which names what went wrong with the ticket.
@@ -147,7 +176,7 @@ object NativeAccounts {
     }
 
     suspend fun reset() {
-        if (!configured) return
+        if (!servicesEnabled.value) return
         // The all-session API clears the SDK's local credentials even when the network is down.
         val result = Clerk.auth.signOut()
         if (result is ClerkResult.Failure) {
@@ -156,7 +185,7 @@ object NativeAccounts {
         }
     }
 
-    fun retry() { if (configured) Clerk.reinitialize() }
+    fun retry() { if (servicesEnabled.value) Clerk.reinitialize() }
 
     suspend fun token(expectedUser: String): String {
         require(Clerk.activeSession?.user?.id == expectedUser) { "Sign in again to reach your account." }

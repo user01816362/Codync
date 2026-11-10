@@ -62,11 +62,7 @@ export function AccountWelcomeView({ onContinue }: { onContinue: () => void }) {
       <VStack align="center" justify="center" gap={14} className="welcome-restoring">
         <Spinner size={24} />
         <Text as="div" size="callout" tone="secondary">{tr(`Checking for a saved account…`)}</Text>
-        {account.isConfigured ? null : (
-          <button className="welcome-skip" onClick={onContinue}>
-            {onThis}
-          </button>
-        )}
+        <button className="welcome-skip" onClick={onContinue}>{tr('Continue without an account')}</button>
       </VStack>
     )
   }
@@ -94,23 +90,15 @@ export function AccountWelcomeView({ onContinue }: { onContinue: () => void }) {
           </VStack>
         </VStack>
         <VStack gap={10} className="welcome-actions" style={rise(beat >= 4)}>
+          <Button onClick={onContinue} className="welcome-button">{account.isConfigured ? tr('Continue without an account') : onThis}</Button>
+          <Text as="div" size="caption2" tone="secondary">{tr('Connect over Wi-Fi, Tailscale, Cloudflare Tunnel or your private relay. No Codync account required.')}</Text>
           {account.isConfigured ? (
             <>
-              <ProviderButton provider="apple" mark={<Icon name="apple.logo" size={20} />} title="Continue with Apple" />
+              <ProviderButton provider="apple" kind="secondary" mark={<Icon name="apple.logo" size={20} />} title="Continue with Apple" />
               <ProviderButton provider="google" kind="secondary" mark={<img src={googleLogo} alt="" width={20} height={20} />} title="Continue with Google" />
               <ProviderButton provider="github" kind="secondary" mark={<Icon name="github.logo" size={20} />} title="Continue with GitHub" />
             </>
           ) : null}
-          {account.isConfigured ? (
-            <button className="welcome-continue" onClick={onContinue}>
-              <VStack as="span" align="center" gap={2}>
-                <Text size="footnote" weight="medium">{tr('Continue without an account')}</Text>
-                <Text size="caption2" tone="secondary">{tr('Phones then connect only over Wi-Fi or Tailscale.')}</Text>
-              </VStack>
-            </button>
-          ) : (
-            <Button kind="secondary" onClick={onContinue} className="welcome-button">{onThis}</Button>
-          )}
           {!account.isConfigured ? (
             <Text as="div" size="footnote" tone="tertiary">{tr(deviceName === 'Mac' ? 'Your bots stay on this Mac. Pair your phone from Settings → Computers.' : 'Your bots stay on this computer. Pair your phone from Settings → Computers.')}</Text>
           ) : null}

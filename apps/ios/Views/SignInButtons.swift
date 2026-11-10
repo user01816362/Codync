@@ -9,7 +9,7 @@ struct SignInButtons: View {
             ProviderButton(provider: .apple, title: "Continue with Apple") {
                 Image(systemName: "apple.logo").font(.system(size: 20))
             }
-            .buttonStyle(.primary)
+            .buttonStyle(.secondary)
             ProviderButton(provider: .google, title: "Continue with Google") {
                 Image("google").resizable().frame(width: 20, height: 20)
             }

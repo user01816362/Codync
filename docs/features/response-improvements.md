@@ -165,5 +165,8 @@ Version 2.43.1 includes the upstream late-group-answer scheduler, OpenCode start
 compatibility, connector-name validation, signed development release channels and version-bump
 tooling. Group display-name mentions, quoted-line filtering, department tools and read receipts
 remain in place. The local development Worker is isolated and includes no hosted-machine
-provisioning. Hosted Codync Cloud, provider-key custody, account enrollment UI and the support
-invitation are excluded. Existing telemetry removals and private relay remain unchanged.
+provisioning. Account enrollment and hosted Codync Cloud are available only through explicit sign-in and
+hosted-computer setup. Continue without an account remains the primary onboarding action.
+Host relay enrollment is opt-in; custom/private relay configuration works independently.
+The support invitation remains disabled. Telemetry is off on host, desktop and Android;
+iPhone analytics remain removed. No private-relay implementation changes are required.

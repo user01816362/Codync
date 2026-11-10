@@ -8,11 +8,13 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 
 ## 2.43.1
 ### zh-Hant
+- 預設可選擇不登入帳號，使用 Wi-Fi、Tailscale、Cloudflare Tunnel 或私人中繼；也可選擇登入以使用帳號與託管電腦功能。
 - 修正延遲的群組回覆未通知提及成員的問題，保留可讀名稱與閱讀紀錄。
 - 改善 OpenCode 舊版本啟動相容性及模型拒絕後的狀態處理。
 - 自訂連接器不能再使用已安裝連接器的名稱。
 
 ### en-US
+- Continue without an account using Wi-Fi, Tailscale, Cloudflare Tunnel or a private relay, or optionally sign in for account and hosted-computer features.
 - Late group replies now notify the members they mention, retaining readable names and read receipts.
 - Improved older OpenCode startup compatibility and handling of model refusals.
 - Custom connectors now reject names already used by installed connectors.

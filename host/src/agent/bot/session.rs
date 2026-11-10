@@ -184,7 +184,7 @@ impl Actor {
             };
             let candidates = launch_commands(&self.cfg)?;
             // Keys saved from an "environment variable" sign-in, and what the harness needs to start.
-            let mut env = crate::agent::auth::launch_env(&self.hub.store, &self.cfg.backend)?;
+            let (mut env, grants) = crate::agent::auth::launch_env(&self.hub.store, &self.cfg.backend)?;
             if self.cfg.backend == "codex" && !env.iter().any(|(k, _)| k == "CODEX_CONFIG") {
                 // Codex's `/compact` takes no instructions: the keep-list is its config's `compact_prompt`.
                 let config = json!({"compact_prompt": codync_mem::compaction::KEEP});
@@ -199,6 +199,7 @@ impl Actor {
                 self.start_candidate(candidate, env, budget, &progress)
             })
             .await?;
+            conn.acp.hold(grants);
             self.conn = Some(conn);
         }
         if self.conn.as_ref().is_some_and(|c| c.adapter == Adapter::Codex) {

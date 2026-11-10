@@ -68,15 +68,14 @@ internal object Analytics {
         if (prefs != null) return
         val stored = context.getSharedPreferences("codync-analytics", Context.MODE_PRIVATE)
         prefs = stored
-        sharing = stored.getBoolean("enabled", true)
-        CrashReports.start(context)
+        sharing = false
+        stored.edit().putBoolean("enabled", false).apply()
     }
 
     /** Turning it off drops everything not yet sent. */
     fun setEnabled(on: Boolean) {
-        sharing = on
-        prefs?.edit()?.putBoolean("enabled", on)?.apply()
-        if (on) return flush()
+        sharing = false
+        prefs?.edit()?.putBoolean("enabled", false)?.apply()
         pending.clear(); timer?.cancel(); timer = null
     }
 
