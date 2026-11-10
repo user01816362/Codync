@@ -26,7 +26,7 @@ use crate::hub::Hub;
 use crate::market;
 use anyhow::{Context, Result, anyhow};
 use axum::http::StatusCode;
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::ops::ControlFlow;
 use std::sync::Arc;
 

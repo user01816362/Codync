@@ -51,8 +51,28 @@ fn validate_delegates(hub: &Hub, delegates: &Value) -> Result<Vec<String>> {
     Ok(ids)
 }
 
+/// A readable, bounded invitation preview, validated before the approval card opens.
+pub fn approval_detail(hub: &Hub, args: &Value) -> Result<String> {
+    let name = bounded(args, "name", 40)?;
+    let agenda = bounded(args, "agenda", 4000)?;
+    let members = validate_delegates(hub, &args["delegates"])?;
+    let chair = string(args, "chair")?;
+    ensure!(members.iter().any(|id| id == chair), "chair must be a delegate");
+    let kind = string(args, "kind")?;
+    ensure!(matches!(kind, "consultation" | "meeting" | "decision"), "invalid room kind");
+    let delegates = args["delegates"].as_array().context("delegates is required")?.iter().map(|d| {
+        let agent = hub.bot_name(d["botId"].as_str().unwrap_or_default());
+        let origin = d["groupId"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Personal".into());
+        format!("{agent} · {origin}")
+    }).collect::<Vec<_>>().join("\n");
+    Ok(format!("{kind}: {name}\nAgenda: {agenda}\n\nDelegates:\n{delegates}\nChair: {}\n\nThis approves these invitations. Existing shared agent-session history and permissions still apply. Discussion is limited to ten turns and ten minutes. The room starts paused; the user controls Start and final approval.", hub.bot_name(chair)))
+}
+
 /// User API, or a managing agent after a mandatory approval card containing this exact agenda/delegate list.
 pub fn create(hub: &Arc<Hub>, args: &Value, creator: Option<&str>) -> Result<Value> {
+    if let Some(creator) = creator {
+        ensure!(hub.store.bot(creator)?.is_some_and(|r| !r.deleted && r.config.manage_groups), "group-management permission was revoked");
+    }
     let name = bounded(args, "name", 40)?;
     let agenda = bounded(args, "agenda", 4000)?;
     let kind = string(args, "kind")?;
@@ -70,11 +90,10 @@ pub fn create(hub: &Arc<Hub>, args: &Value, creator: Option<&str>) -> Result<Val
         "description":agenda,"members":ids,"createdBy":creator,"section":"Meetings"}))?;
     let group = hub.create_meeting_bot(cfg)?;
     let id = string(&group, "id")?;
-    let now = crate::store::now_ms();
     let data = json!({"text":format!("{kind}: {name} — paused. Open Meeting settings to start."),
         "meeting":{"kind":kind,"agenda":agenda,"chair":chair,"delegates":delegates,
         "status":"paused","proposal":"","proposalRevision":0,"positions":{},"spent":0,
-        "limit":10,"remainingMs":600000,"startedAt":null,"deadline":null,"approved":false}});
+        "limit":10,"remainingMs":600_000,"startedAt":null,"deadline":null,"approved":false}});
     if let Err(error) = hub.add_entry_once(&format!("meeting:{id}"), &Lane::main(id), EntryKind::Notice, 0, &data) {
         let _ = hub.delete_bot(id);
         return Err(error);
@@ -130,6 +149,7 @@ fn current(hub: &Hub, group: &BotConfig, meeting: &Value, actor: &str) -> Result
 /// Agents can propose and record only their own position. Final approval/lifecycle remain user actions.
 pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value> {
     let id = string(args, "groupId")?;
+    let _ = state(hub, id)?;
     let (group, previous) = room(hub, id)?;
     ensure!(args["rev"].as_i64() == Some(previous.rev), "room changed; read its current revision first");
     let mut meeting = previous.data["meeting"].clone();
@@ -143,7 +163,7 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
     if command == "report" {
         ensure!(actor.is_none(), "only the user publishes department outcomes");
         ensure!(
-            matches!(status.as_str(), "resolved" | "unresolved" | "cancelled"),
+            matches!(status.as_str(), "resolved" | "completed" | "unresolved" | "cancelled"),
             "finish or pause an unresolved discussion before reporting"
         );
         validate_delegates(hub, &meeting["delegates"])?;
@@ -215,6 +235,15 @@ pub fn action(hub: &Arc<Hub>, args: &Value, actor: Option<&str>) -> Result<Value
             } else if status == "awaiting_owner" {
                 meeting["status"] = "paused".into();
             }
+        }
+        "finish" => {
+            ensure!(meeting["kind"] != "decision", "decision rooms require explicit delegate responses and final approval");
+            ensure!(matches!(status.as_str(), "running" | "paused" | "awaiting_owner" | "unresolved"), "room is closed");
+            meeting["proposal"] = bounded(args, "text", 8000)?.into();
+            meeting["proposalRevision"] = (meeting["proposalRevision"].as_u64().unwrap_or(0) + 1).into();
+            meeting["positions"] = json!({});
+            meeting["approved"] = false.into();
+            meeting["status"] = "completed".into();
         }
         "approve" => {
             validate_delegates(hub, &meeting["delegates"])?;
@@ -374,5 +403,82 @@ pub fn revalidate(hub: &Hub) {
         {
             super::group::stop(hub, &row.config.id);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::remote::identity::Identity;
+    use crate::store::Store;
+
+    fn fixture() -> Arc<Hub> {
+        let store = Store::open(std::path::Path::new(":memory:")).expect("store");
+        for value in [
+            json!({"id":"a","name":"Alpha","backend":"claude","cwd":"/tmp"}),
+            json!({"id":"b","name":"Beta","backend":"claude","cwd":"/tmp"}),
+            json!({"id":"outside","name":"Outsider","backend":"claude","cwd":"/tmp"}),
+            json!({"id":"dept","name":"Development","kind":"group","members":["a","b"]}),
+            json!({"id":"room","name":"Launch","kind":"group","members":["a","b"]}),
+        ] {
+            let cfg: BotConfig = serde_json::from_value(value).expect("config");
+            store.save_bot(&cfg).expect("save");
+        }
+        let identity = Identity {
+            sign: ed25519_dalek::SigningKey::from_bytes(&[1; 32]),
+            box_secret: x25519_dalek::StaticSecret::from([2; 32]),
+        };
+        let hub = Hub::new(store, "host".into(), identity, "token".into(), 0);
+        hub.add_entry_once("meeting:room", &Lane::main("room"), EntryKind::Notice, 0, &json!({"text":"Decision room","meeting":{"kind":"decision","status":"paused","agenda":"Launch?","chair":"a","delegates":[{"botId":"a","groupId":"dept","name":"Alpha","department":"Development"},{"botId":"b","groupId":"dept","name":"Beta","department":"Development"}],"proposal":"","proposalRevision":0,"positions":{},"spent":0,"limit":10,"remainingMs":600_000,"startedAt":null}})).expect("room");
+        hub
+    }
+
+    fn act(hub: &Arc<Hub>, who: Option<&str>, command: &str, extra: Value) -> Result<Value> {
+        let mut args = json!({"groupId":"room","rev":state(hub,"room")?["rev"],"action":command});
+        for (key, value) in extra.as_object().into_iter().flatten() { args[key] = value.clone(); }
+        action(hub, &args, who)
+    }
+
+    #[test]
+    fn approval_requires_explicit_current_positions_and_the_user() {
+        let hub = fixture();
+        act(&hub, None, "propose", json!({"text":"Launch after review"})).expect("proposal");
+        assert!(call(&hub,"outside","meeting_status",&json!({"groupId":"room"})).is_err());
+        act(&hub, Some("a"), "position", json!({"proposalRevision":1,"position":"approve","text":"Evidence checked"})).expect("first");
+        assert!(act(&hub,None,"approve",json!({})).is_err());
+        act(&hub, Some("b"), "position", json!({"proposalRevision":1,"position":"abstain","text":"Missing evidence"})).expect("abstain");
+        assert!(act(&hub,None,"approve",json!({})).is_err());
+        act(&hub, Some("b"), "position", json!({"proposalRevision":1,"position":"approve","text":"Evidence supplied"})).expect("second");
+        assert!(act(&hub,Some("a"),"approve",json!({})).is_err());
+        act(&hub,None,"approve",json!({})).expect("owner approval");
+        assert_eq!(state(&hub,"room").expect("state")["meeting"]["status"],"resolved");
+        act(&hub,None,"report",json!({})).expect("report");
+        act(&hub,None,"report",json!({})).expect("retry");
+        assert_eq!(hub.store.messages_after(&Lane::main("dept"),0,24).expect("history").len(),1);
+    }
+
+    #[test]
+    fn new_proposals_invalidate_votes_and_stale_revisions() {
+        let hub = fixture();
+        let old = act(&hub,None,"propose",json!({"text":"First"})).expect("proposal");
+        act(&hub,Some("a"),"position",json!({"proposalRevision":1,"position":"approve","text":"Reviewed"})).expect("vote");
+        act(&hub,None,"propose",json!({"text":"Changed"})).expect("revision");
+        assert!(state(&hub,"room").expect("state")["meeting"]["positions"].as_object().expect("positions").is_empty());
+        assert!(act(&hub,Some("b"),"position",json!({"proposalRevision":1,"position":"approve","text":"Old"})).is_err());
+        assert!(action(&hub,&json!({"groupId":"room","rev":old["rev"],"action":"archive"}),None).is_err());
+    }
+
+    #[test]
+    fn budgets_survive_turns_and_meetings_are_not_permanent_group_duplicates() {
+        let hub = fixture();
+        let mut saved = entry(&hub,"room").expect("entry");
+        saved.data["meeting"]["status"] = "running".into();
+        saved.data["meeting"]["deadline"] = (crate::store::now_ms()+600_000).into();
+        saved.data["meeting"]["spent"] = 9.into();
+        hub.set_entry_if_revision(&saved,&saved.data).expect("save");
+        assert!(reserve(&hub,"room","a").expect("last turn"));
+        assert!(!reserve(&hub,"room","b").expect("budget"));
+        assert_eq!(state(&hub,"room").expect("state")["meeting"]["status"],"unresolved");
+        assert_eq!(super::super::group::with_members(&hub.store,&["a".into(),"b".into()]).expect("lookup"),Some("dept".into()));
     }
 }

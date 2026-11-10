@@ -75,7 +75,7 @@ impl App {
         let (title, note, inputs) = match kind.as_str() {
             "meeting" => (
                 "Meeting room",
-                "Inspect the current room below. Actions: resume, pause, propose, approve, report, cancel, archive, reopen. Final approval requires every delegate to approve the same proposal. For a new room, create explicitly approves the displayed invitations. Shared agent-session history still applies.",
+                "Inspect the current room below. Actions: resume, pause, propose, approve, finish (consultation/meeting), report, cancel, archive, reopen. Final approval requires every delegate to approve the same proposal. For a new room, create explicitly approves the displayed invitations. Shared agent-session history still applies.",
                 if data["draft"].is_object() {
                     vec![
                         input("action", "Action", "create", false),

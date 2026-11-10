@@ -13,6 +13,7 @@ struct MeetingRoom: View {
     @State private var chair = ""
     @State private var proposal = ""
     @State private var busy = false
+    @State private var notice: String?
     @State private var failure: String?
     @State private var attempt = 0
     private var group: Bot? { model.bots[groupId] }
@@ -24,6 +25,7 @@ struct MeetingRoom: View {
                 VStack(alignment: .leading, spacing: 24) {
                     Text("Participants keep their existing permissions and shared agent-session history. Share only material intended for this room.")
                         .font(.caption).foregroundStyle(Palette.secondary)
+                    if let notice { Text(notice).font(.caption).foregroundStyle(Palette.secondary) }
                     if let failure { Text(failure).foregroundStyle(Palette.danger).textSelection(.enabled) }
                     if let room {
                         CardSection("\(room.meeting.kind) · \(room.meeting.status)") {
@@ -51,10 +53,11 @@ struct MeetingRoom: View {
                                 Button("Start / Resume") { act("resume") }.disabled(room.meeting.spent >= room.meeting.limit)
                             }
                             if room.meeting.status == "running" { Button("Pause") { act("pause") } }
+                            if room.meeting.kind != "decision", !["completed", "resolved", "archived", "cancelled"].contains(room.meeting.status) { Button("Complete with summary") { act("finish") }.disabled(proposal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                             if room.meeting.status == "awaiting_owner" { Button("Approve final decision") { act("approve") } }
-                            if ["resolved", "unresolved", "cancelled"].contains(room.meeting.status) { Button("Publish outcome to departments") { act("report") } }
+                            if ["resolved", "completed", "unresolved", "cancelled"].contains(room.meeting.status) { Button("Publish outcome to departments") { act("report") } }
                             Button(room.meeting.status == "archived" ? "Reopen" : "Archive") { act(room.meeting.status == "archived" ? "reopen" : "archive") }
-                            if !["resolved", "archived", "cancelled"].contains(room.meeting.status) { Button("Cancel meeting", role: .destructive) { act("cancel") } }
+                            if !["resolved", "completed", "archived", "cancelled"].contains(room.meeting.status) { Button("Cancel meeting", role: .destructive) { act("cancel") } }
                         }
                     } else if group?.meeting != true {
                         creation
@@ -108,15 +111,16 @@ struct MeetingRoom: View {
 
     private func load() async {
         guard let client = model.live else { return }
-        do { let saved: Snapshot = try await client.call("meetingState", ["groupId": room?.groupId ?? groupId]); if !Task.isCancelled { room = saved; failure = nil } }
+        do { let saved: Snapshot = try await client.call("meetingState", ["groupId": room?.groupId ?? groupId]); if !Task.isCancelled { room = saved } }
         catch { if !Task.isCancelled { failure = error.localizedDescription } }
     }
     private func act(_ action: String) {
         guard let client = model.live, let room, !busy else { return }
         busy = true
+        failure = nil
         Task {
             defer { busy = false }
-            do { let _: Accepted = try await client.call("meetingAction", Action(groupId: room.groupId, rev: room.rev, action: action, text: action == "propose" ? proposal : nil)); attempt += 1 }
+            do { let response: Accepted = try await client.call("meetingAction", Action(groupId: room.groupId, rev: room.rev, action: action, text: ["propose", "finish"].contains(action) ? proposal : nil)); if let destinations = response.deliveredTo { notice = "Outcome published to \(destinations.count) departments. No automatic follow-up was requested." }; attempt += 1 }
             catch { failure = error.localizedDescription; attempt += 1 }
         }
     }
@@ -129,7 +133,7 @@ struct MeetingRoom: View {
             catch { failure = error.localizedDescription }
         }
     }
-    private struct Accepted: Decodable {}
+    private struct Accepted: Decodable { let deliveredTo: [String]? }
     private struct Action: Encodable { let groupId: String; let rev: Int64; let action: String; let text: String? }
     private struct Creation: Encodable { let name: String; let agenda: String; let kind: String; let chair: String; let delegates: [Delegate] }
     private struct Delegate: Codable { let botId: String; var groupId: String? = nil; var name: String? = nil; var department: String? = nil }

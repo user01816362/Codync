@@ -24,6 +24,7 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
   const [chair, setChair] = useState('')
   const [proposal, setProposal] = useState('')
   const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const revision = groupId ? store.entries.get(groupId)?.find(entry => entry.id === `meeting:${groupId}`)?.rev : undefined
@@ -36,7 +37,11 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
   const run = async (action: string) => {
     if (!store.client || !room || busy) return
     setBusy(true); setError(null)
-    try { await store.client.call('meetingAction', { groupId: room.groupId, rev: room.rev, action, ...(action === 'propose' ? { text: proposal } : {}) }); setAttempt(n => n + 1) }
+    try {
+      const result = await store.client.call<{ deliveredTo?: string[] }>('meetingAction', { groupId: room.groupId, rev: room.rev, action, ...(['propose', 'finish'].includes(action) ? { text: proposal } : {}) })
+      setNotice(result.deliveredTo ? `Outcome published to ${result.deliveredTo.length} departments. No automatic follow-up was requested.` : null)
+      setAttempt(n => n + 1)
+    }
     catch (e: unknown) { setError(String(e)); setAttempt(n => n + 1) }
     finally { setBusy(false) }
   }
@@ -57,6 +62,7 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
     <div className="bot-form"><div className="bot-form-content">
       <Text size="caption" tone="secondary">Participants keep their existing permissions and shared agent-session history. Only the agenda and material you explicitly share belong in this discussion.</Text>
       {error ? <Text role="status" tone="danger">{error}</Text> : null}
+      {notice ? <Text role="status">{notice}</Text> : null}
       {!meeting ? <>
         <CardSection title="Room">
           <Field label="Name"><input dir="auto" className="field-box" value={name} maxLength={40} onChange={e => setName(e.target.value)} /></Field>
@@ -85,10 +91,11 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
         <HStack gap={8} wrap>
           {['paused', 'unresolved'].includes(meeting.status) ? <Button disabled={disabled || meeting.spent >= meeting.limit} onClick={() => void run('resume')}>Start / Resume</Button> : null}
           {meeting.status === 'running' ? <Button disabled={disabled} onClick={() => void run('pause')}>Pause</Button> : null}
+          {meeting.kind !== 'decision' && !['completed', 'resolved', 'archived', 'cancelled'].includes(meeting.status) ? <Button disabled={disabled || !proposal.trim()} onClick={() => void run('finish')}>Complete with summary</Button> : null}
           {meeting.status === 'awaiting_owner' ? <Button disabled={disabled} onClick={() => void run('approve')}>Approve final decision</Button> : null}
-          {['resolved', 'unresolved', 'cancelled'].includes(meeting.status) ? <Button disabled={disabled} onClick={() => void run('report')}>Publish outcome to departments</Button> : null}
+          {['resolved', 'completed', 'unresolved', 'cancelled'].includes(meeting.status) ? <Button disabled={disabled} onClick={() => void run('report')}>Publish outcome to departments</Button> : null}
           {meeting.status !== 'archived' ? <Button kind="secondary" disabled={disabled} onClick={() => void run('archive')}>Archive</Button> : <Button disabled={disabled} onClick={() => void run('reopen')}>Reopen</Button>}
-          {!['resolved', 'archived', 'cancelled'].includes(meeting.status) ? <Button kind="secondary" disabled={disabled} onClick={() => void run('cancel')}>Cancel meeting</Button> : null}
+          {!['resolved', 'completed', 'archived', 'cancelled'].includes(meeting.status) ? <Button kind="secondary" disabled={disabled} onClick={() => void run('cancel')}>Cancel meeting</Button> : null}
         </HStack>
       </>}
     </div></div>

@@ -72,10 +72,7 @@ pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result
     if name == "propose_meeting" {
         let mut approving = source.clone();
         approving.permission = crate::store::Permission::Ask;
-        let detail = format!(
-            "{}\n\nDelegates and departments: {}\nChair: {}\nThis enrolls these delegates in a separate room. Existing shared agent-session history and permissions still apply. Discussion is limited to ten turns and ten minutes; final decisions require the user's approval.",
-            args["agenda"], args["delegates"], args["chair"]
-        );
+        let detail = crate::chat::meetings::approval_detail(hub, args)?;
         approve(hub, &approving, "Create meeting room and invite delegates".into(), detail).await?;
         return crate::chat::meetings::create(hub, args, Some(bot));
     }

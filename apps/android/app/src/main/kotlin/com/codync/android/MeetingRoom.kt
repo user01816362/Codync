@@ -25,6 +25,7 @@ import kotlinx.serialization.json.*
     var proposal by remember(groupId) { mutableStateOf("") }
     var attempt by remember(groupId) { mutableStateOf(0) }
     var busy by remember(groupId) { mutableStateOf(false) }
+    var notice by remember(groupId) { mutableStateOf<String?>(null) }
     var failure by remember(groupId) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val disabled = busy || state.actualConnection !is LinkState.Ready
@@ -41,10 +42,11 @@ import kotlinx.serialization.json.*
         busy = true; failure = null
         scope.launch {
             try {
-                store.hostQuery("meetingAction", buildJsonObject {
+                val result = store.hostQuery("meetingAction", buildJsonObject {
                     put("groupId", roomId); put("rev", room!!["rev"]!!); put("action", action)
-                    if (action == "propose") put("text", proposal)
+                    if (action in listOf("propose", "finish")) put("text", proposal)
                 })
+                result.jsonObject["deliveredTo"]?.jsonArray?.let { notice = "Outcome published to ${it.size} departments. No automatic follow-up was requested." }
                 attempt += 1
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { failure = error.message; attempt += 1 }
@@ -55,6 +57,7 @@ import kotlinx.serialization.json.*
         ModalHeader(if (room == null) "New meeting room" else "Meeting room")
         Column(Modifier.verticalScroll(rememberScrollState()).padding(14.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             Text(tr("Participants keep their existing permissions and shared agent-session history. Share only material intended for this room."), style = Type.caption, color = Palette.secondary)
+            notice?.let { Text(it, style = Type.caption, color = Palette.secondary) }
             failure?.let { Text(it, color = Palette.danger) }
             val meeting = room?.get("meeting")?.jsonObject
             if (meeting == null && group?.meeting != true) {
@@ -109,10 +112,11 @@ import kotlinx.serialization.json.*
                 CardSection("Room actions") {
                     if (status in listOf("paused", "unresolved")) row { SecondaryButton("Start / Resume", enabled = !disabled && (meeting["spent"]?.jsonPrimitive?.intOrNull ?: 10) < 10) { run("resume") } }
                     if (status == "running") row { SecondaryButton("Pause", enabled = !disabled) { run("pause") } }
+                    if (meeting.text("kind") != "decision" && status !in listOf("completed", "resolved", "archived", "cancelled")) row { SecondaryButton("Complete with summary", enabled = !disabled && proposal.isNotBlank()) { run("finish") } }
                     if (status == "awaiting_owner") row { PrimaryButton("Approve final decision", enabled = !disabled) { run("approve") } }
-                    if (status in listOf("resolved", "unresolved", "cancelled")) row { SecondaryButton("Publish outcome to departments", enabled = !disabled) { run("report") } }
+                    if (status in listOf("resolved", "completed", "unresolved", "cancelled")) row { SecondaryButton("Publish outcome to departments", enabled = !disabled) { run("report") } }
                     row { SecondaryButton(if (status == "archived") "Reopen" else "Archive", enabled = !disabled) { run(if (status == "archived") "reopen" else "archive") } }
-                    if (status !in listOf("resolved", "archived", "cancelled")) row { SecondaryButton("Cancel meeting", enabled = !disabled) { run("cancel") } }
+                    if (status !in listOf("resolved", "completed", "archived", "cancelled")) row { SecondaryButton("Cancel meeting", enabled = !disabled) { run("cancel") } }
                 }
             }
         }
