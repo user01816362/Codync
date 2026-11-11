@@ -7,6 +7,13 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.43.2
+### zh-Hant
+- bot 頭像的點變大了：大頭像也改用 9 × 9 的大點，看起來更清楚。
+
+### en-US
+- Bot avatars have larger dots: large avatars now use the same 9 × 9 grid of big dots, so they read more clearly.
+
 ## 2.43.1
 ### zh-Hant
 - 預設可選擇不登入帳號，使用 Wi-Fi、Tailscale、Cloudflare Tunnel 或私人中繼；也可選擇登入以使用帳號與託管電腦功能。
