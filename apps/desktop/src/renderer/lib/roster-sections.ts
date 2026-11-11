@@ -25,16 +25,14 @@ export type RosterLine<T> =
 
 /**
  * A computer's roster (already in roster order, hidden bots left out) as lines: the pinned rows, then
- * each section by name with its rows, then rows without a section, under a "Bots" label when there are
- * sections. A pinned bot shows only on top. A folded section still holds its rows, so its fold can
+ * each section by name with its rows, then rows without a section, under an "Unassigned" label, including before the first folder is created. A pinned bot shows only on top. A folded section still holds its rows, so its fold can
  * animate.
  */
 export function rosterLines<T extends { bot: Placed }>(items: T[], folded: readonly string[], order: readonly string[] = []): RosterLine<T>[] {
   const row = (item: T): RosterLine<T> => ({ kind: 'row', item })
   const groups = rosterGroups(items, folded, order)
-  const labeled = groups.some((group) => group.name !== '')
   return [...items.filter((item) => item.bot.pinned).map(row), ...groups.flatMap((group): RosterLine<T>[] =>
-    group.name !== '' ? [group] : [...(labeled ? [{ kind: 'label' } as const] : []), ...group.items.map(row)])]
+    group.name !== '' ? [group] : [{ kind: 'label' }, ...group.items.map(row)])]
 }
 
 /** The same whole groups for rendering, keyboard navigation, dragging, and renaming. */

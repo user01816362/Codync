@@ -9,9 +9,11 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 
 ## 2.43.2
 ### zh-Hant
+- 聊天列表會顯示「未分類」；資料夾選單的名稱也更清楚。
 - bot 頭像的點變大了：大頭像也改用 9 × 9 的大點，看起來更清楚。
 
 ### en-US
+- Unassigned chats are labeled before you create your first folder, with clearer folder menus.
 - Bot avatars have larger dots: large avatars now use the same 9 × 9 grid of big dots, so they read more clearly.
 
 ## 2.43.1

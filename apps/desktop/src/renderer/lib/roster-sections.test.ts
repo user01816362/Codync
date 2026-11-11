@@ -37,12 +37,12 @@ test('a folded section keeps its rows for the fold, but only its header is on sc
   assert.deepEqual(shownRows(rosterLines(roster, [])).map((i) => i.id), ['a', 'b', 'c'])
 })
 
-test('a section only its pinned bots are in has no header, and no header means no label', () => {
-  assert.deepEqual(outline(rosterLines([item('p', 'Work', { pinned: true }), item('c')], [])), ['p', 'c'])
+test('pinned chats stay above Unassigned even when their folder has no other chats', () => {
+  assert.deepEqual(outline(rosterLines([item('p', 'Work', { pinned: true }), item('c')], [])), ['p', 'BOTS', 'c'])
 })
 
-test('the label shows only with a section header and a bot in none', () => {
-  assert.deepEqual(outline(rosterLines([item('a'), item('b')], [])), ['a', 'b'])
+test('Unassigned is visible without custom folders and absent without unassigned chats', () => {
+  assert.deepEqual(outline(rosterLines([item('a'), item('b')], [])), ['BOTS', 'a', 'b'])
   assert.deepEqual(outline(rosterLines([item('p', undefined, { pinned: true }), item('a', 'Work')], [])), ['p', 'Work 1 0: a'])
 })
 

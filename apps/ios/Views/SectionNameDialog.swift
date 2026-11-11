@@ -24,7 +24,7 @@ private struct SectionNameDialog: ViewModifier {
     func body(content: Content) -> some View {
         content
             .codyncDialog(naming?.title ?? "", isPresented: Binding(get: { naming != nil }, set: { if !$0 { naming = nil } }),
-                          field: DialogField("Section name", text: $name)) {
+                          field: DialogField("Folder name", text: $name)) {
                 // Read as the dialog shows: closing clears `naming`.
                 let target = naming
                 return [DialogAction("Save") {

@@ -73,7 +73,7 @@ public struct RosterSection: Sendable {
 
     /// A computer's roster (in `BotStore.roster` order) as the rows on screen: the pinned bots, then
     /// each section by name with its bots (none while folded), then the bots in no section, under the
-    /// "Bots" label when there are sections. A pinned bot shows only on top, whatever its section;
+    /// "Unassigned" label, including before the first folder is created. A pinned bot shows only on top, whatever its section;
     /// every part keeps the roster's order.
     public static func lines<Item>(_ roster: [Item], folded: Set<String>, order: [String] = [], bot: (Item) -> Bot) -> [RosterSectionLine<Item>] {
         var pinned: [Item] = [], loose: [Item] = [], bySection: [String: [Item]] = [:]
@@ -92,7 +92,7 @@ public struct RosterSection: Sendable {
         let names = ComputerOrder(ids: order).orderedIDs(available)
         for name in names {
             if name.isEmpty {
-                if !bySection.isEmpty { lines.append(.label) }
+                lines.append(.label)
                 lines += loose.map { RosterSectionLine.bot($0) }
                 continue
             }

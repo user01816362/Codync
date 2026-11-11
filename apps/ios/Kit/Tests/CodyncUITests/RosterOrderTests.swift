@@ -79,8 +79,8 @@ private func rosterBot(_ id: String, pinned: Bool = false, lead: Bool = false, h
     // A pinned bot shows only on top; its section counts the rest.
     #expect(shown([]) == ["p", "▾ home 1 0", "h", "▾ İş 1 0", "i", "▾ Work 2 5", "w1", "w2", "BOTS", "loose"])
     #expect(shown(["Work"]) == ["p", "▾ home 1 0", "h", "▾ İş 1 0", "i", "▸ Work 2 5", "BOTS", "loose"])
-    // A section only pinned bots are in has no heading, and with no heading no label.
-    #expect(RosterSection.lines([roster[0], roster[2]], folded: []) { $0 }.count == 2)
+    // A pinned-only folder has no heading; loose chats still have Unassigned.
+    #expect(RosterSection.lines([roster[0], roster[2]], folded: []) { $0 }.count == 3)
     // The label needs a bot in no section too.
     #expect(RosterSection.lines([roster[1]], folded: []) { $0 }.count == 2)
 }

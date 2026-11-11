@@ -131,7 +131,7 @@ Sections group a computer's bots under headings you name, such as Work and Perso
 - **Reorder sections:** drag a heading up or down (iPhone: touch and hold, then drag). Move custom sections above or below **Bots**; pinned bots stay on top. Each device remembers its own order. On Desktop, focus a heading and press `Alt+↑` or `Alt+↓`. Terminal UI: select a bot in the section and press `Alt+↑` or `Alt+↓`; its order lasts until you quit.
 - **Fold a section:** tap or click its heading to fold its bots away. A folded heading shows their unread count. Each device keeps its own folds. Terminal UI: `z`, or click the section's label; its folds last until you quit.
 - **Rename or remove a section:** touch and hold its heading (Desktop: right-click it) and choose **Rename section…** or **Remove section**. Its bots stay, without a section. Renaming it to another section's name merges the two. Terminal UI: `W`; an empty name removes the section.
-- Pinned bots stay on top, outside sections. A pinned bot goes back to its section when you unpin it. Bots in no section sit under a **Bots** label, and dragging moves a bot only within its section.
+- Pinned bots stay on top, outside sections. A pinned bot goes back to its section when you unpin it. Chats in no folder sit under **Unassigned**, including before you create your first folder, and dragging moves a bot only within its section.
 
 ## Sessions
 
@@ -195,3 +195,11 @@ Absolute file links forwarded between bots can open from any registered bot work
 ## Reported context
 
 Bot details show the last context usage and window size reported by the agent. The report time identifies when the computer received it. **Not reported by this agent** means no valid report is available; it does not mean zero use. This is separate from billing usage. Changing session, backend or model hides the previous report until the new session reports. In the terminal, focus **Summarize long chats** to see context reporting in its help.
+
+### Organize chats on desktop
+
+Use the folder button beside **Unassigned**, or **+ → Organize chats…**. Enter a folder name or choose an existing folder, select the chats, and click **Move selected**. **+ → New folder…** creates a folder with the chats you select. A folder exists while at least one chat belongs to it; empty folders are not kept.
+
+Moved chats appear under their folder heading. Moving a chat into a collapsed folder expands that folder on this device. Use the heading's **Folder options** button to rename it or ungroup its chats. Ungrouping keeps the chats and their history. Pinned chats stay at the top until you unpin them.
+
+On iPhone and Android, touch and hold a chat and choose **Move to folder → New folder…** or an existing folder. These are sidebar folders, separate from filesystem workspaces and group membership. Assignments sync through the host; folding and order stay device-local.

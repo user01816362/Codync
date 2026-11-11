@@ -41,7 +41,7 @@ internal fun rosterLines(roster: List<Bot>, folded: Set<String>, order: List<Str
     val names = orderedSections(custom + if (sections[null].isNullOrEmpty()) emptyList() else listOf(""), order)
     for (name in names) {
         if (name.isEmpty()) {
-            if (custom.isNotEmpty()) add(RosterLine.Label)
+            add(RosterLine.Label)
             if (!moving) sections[null].orEmpty().forEach { add(RosterLine.Row(it)) }
         } else {
             val bots = sections.getValue(name)

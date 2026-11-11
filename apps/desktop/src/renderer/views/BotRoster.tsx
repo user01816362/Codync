@@ -38,11 +38,12 @@ interface Lift {
   seq: number
 }
 
-export function BotRoster({ roster, compact, onContext, onSectionContext, openExtensions }: {
+export function BotRoster({ roster, compact, onContext, onSectionContext, organize, openExtensions }: {
   roster: ReturnType<typeof useComputerRoster>
   compact: boolean
   onContext: (bot: Bot, store: BotStore, x: number, y: number) => void
   onSectionContext: (section: string, store: BotStore, x: number, y: number) => void
+  organize: (store: BotStore) => void
   /** A computer's own Extensions, from its heading. */
   openExtensions: (computerId: string) => void
 }) {
@@ -219,6 +220,7 @@ export function BotRoster({ roster, compact, onContext, onSectionContext, openEx
     const index = roster.sections.findIndex((s) => s.computer.id === computer.id)
     const notice = store.mismatch && !compact ? <StoreContext.Provider value={store}><UpdateNeededCard /></StoreContext.Provider> : null
     const rows = <SectionRoster computerId={computer.id} items={ordered(computer.id, items)} compact={compact}
+      organize={store.hasRosterSections ? () => organize(store) : undefined}
       folded={roster.folded} order={roster.sectionOrders[computer.id] ?? []}
       save={(names) => roster.orderSections(computer.id, names)} toggle={roster.toggleFold}
       onContext={(name, x, y) => onSectionContext(name, store, x, y)} row={(item) => row(item, items)} />

@@ -322,12 +322,12 @@ struct BotListView: View {
         if store.supportsSections {
             header.contextActions {
                 [
-                    MenuItem("Rename section…", icon: "pencil") {
-                        naming = SectionNaming(title: "Rename section", name: section.name) {
+                    MenuItem("Rename folder…", icon: "pencil") {
+                        naming = SectionNaming(title: "Rename folder", name: section.name) {
                             renameSection(section.name, to: $0, on: store)
                         }
                     },
-                    MenuItem("Remove section", icon: "xmark.circle") { renameSection(section.name, to: nil, on: store) },
+                    MenuItem("Ungroup chats", icon: "xmark.circle") { renameSection(section.name, to: nil, on: store) },
                 ]
             }
         } else {
@@ -393,19 +393,19 @@ struct BotListView: View {
         }
     }
 
-    /// "Move to section ▸": the computer's other sections (by the names the user gave them, never
+    /// "Move to folder ▸": the computer's other sections (by the names the user gave them, never
     /// translated), a new one, and out of its own.
     private func sectionMenu(_ bot: Bot, store: BotStore) -> MenuItem {
         var rows = store.sections.filter { $0 != bot.section }.map { name in
             MenuItem(name, icon: "tray", verbatim: true) { store.setSection(bot, to: name) }
         }
-        rows.append(MenuItem("New section…", icon: "plus", divider: !rows.isEmpty) {
-            naming = SectionNaming(title: "New section", name: "") { store.setSection(bot, to: $0) }
+        rows.append(MenuItem("New folder…", icon: "plus", divider: !rows.isEmpty) {
+            naming = SectionNaming(title: "New folder", name: "") { store.setSection(bot, to: $0) }
         })
         if bot.section != nil {
-            rows.append(MenuItem("Remove from section", icon: "minus.circle") { store.setSection(bot, to: nil) })
+            rows.append(MenuItem("Move to Unassigned", icon: "minus.circle") { store.setSection(bot, to: nil) })
         }
-        return MenuItem("Move to section", icon: "tray", submenu: rows)
+        return MenuItem("Move to folder", icon: "tray", submenu: rows)
     }
 
     /// The system asks for a row's item as it lifts; the row shows as lifted until it lets go.

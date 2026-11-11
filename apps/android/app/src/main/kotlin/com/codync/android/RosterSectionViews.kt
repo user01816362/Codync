@@ -74,7 +74,7 @@ import com.codync.android.design.*
 /** The plain "Bots" label over the bots in no section: a header's name, where its row starts; it folds nothing. */
 @Composable internal fun SectionLabel(modifier: Modifier = Modifier, drag: ContextDrag? = null, move: (Int) -> Unit = {}) {
     val translate = translator()
-    Text(tr("Bots"), modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp).contextActions(reorder = drag) { emptyList() }.semantics {
+    Text(tr("Unassigned"), modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp).contextActions(reorder = drag) { emptyList() }.semantics {
         heading()
         customActions = moveActions(translate, move)
     }.padding(vertical = 6.dp),
@@ -82,19 +82,19 @@ import com.codync.android.design.*
 }
 
 /**
- * The row's "Move to section" submenu: each other section there is (by the name the user gave it, never translated), a new one,
+ * The row's "Move to folder" submenu: each other section there is (by the name the user gave it, never translated), a new one,
  * and none when the bot is in one; [move] puts the bot in a section (null: out of its own).
  */
 internal fun sectionMenu(bot: Bot, sections: List<String>, move: (String?) -> Unit, newSection: () -> Unit): MenuItem {
     val others = sections.filter { it != bot.section }.map { name -> MenuItem(name, icon = "tray", verbatim = true) { move(name) } }
-    return MenuItem("Move to section", icon = "tray", children = others + listOfNotNull(
-        MenuItem("New section…", icon = "plus", divider = others.isNotEmpty(), action = newSection),
-        if (bot.section != null) MenuItem("Remove from section", icon = "minus.circle") { move(null) } else null,
+    return MenuItem("Move to folder", icon = "tray", children = others + listOfNotNull(
+        MenuItem("New folder…", icon = "plus", divider = others.isNotEmpty(), action = newSection),
+        if (bot.section != null) MenuItem("Move to Unassigned", icon = "minus.circle") { move(null) } else null,
     ))
 }
 
 /** The header's menu: rename the section, or remove it (its bots stay, without a section). */
 internal fun sectionActions(rename: () -> Unit, remove: () -> Unit): List<MenuItem> = listOf(
-    MenuItem("Rename section…", icon = "pencil", action = rename),
-    MenuItem("Remove section", icon = "xmark.circle", action = remove),
+    MenuItem("Rename folder…", icon = "pencil", action = rename),
+    MenuItem("Ungroup chats", icon = "xmark.circle", action = remove),
 )

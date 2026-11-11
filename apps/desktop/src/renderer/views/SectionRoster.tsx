@@ -10,7 +10,7 @@ import { RosterLabel, RosterSection } from './RosterSection'
 interface Drag { name: string; order: string[]; at: Point; grab: Point; width: number }
 
 /** Sections move as blocks within one computer, including the unsectioned Bots group. */
-export function SectionRoster({ computerId, items, compact, folded, order, save, toggle, onContext, row }: {
+export function SectionRoster({ computerId, items, compact, folded, order, save, toggle, onContext, organize, row }: {
   computerId: string
   items: RosterItem[]
   compact: boolean
@@ -19,6 +19,7 @@ export function SectionRoster({ computerId, items, compact, folded, order, save,
   save: (names: string[]) => void
   toggle: (name: string) => void
   onContext: (name: string, x: number, y: number) => void
+  organize?: () => void
   row: (item: RosterItem) => ReactNode
 }) {
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -27,7 +28,6 @@ export function SectionRoster({ computerId, items, compact, folded, order, save,
   const ghost = useRef<HTMLDivElement>(null)
   const groups = rosterGroups(items, folded, order)
   const byName = new Map(groups.map((group) => [group.name, group]))
-  const custom = groups.some((group) => group.name !== '')
   const names = groups.map((group) => group.name)
   const shown = drag?.order ?? names
   const update = (next: Drag | null) => { current.current = next; setDrag(next) }
@@ -58,7 +58,7 @@ export function SectionRoster({ computerId, items, compact, folded, order, save,
     const group = byName.get(name)
     if (!group) return null
     const props = preview ? {} : { drag: handlers(name), move: (offset: number) => move(name, offset) }
-    return name === '' ? <RosterLabel compact={compact} {...props} /> : <RosterSection name={name} count={group.count}
+    return name === '' ? <RosterLabel compact={compact} organize={preview ? undefined : organize} {...props} /> : <RosterSection name={name} count={group.count}
       unread={group.unread} compact={compact}
       folded={drag !== null || folded.includes(name)} toggle={() => toggle(name)}
       onContext={(x, y) => onContext(name, x, y)} {...props}>
@@ -68,7 +68,7 @@ export function SectionRoster({ computerId, items, compact, folded, order, save,
   return <div ref={container} data-section-computer={computerId}>
     {items.filter((item) => item.bot.pinned).map(row)}
     {shown.map((name) => <SectionBlock key={name} name={name} lifted={drag?.name === name}>
-      {name === '' && !custom ? null : label(name)}
+      {label(name)}
       {name === '' ? <div className={`computer-roster-content ${drag ? 'collapsed' : ''}`} inert={drag !== null} aria-hidden={drag !== null}>
         <div>{byName.get('')?.items.map(row)}</div>
       </div> : null}

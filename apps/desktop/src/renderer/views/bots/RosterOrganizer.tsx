@@ -6,6 +6,7 @@ import { ModalHeader, SheetPage } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { limitSectionName, sectionName, sectionNames } from '../../lib/roster-sections'
+import { prefs } from '../../lib/prefs'
 import { useModel } from '../../lib/observable'
 import { useTr } from '../../lib/use-language'
 import type { BotStore } from '../../store/bot-store'
@@ -46,6 +47,7 @@ export function RosterOrganizer({ store, creating = false, close }: { store: Bot
           setNotice(`${moved} chats moved. Remaining chats were not moved. Try again when connected.`)
           return
         }
+        if (to !== null) prefs.collapsedRosterSections.set(prefs.collapsedRosterSections.get().filter(name => name !== to))
         moved += 1
         if (creating) setCreated(true)
         setSelected(value => { const next = new Set(value); next.delete(id); return next })
@@ -64,7 +66,7 @@ export function RosterOrganizer({ store, creating = false, close }: { store: Bot
             <input dir="auto" autoFocus={creating} className="field-box" aria-label={tr('Folder name')} placeholder={tr('Name your folder')} value={section}
               disabled={disabled} onChange={event => setSection(limitSectionName(event.target.value))} />
           </Field>
-          {!creating && names.length > 0 ? <ChoicePicker selection={section} options={names.map(name => ({ id: name, label: name }))} onChange={name => { if (!disabled) setSection(name) }} /> : null}
+          {!creating && names.length > 0 ? <Field label="Existing folder"><ChoicePicker selection={section} options={names.map(name => ({ id: name, label: name }))} onChange={name => { if (!disabled) setSection(name) }} /></Field> : null}
         </CardSection>
         {duplicate ? <Text tone="danger" role="status">{tr('A folder with this name already exists. Use Organize chats to move chats into it.')}</Text> : null}
         {store.isOffline ? <Text tone="attention" role="status">{tr('Reconnect to this computer to organize chats.')}</Text> : null}

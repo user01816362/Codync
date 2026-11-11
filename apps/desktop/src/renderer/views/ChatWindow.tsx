@@ -416,9 +416,11 @@ function ChatSplitView() {
         <div className="roster" ref={listRef} tabIndex={0} onKeyDown={onListKey}>
           {roster.grouped && !compact ? <ExtensionsMovedTip /> : null}
           <BotRoster roster={roster} compact={compact}
+            organize={(store) => { setCreatingFolder(false); setOrganizing(store) }}
             onContext={(bot, store, x, y) => setContext({ items: botActions(bot, store), x, y })}
             onSectionContext={(section, store, x, y) => {
               const items = sectionHeaderItems(section, store, setNaming, (to) => roster.renameSection(store, section, to))
+              if (store.hasRosterSections) items.unshift({ title: 'Organize chats…', icon: 'folder', action: () => { setCreatingFolder(false); setOrganizing(store) } })
               if (items.length) setContext({ items, x, y })
             }}
             openExtensions={(id) => {

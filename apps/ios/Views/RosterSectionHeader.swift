@@ -74,7 +74,7 @@ struct RosterSectionHeader: View {
 /// rows line up; it folds nothing and has no menu.
 struct RosterBotsLabel: View {
     var body: some View {
-        Text(L10n.tr("Bots"))
+        Text(L10n.tr("Unassigned"))
             .font(.footnote.weight(.semibold))
             .foregroundStyle(Palette.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)

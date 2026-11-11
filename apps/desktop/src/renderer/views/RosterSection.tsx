@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { IconButton } from '../components/Controls'
 import { Icon } from '../components/Icon'
 import { HStack } from '../components/Stack'
 import { Text } from '../components/Text'
@@ -27,7 +28,8 @@ export function RosterSection({ name, count, unread, folded, compact, toggle, on
   useSlide(section)
   return (
     <section ref={section} aria-label={name}>
-      <button data-section-heading className="roster-section-toggle" {...drag} onKeyDown={(e) => {
+      <div className="roster-section-heading">
+        <button data-section-heading className="roster-section-toggle" {...drag} onKeyDown={(e) => {
         if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); e.stopPropagation(); move?.(e.key === 'ArrowUp' ? -1 : 1) }
       }} aria-expanded={!folded} aria-label={name} title={name} onClick={toggle}
         onContextMenu={(e) => {
@@ -42,6 +44,11 @@ export function RosterSection({ name, count, unread, folded, compact, toggle, on
           {folded && unread > 0 ? <span className="unread-badge">{unread}</span> : null}
         </HStack>
       </button>
+        {!compact ? <IconButton title="Folder options" icon="ellipsis" size={24} onClick={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect()
+        onContext(rect.right, rect.bottom)
+      }} /> : null}
+      </div>
       <div className={`computer-roster-content ${folded ? 'collapsed' : ''}`} inert={folded} aria-hidden={folded}>
         <div>{children}</div>
       </div>
@@ -49,16 +56,18 @@ export function RosterSection({ name, count, unread, folded, compact, toggle, on
   )
 }
 
-/** The plain "Bots" label over the bots in no section, set like a section's name; it folds nothing.
+/** The plain "Unassigned" label over the bots in no section, set like a section's name; it folds nothing.
  *  The narrow rail drops its text, as headers drop their names, and keeps the gap. */
-export function RosterLabel({ compact, drag, move }: { compact: boolean; drag?: ReturnType<typeof pointerDrag>; move?: (offset: number) => void }) {
+export function RosterLabel({ compact, drag, move, organize }: { compact: boolean; organize?: () => void; drag?: ReturnType<typeof pointerDrag>; move?: (offset: number) => void }) {
   const tr = useTr()
   const label = useRef<HTMLButtonElement>(null)
   useSlide(label)
-  return <button ref={label} data-section-heading className="roster-label" {...drag} aria-label={tr('Unassigned')}
+  return <div className="roster-section-heading"><button ref={label} data-section-heading className="roster-label" {...drag} aria-label={tr('Unassigned')}
     onKeyDown={(e) => {
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); e.stopPropagation(); move?.(e.key === 'ArrowUp' ? -1 : 1) }
     }}>
     {!compact ? <Text as="span" size="caption" weight="semibold" tone="secondary">{tr('Unassigned')}</Text> : null}
   </button>
+    {!compact && organize ? <IconButton title="Organize chats" icon="folder" size={24} onClick={organize} /> : null}
+  </div>
 }

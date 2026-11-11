@@ -64,9 +64,9 @@ class RosterSectionsTest {
 
     @Test fun withoutSectionsTheRosterShowsAsItIs() {
         val plain = listOf(Bot("pin", pinned = true), Bot("a"), Bot("b"))
-        assertEquals(plain.map { RosterLine.Row(it) }, rosterLines(plain, emptySet()))
-        // Only a pinned bot is in a section: no header, so no label.
-        assertEquals(listOf(RosterLine.Row(pinned), RosterLine.Row(loose)), rosterLines(listOf(pinned, loose), emptySet()))
+        assertEquals(listOf(RosterLine.Row(plain[0]), RosterLine.Label) + plain.drop(1).map { RosterLine.Row(it) }, rosterLines(plain, emptySet()))
+        // Pinned-only folders have no header; loose chats still have Unassigned.
+        assertEquals(listOf(RosterLine.Row(pinned), RosterLine.Label, RosterLine.Row(loose)), rosterLines(listOf(pinned, loose), emptySet()))
     }
 
     @Test fun theLabelNeedsABotInNoSection() {
