@@ -340,7 +340,7 @@ private fun AppState.chatItems(bot: Bot) =
     val paging = remember { EarlierPaging() }
     // Pull to refresh reconnects, like Reconnect in the roster's computer menu, until the link is back.
     val linked = state.messageReveal?.takeIf { it.first == bot.id }
-    val reveal = if (linked != null) items.indexOfFirst { it is ChatItem.Message && it.entry.id == linked.second }.takeIf { it >= 0 }
+    val reveal = if (linked != null && found == null) items.indexOfFirst { it is ChatItem.Message && it.entry.id == linked.second }.takeIf { it >= 0 }
         ?.let { ConversationReveal(items[it].id, it + if (more) 1 else 0, linked.third.hashCode()) }
         else items.indexOfFirst { it.id == found }.takeIf { it >= 0 }?.let { ConversationReveal(items[it].id, it + if (more) 1 else 0, findStep) }
     ConversationList(list, items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop,

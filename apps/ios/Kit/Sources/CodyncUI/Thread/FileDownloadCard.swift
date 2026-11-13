@@ -36,9 +36,8 @@ struct FileDownloadCard: View {
             if file.playsInChat {
                 Button(audio.state == .playing ? L10n.tr("Pause") : L10n.tr("Play"), action: play)
             }
-            if file.showsAsImage {
-                Button(L10n.tr("View"), action: view)
-            }
+            if file.showsAsImage { Button(L10n.tr("View"), action: view) }
+            if file.showsAsPreview { Button(L10n.tr("Open")) { viewingText = true } }
             Button(L10n.tr(Self.action(download)), action: self.download)
         }
         .audioSeekAdjustable(file.playsInChat ? audio : nil)
@@ -48,7 +47,7 @@ struct FileDownloadCard: View {
     /// A double tap runs what the card leads with: play a sound, open a picture, else download (Android's and the
     /// desktop's first action, the voice-note bubble's double tap).
     private func firstAction() {
-        if file.playsInChat { play() } else if file.showsAsImage { view() } else { download() }
+        if file.playsInChat { play() } else if file.showsAsImage { view() } else if file.showsAsPreview { viewingText = true } else { download() }
     }
 
     private func view() { openImage(ImageViewing(source: source, menu: menu)) }

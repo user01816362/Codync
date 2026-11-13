@@ -530,8 +530,8 @@ extension ThreadView {
             if case .entry(let entry, _) = item.kind { return entry.id == linked?.id }
             return false
         })?.id : nil
-        let reveal = linkedId.map { ConversationReveal(id: $0, step: linked?.nonce.hashValue ?? 0) }
-            ?? shown.map { ConversationReveal(id: $0.id, step: findReveal) }
+        let reveal = shown.map { ConversationReveal(id: $0.id, step: findReveal) }
+            ?? linkedId.map { ConversationReveal(id: $0, step: linked?.nonce.hashValue ?? 0) }
         return ConversationList(rows: rows, following: $following, reveal: reveal, nearTop: { showEarlier() }, refresh: {
             model.restartStream()
             _ = try? await model.ready()

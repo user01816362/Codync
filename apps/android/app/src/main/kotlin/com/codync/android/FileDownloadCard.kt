@@ -66,7 +66,7 @@ import kotlinx.coroutines.launch
     val caption = detail(file, download, player, translate)
     val play = { player?.let { scope.launch { it.toggle() } }; Unit }
     val save = { store.toggleFile(entry.id, entry.botId, file) }
-    val view = if (file.showsAsImage) ({ viewing = true }) else null
+    val view = if (file.showsAsImage) ({ viewing = true }) else if (file.canOpenPreview) ({ viewingText = true }) else null
     Column(Modifier.fillMaxWidth().contextActions(reactions = menu.reactions, onClick = { focus.clearFocus() }) {
         menu.items(if (file.showsAsImage) imageCopyItems(store, file.imageSource(entry.id, store)) else listOf(textCopyItem(context, entry.text)))
     }.clip(RoundedRectangle(16.dp)).background(Palette.bubbleAgent)
