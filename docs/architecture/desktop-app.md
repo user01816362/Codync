@@ -191,3 +191,9 @@ regression fixture: [composer checks](../guides/composer.md).
 Section headings and the unsectioned Bots group also drag up or down within their computer. Alt+Up/Down on a focused heading moves it one place. Dragging folds the groups temporarily; cancelling restores the order, and dropping saves it per computer on this device.
 
 Roster action submenus open beside their parent on hover, click, Enter or Right. They flip left near the window edge; a short hover delay keeps the path into the child stable. Left or Escape returns to the parent. This mouse-specific behavior is desktop-only: iPhone uses its native context menu, Android keeps touch submenus, and the terminal uses keyboard prompts.
+
+### macOS host lifetime
+
+The local host is app-owned by default. With **Keep the host running after quitting** off (including an unset preference), the app removes its own existing launch agent and starts the bundled host as a non-detached child with the normal data directory, token, port and log. No launch agent is installed in this mode. The host watches its parent identity so a crashed app cannot leave it running indefinitely; normal Quit and app updates request graceful shutdown.
+
+Turning the setting on immediately replaces that child with the persistent launchd service. Turning it off immediately removes the owned service and returns to an app-owned host. Failed transitions are shown and the setting is restored. A service from another installation is not removed. Closing a window still leaves the macOS app running; Quit ends it. Linux and Windows keep their existing service lifecycle. iPhone, Android and the terminal connect to hosts and do not control a Mac app's lifetime.

@@ -155,8 +155,8 @@ function registerIPC(tray: Tray) {
   ipcMain.on('app:debugOpen', (e) => (e.returnValue = app.isPackaged ? null : (process.env.CODYNC_DEBUG_OPEN ?? null)))
   ipcMain.handle('host:snapshot', () => snapshot())
   ipcMain.handle('host:keepRunningAfterQuit', () => host.keepRunningAfterQuit())
-  ipcMain.handle('host:setKeepRunningAfterQuit', (_e, on: boolean) => {
-    host.setKeepRunningAfterQuit(on === true)
+  ipcMain.handle('host:setKeepRunningAfterQuit', async (_e, on: boolean) => {
+    await host.setKeepRunningAfterQuit(on === true)
     return host.keepRunningAfterQuit()
   })
   ipcMain.on('host:install', () => void host.install())
@@ -271,8 +271,8 @@ if (yieldsToInstall()) {
       // Only the opaque windows: a color on the transparent notch island paints its whole panel.
       for (const w of [chat, pairing]) w?.setBackgroundColor(background())
     })
-    // Quitting ends the host too: no background service outlives the app, or starts again at sign-in without
-    // it. The next launch installs it again. Quitting waits for the service to go, so nothing is left behind.
+    // Quitting ends the app-owned host too; on macOS no launch agent is installed by default.
+    // Quitting waits for graceful host shutdown before the app exits.
     // Settings → General can keep the host running instead (`host.keepRunningAfterQuit()`).
     // Registered here, not at startup: a second instance that loses the single-instance lock must not stop the
     // host the running one is using.

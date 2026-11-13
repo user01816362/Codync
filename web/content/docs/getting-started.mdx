@@ -148,3 +148,9 @@ routine names, custom tool titles and message contents stay as written.
 ## Community and help
 
 Ask questions and share feedback on [Discord](https://discord.gg/KBAX3Qznxh), or join the [community for Codync users in China](/wechat) to exchange tips in Chinese. The WeChat group is temporarily unavailable; scan the Lark QR code with the Lark app instead.
+
+## Host lifetime on macOS
+
+**Settings → General → Keep the host running after quitting** is off by default. Off runs the host only while Codync is running, without installing a login service. Turning it off removes this installation's existing background service immediately. Turning it on installs the background service so bots can keep working after you quit. Changing the setting restarts the host.
+
+Closing the window leaves Codync running in the menu bar. Use **Quit Codync** to stop the app and its host when background mode is off. **Open at login** is a separate choice: it starts the app at login. Your chats, pairing keys and connection settings stay in the same data directory.

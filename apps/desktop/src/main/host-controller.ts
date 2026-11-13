@@ -1,7 +1,7 @@
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, promises as fs, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, promises as fs, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { join, resolve } from 'node:path'
 import { app } from 'electron'
@@ -103,6 +103,8 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   private quitting = false
   /** The update request already passed on to the app's updater. */
   private updateRequest: number | null = null
+  /** macOS default: owned by the app, with no persistent launch agent. */
+  private child: ChildProcess | null = null
 
   get binary(): string | null {
     const candidates = [
@@ -154,6 +156,12 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
   async refresh() {
     if (this.preparingForUpdate || this.quitting) return
     if (!this.binary && devPort === null) return this.setupFailed('missing_binary', { kind: 'missingBinary' })
+    if (isMac && devPort === null && !this.keepRunningAfterQuit()) {
+      if (this.uninstalled()) return this.setState({ kind: 'notInstalled' })
+      if (!this.child || serviceInstalled()) return this.install()
+      this.connect()
+      return
+    }
     if (devPort === null && prefs.get('hostRestartAfterAppUpdate') === true && serviceInstalled()) return this.install()
     if (devPort === null && !serviceInstalled()) {
       // The app is the way to run the host: set it up right away, unless the user took it out.
@@ -193,6 +201,14 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     this.setState({ kind: 'starting' })
     try {
       await this.verifyBinary(bin)
+      if (isMac && !this.keepRunningAfterQuit()) {
+        await this.stopAppHost()
+        await this.removeOwnedService(bin)
+        if (!this.quitting) await this.startAppHost(bin)
+        if (!this.quitting) this.connect()
+        return
+      }
+      await this.stopAppHost()
       const result = await run(bin, ['install', '--port', String(port)])
       if (result.status !== 0) {
         this.setupFailed('install', { kind: 'failed', message: result.output || 'Install failed' })
@@ -231,35 +247,92 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     return (await res.json()) as T
   }
 
-  /** Settings → General: whether quitting leaves this computer's host service in place. */
+  /** macOS opts into a persistent service; other platforms keep their existing quit policy. */
   keepRunningAfterQuit() {
     return prefs.get('hostKeepRunningAfterQuit') === true
   }
 
-  setKeepRunningAfterQuit(on: boolean) {
+  async setKeepRunningAfterQuit(on: boolean) {
+    if (this.installing || this.preparingForUpdate || this.quitting) throw new Error('The host is changing. Try again when it finishes.')
+    if (isMac && devPort === null && !this.binary) throw new Error('The bundled host is missing.')
+    const previous = this.keepRunningAfterQuit()
     prefs.set('hostKeepRunningAfterQuit', on)
+    if (!isMac || devPort !== null) return
+    try {
+      await this.install()
+      if (this.state.kind === 'failed') throw new Error(this.state.message)
+    } catch (error) {
+      prefs.set('hostKeepRunningAfterQuit', previous)
+      throw error
+    }
+  }
+
+  /** Remove only the launch agent belonging to this app; never touch an unrelated installation. */
+  private async removeOwnedService(bin: string) {
+    if (!serviceInstalled()) return
+    if (!serviceRuns(bin)) throw new Error('Another Codync installation owns the host service. Remove it using that installation first.')
+    const stopped = await run(bin, ['stop'])
+    if (stopped.status !== 0) throw new Error(stopped.output || 'The host could not be stopped.')
+    const removed = await run(bin, ['uninstall'])
+    if (removed.status !== 0 || serviceInstalled()) throw new Error(removed.output || 'The host service could not be removed.')
+  }
+
+  private async startAppHost(bin: string) {
+    if (this.child) return
+    mkdirSync(dataDir, { recursive: true })
+    const log = openSync(this.logPath, 'a')
+    try {
+      const child = spawn(bin, ['serve', '--port', String(port)], {
+        env: { ...process.env, CODYNC_HOME: dataDir, CODYNC_DESKTOP_PARENT_PID: String(process.pid) },
+        stdio: ['ignore', log, log],
+        detached: false,
+      })
+      this.child = child
+      child.once('exit', () => {
+        if (this.child !== child) return
+        this.child = null
+        this.setLocal(null)
+        if (!this.quitting && !this.preparingForUpdate && !this.installing) {
+          this.stopLoop()
+          this.setState({ kind: 'failed', message: 'The host stopped. Restart it to continue.' })
+        }
+      })
+      await new Promise<void>((resolve, reject) => {
+        child.once('spawn', resolve)
+        child.once('error', (error) => { if (this.child === child) this.child = null; reject(error) })
+      })
+    } finally { closeSync(log) }
+  }
+
+  private async stopAppHost() {
+    const child = this.child
+    if (!child) return
+    if (child.exitCode !== null || child.signalCode !== null) { this.child = null; return }
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('The host did not stop. Try again after its work has ended.')), 45_000)
+      child.once('exit', () => { clearTimeout(timeout); resolve() })
+      child.once('error', (error) => { clearTimeout(timeout); reject(error) })
+      child.kill('SIGTERM')
+    })
   }
 
   /**
    * Quitting the app ends this computer's host too: nothing of Codync keeps running (or stays reachable)
    * behind the person's back. The service is removed rather than only stopped, so launchd doesn't start it
-   * again at sign-in; the next launch installs it again. A service belonging to another installation is
-   * left alone, as `uninstall` does. Settings → General can keep the host running instead.
+   * again at sign-in. macOS normally runs an app-owned child without installing a service. A service belonging
+   * to another installation is left alone. Settings → General can keep the host running instead.
    */
   async stopForQuit(): Promise<void> {
     if (this.keepRunningAfterQuit()) return
     this.quitting = true
     this.stopLoop()
-    // An installer already past its guard can create the service after Quit starts.
-    // Drain it before checking ownership or removing anything.
-    await this.installation
-    const bin = this.binary
-    if (devPort !== null || !bin || !serviceRuns(bin)) return
     try {
-      const stopped = await run(bin, ['stop'])
-      if (stopped.status !== 0) throw new Error(stopped.output || 'The host could not be stopped.')
-      const removed = await run(bin, ['uninstall'])
-      if (removed.status !== 0 || serviceInstalled()) throw new Error(removed.output || 'The host service could not be removed.')
+      // An install already underway may register a service after Quit begins; drain it first.
+      await this.installation
+      await this.stopAppHost()
+      const bin = this.binary
+      if (devPort !== null || !bin) return
+      if (serviceRuns(bin)) await this.removeOwnedService(bin)
       prefs.set('hostRestartAfterAppUpdate', false)
       this.setLocal(null)
       this.setState({ kind: 'notInstalled' })
@@ -276,6 +349,7 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     try {
       await this.verifyBinary(bin)
       this.stopLoop()
+      await this.stopAppHost()
       const result = await run(bin, ['uninstall'])
       if (result.status !== 0) throw new Error(result.output || 'Uninstall failed')
       prefs.set('hostUninstalled', true)
@@ -303,6 +377,8 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
     const bin = this.binary
     if (!bin) throw new Error('The bundled host is missing.')
     await this.verifyBinary(bin)
+    await this.stopAppHost()
+    if (isMac && !serviceInstalled()) return
     const result = await run(bin, ['stop'])
     if (result.status !== 0) throw new Error(result.output || 'The old host could not be stopped.')
   }
@@ -316,7 +392,7 @@ export class HostController extends EventEmitter<{ change: []; setupFailed: [sta
 
   async isIdleForUpdate(): Promise<boolean> {
     if (this.installing || this.preparingForUpdate || devPort !== null) return false
-    if (!serviceInstalled()) return true
+    if (!serviceInstalled() && !this.child) return true
     const health = await fetchHealth()
     return health?.busy === false
   }

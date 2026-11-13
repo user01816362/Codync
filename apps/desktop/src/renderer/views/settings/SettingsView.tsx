@@ -124,6 +124,7 @@ function PageContent({ page }: { page: SettingsPage }) {
 
 /** Account, window and app preferences. */
 function GeneralSettings() {
+  const app = useApp()
   const account = useAccount()
   const [appearance, setAppearance] = useState<Appearance>('system')
   useEffect(() => void window.codync.app.appearance().then(setAppearance), [])
@@ -140,6 +141,7 @@ function GeneralSettings() {
   const [launchAtLogin, setLaunchAtLogin] = useState(false)
   useEffect(() => void window.codync.app.launchAtLogin().then(setLaunchAtLogin), [])
   const [keepRunning, setKeepRunning] = useState(false)
+  const [changingHost, setChangingHost] = useState(false)
   useEffect(() => void window.codync.host.keepRunningAfterQuit().then(setKeepRunning), [])
   const [island, setIsland] = useState(false)
   useEffect(() => void window.codync.island.enabled().then(setIsland), [])
@@ -242,9 +244,14 @@ function GeneralSettings() {
         </Switch>
         <SwitchRow
           title="Keep the host running after quitting"
-          detail="Off, Quit stops the host and removes its background service. On, bots keep working after Quit. Closing the window keeps the app running in either mode."
+          detail={isMac ? "Off, the host runs only with Codync, without a login service. On, bots keep working after Quit. Changing this restarts the host. Closing the window keeps the app running." : "Off, Quit stops the host and removes its background service. On, bots keep working after Quit. Closing the window keeps the app running in either mode."}
           on={keepRunning}
-          onChange={(on) => void window.codync.host.setKeepRunningAfterQuit(on).then(setKeepRunning)}
+          disabled={changingHost}
+          onChange={(on) => {
+            setChangingHost(true)
+            void window.codync.host.setKeepRunningAfterQuit(on).then(setKeepRunning)
+              .catch((error: unknown) => app.setError(errorText(error))).finally(() => setChangingHost(false))
+          }}
         />
       </CardSection>
       <PrivacySettings />

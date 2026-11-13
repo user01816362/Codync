@@ -596,7 +596,28 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => {}
         () = term => {}
+        () = desktop_app_closed() => {}
     }
+}
+
+/// A foreground macOS host belongs to its Electron parent, even when the app crashes.
+/// Background services and manually started hosts have no parent marker and keep their usual lifetime.
+async fn desktop_app_closed() {
+    #[cfg(target_os = "macos")]
+    if let Some(parent) = std::env::var("CODYNC_DESKTOP_PARENT_PID")
+        .ok()
+        .and_then(|pid| pid.parse::<libc::pid_t>().ok())
+        .filter(|pid| *pid > 1)
+    {
+        loop {
+            // SAFETY: getppid takes no arguments and only reads the calling process's parent ID.
+            if unsafe { libc::getppid() } != parent {
+                return;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+    std::future::pending::<()>().await;
 }
 
 /// Reads the identity and token only; never creates them (that's `serve`'s job).

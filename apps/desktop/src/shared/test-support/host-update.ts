@@ -4,15 +4,16 @@ import * as path from 'node:path'
 import { environmentProfile, hostEnvironmentError } from '../environment.ts'
 import { loadMainModule, settle } from './main-module.ts'
 
-export function hostUpdateFixture(options: { environment?: 'main' | 'dev'; platform?: string; devPort?: string; installed?: boolean; missingBinary?: boolean; restartMarker?: boolean } = {}) {
+export function hostUpdateFixture(options: { environment?: 'main' | 'dev'; platform?: string; devPort?: string; installed?: boolean; missingBinary?: boolean; restartMarker?: boolean; background?: boolean } = {}) {
   const identity = environmentProfile(options.environment ?? 'main')
   const platform = options.platform ?? 'darwin'
   const binary = platform === 'win32' ? '/bundle/codync-host.exe' : platform === 'linux' ? '/home/test/.local/bin/codync-host' : '/bundle/codync-host'
   const binaryBytes = Buffer.from('new signed host fixture')
-  const persisted: Record<string, unknown> = { hostRestartAfterAppUpdate: options.restartMarker ?? false }
+  const persisted: Record<string, unknown> = { hostRestartAfterAppUpdate: options.restartMarker ?? false, hostKeepRunningAfterQuit: options.background ?? true }
   const calls: string[][] = []
   const order: string[] = []
   const fetched: string[] = []
+  const spawned: { args: string[]; options: Record<string, unknown>; child: EventEmitter & { pid: number; exitCode: number | null; signalCode: string | null; kill: () => boolean } }[] = []
   const timers = new Map<number, { callback: () => void; ms: number }>()
   let timerId = 0
   const behavior = {
@@ -35,6 +36,8 @@ export function hostUpdateFixture(options: { environment?: 'main' | 'dev'; platf
     realpathSync: (name: string) => name,
     readFileSync: (name: string) => name.endsWith('host-prefs.json') ? JSON.stringify(persisted) : service(),
     mkdirSync: () => {},
+    openSync: () => 42,
+    closeSync: () => {},
     writeFileSync: (_name: string, value: string) => { Object.assign(persisted, JSON.parse(value)) },
     promises: {
       readFile: async (name: string) => name.endsWith('/token') ? 'fixture-token' : binaryBytes,
@@ -45,12 +48,21 @@ export function hostUpdateFixture(options: { environment?: 'main' | 'dev'; platf
     'node:os': { homedir: () => '/home/test', platform: () => platform },
     'node:child_process': {
       execFileSync: () => service(),
+      spawn: (_bin: string, args: string[], options: Record<string, unknown>) => {
+        const child = Object.assign(new EventEmitter(), { pid: 777, exitCode: null as number | null, signalCode: null as string | null,
+          kill: () => { Promise.resolve().then(() => { child.exitCode = 0; child.emit('exit', 0, null) }); return true } })
+        spawned.push({ args: [...args], options, child })
+        Promise.resolve().then(() => child.emit('spawn'))
+        return child
+      },
       execFile: (_bin: string, args: string[], _options: unknown, callback: (error: { code: number } | null, stdout: string, stderr: string) => void) => {
         if (args[0] === 'compat') {
           callback(null, JSON.stringify({ environment: behavior.binaryEnvironment }), '')
           return
         }
         calls.push([...args]); order.push(args[0]!)
+        if (args[0] === 'uninstall') behavior.installed = false
+        if (args[0] === 'install') behavior.installed = true
         const status = args[0] === 'stop' ? behavior.stopStatus : behavior.installStatus
         callback(status ? { code: status } : null, '', status ? 'service command failed' : '')
       },
@@ -61,7 +73,7 @@ export function hostUpdateFixture(options: { environment?: 'main' | 'dev'; platf
     './screen': { unregisterScreenAgent: () => { order.push('unregisterScreen') } },
   }, {
     __dirname: '/app/out/main',
-    process: { env: options.devPort ? { CODYNC_PORT: options.devPort } : {}, resourcesPath: '/bundle' },
+    process: { pid: 123, env: options.devPort ? { CODYNC_PORT: options.devPort } : {}, resourcesPath: '/bundle' },
     setTimeout: (callback: () => void, ms: number) => { const id = ++timerId; timers.set(id, { callback, ms }); return id },
     clearTimeout: (id: number) => timers.delete(id),
     fetch: async (url: string) => {
@@ -79,5 +91,5 @@ export function hostUpdateFixture(options: { environment?: 'main' | 'dev'; platf
     }
     await settle()
   }
-  return { host, prefs: module.prefs, persisted, calls, order, fetched, behavior, tick }
+  return { host, prefs: module.prefs, persisted, calls, order, fetched, behavior, tick, spawned }
 }

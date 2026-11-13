@@ -144,3 +144,79 @@ test('development service installs on its own port', async () => {
   await installing
   assert.equal(f.host.state.kind, 'running')
 })
+
+
+test('macOS default runs an app-owned host without installing a login service', async () => {
+  const f = hostUpdateFixture({ background: false, installed: false })
+  delete f.persisted.hostKeepRunningAfterQuit
+  const starting = f.host.install()
+  await settle()
+  await f.tick(1000)
+  await starting
+  assert.equal(f.calls.some(args => args[0] === 'install'), false)
+  assert.equal(f.behavior.installed, false)
+  assert.deepEqual(f.spawned.map(child => child.args), [['serve', '--port', '19222']])
+  await f.host.stopForQuit()
+  assert.equal(f.spawned[0]?.child.exitCode, 0)
+})
+
+test('macOS off migrates the owned launch agent into an app-owned host', async () => {
+  const f = hostUpdateFixture({ background: false })
+  const starting = f.host.install()
+  await settle()
+  await f.tick(1000)
+  await starting
+  assert.deepEqual(f.calls, [['stop'], ['uninstall']])
+  assert.equal(f.behavior.installed, false)
+  assert.equal(f.spawned.length, 1)
+})
+
+test('macOS background toggle applies immediately in both directions', async () => {
+  const f = hostUpdateFixture({ background: true })
+  const disabling = f.host.setKeepRunningAfterQuit(false)
+  await settle()
+  await f.tick(1000)
+  await disabling
+  assert.equal(f.behavior.installed, false)
+  assert.equal(f.spawned.length, 1)
+  const enabling = f.host.setKeepRunningAfterQuit(true)
+  await settle()
+  await f.tick(1000)
+  await enabling
+  assert.equal(f.spawned[0]?.child.exitCode, 0)
+  assert.equal(f.behavior.installed, true)
+  assert.equal(f.host.keepRunningAfterQuit(), true)
+})
+
+
+test('macOS foreground host is stopped for updates and busy work postpones them', async () => {
+  const f = hostUpdateFixture({ background: false, installed: false })
+  await f.host.install()
+  const environment = f.spawned[0]?.options.env as Record<string, string>
+  assert.equal(environment.CODYNC_DESKTOP_PARENT_PID, '123')
+  f.behavior.busy = true
+  assert.equal(await f.host.isIdleForUpdate(), false)
+  await f.host.prepareForUpdate()
+  assert.equal(f.spawned[0]?.child.exitCode, 0)
+  assert.equal(f.persisted.hostRestartAfterAppUpdate, false)
+})
+
+test('failed macOS background removal keeps the previous setting and surfaces failure', async () => {
+  const f = hostUpdateFixture({ background: true })
+  f.behavior.stopStatus = 1
+  await assert.rejects(f.host.setKeepRunningAfterQuit(false), /service command failed/)
+  assert.equal(f.host.keepRunningAfterQuit(), true)
+  assert.equal(f.behavior.installed, true)
+  assert.equal(f.spawned.length, 0)
+})
+
+
+test('restarting the app-owned host replaces its process without installing a service', async () => {
+  const f = hostUpdateFixture({ background: false, installed: false })
+  await f.host.install()
+  await f.host.install()
+  assert.equal(f.spawned.length, 2)
+  assert.equal(f.spawned[0]?.child.exitCode, 0)
+  assert.equal(f.behavior.installed, false)
+  assert.equal(f.calls.length, 0)
+})
