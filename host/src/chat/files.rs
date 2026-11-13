@@ -180,7 +180,13 @@ pub fn snapshot_image(root: &Path, mime: &str, encoded: &str, cancelled: &Atomic
     let final_path = path(root, &id)?;
     let partial = final_path.with_extension("partial");
     let mut owned = Snapshot {
-        meta: SharedFile { id, name: format!("Image.{extension}"), size: 0, sha256: String::new(), plays_in_chat: false },
+        meta: SharedFile {
+            id,
+            name: format!("Image.{extension}"),
+            size: 0,
+            sha256: String::new(),
+            plays_in_chat: false,
+        },
         path: partial.clone(),
         committed: false,
     };
