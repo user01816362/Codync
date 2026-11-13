@@ -163,9 +163,7 @@ public final class CloudMachineStore {
 
     public func removeKey(provider: String) async {
         await run(.removingKey(provider)) {
-            try await tracked(.cloudKeyRemoved(.removed, provider: provider), failed: { .cloudKeyRemoved(.init($0), provider: provider) }) {
-                try await cloud.deleteCloudKey(provider: provider)
-            }
+            try await cloud.deleteCloudKey(provider: provider)
             setCredential(nil, provider: provider)
         }
     }
@@ -201,22 +199,17 @@ public final class CloudMachineStore {
 
     /// `id` is a listed machine (its row asked); one gone from the list meanwhile has nothing left to act on.
     public func deleteSnapshots(_ id: String) async {
-        guard let provider = machines.first(where: { $0.id == id })?.hosting.provider else { return }
+        guard machines.contains(where: { $0.id == id }) else { return }
         await run(.deletingSnapshots(id)) {
-            try await tracked(.cloudSnapshotsDeleted(.deleted, provider: provider), failed: { .cloudSnapshotsDeleted(.init($0), provider: provider) }) {
-                try await cloud.deleteCloudSnapshots(id)
-            }
+            try await cloud.deleteCloudSnapshots(id)
         }
     }
 
     /// `id` is a listed machine, as for `deleteSnapshots`.
     public func delete(_ id: String) async {
         guard let machine = machines.first(where: { $0.id == id }) else { return }
-        let provider = machine.hosting.provider
         let deleted = await run(.deleting(id)) {
-            try await tracked(.cloudComputerDeleted(.deleted, provider: provider), failed: { .cloudComputerDeleted(.init($0), provider: provider) }) {
-                try await cloud.deleteCloudMachine(id)
-            }
+            try await cloud.deleteCloudMachine(id)
             generation += 1
             show(machines.filter { $0.id != id })
         }
