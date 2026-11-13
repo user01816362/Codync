@@ -222,9 +222,6 @@ private fun messageMenu(context: android.content.Context, entry: Entry, reply: (
 
 
 
-private fun oldReactionPick(entry: Entry, store: AppStore) = ReactionPick(quickReactions, entry.reactions) { emoji ->
-    store.command("react", body("entryId" to entry.id, "emoji" to emoji), "react:" + entry.id)
-}
 
 internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonArray)?.map { it.jsonPrimitive.content }.orEmpty()
 
@@ -247,7 +244,7 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     val select = { selection = QuoteSelectionTarget(entry.text, "You") }
     val attachments = entry.data["attachments"]?.jsonArray?.map { WireJson.decodeFromJsonElement<Attachment>(it) }.orEmpty()
     Column(Modifier.fillMaxWidth().padding(start = 56.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (attachments.isNotEmpty()) AttachmentList(attachments, entry.botId, state, store, entry.id)
+        if (attachments.isNotEmpty()) AttachmentList(attachments, entry.botId, MessageMenu.of(entry, store, reply, null, edit, select), state, store, entry.id)
         val quote = entry.replyTo
         if (entry.text.isNotEmpty() || quote != null) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleUser)
             .contextActions(reactions = reactionPick(entry, store), onClick = { focus.clearFocus() }, preview = { SelectionContainer { UserText(entry.text, quote, quote?.let { state.authorName(it.author) }) } }) {

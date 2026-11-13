@@ -6,7 +6,7 @@ import { ModalHeader } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
-import { byteCount } from '../thread/Attachments'
+import { byteCount } from '../thread/file-card'
 
 interface Directory {
   botId: string

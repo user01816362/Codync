@@ -9,7 +9,7 @@ import { groupBotReactions, isEditable, isGroup, isReplyable, voiceNoteOf, type 
 import { BotAvatar } from '../../components/Avatar'
 import { Button, IconButton } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
-import { AnchoredMenu, type ReactionPick } from '../../components/Menu'
+import { AnchoredMenu, type MenuItem, type ReactionPick } from '../../components/Menu'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { messagePreview } from '../../lib/message-preview'

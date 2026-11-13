@@ -127,6 +127,7 @@ public struct ThreadView: View {
     }
 
     private func reportFind(found: Bool) {
+        _ = find?.searched(found: found)
     }
 
     var conversation: some View {
