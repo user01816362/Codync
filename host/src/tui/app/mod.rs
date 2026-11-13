@@ -31,7 +31,6 @@ pub use bot::{AgentModel, Bot, ModelOption, OwnMemory};
 pub use editor::Editor;
 pub use exchange::{ConversationRow, Exchange, Item, Outcome, conversation, group, rows};
 pub use find::{Find, match_ranges};
-pub(in crate::tui) use kofi::URL as KOFI_URL;
 pub use model::{After, Entry, Kind, Mark, Msg, Status, VersionPick};
 pub use roster::{RosterLine, cursor_line, rename_fold, roster_lines, stops};
 pub use slash::SlashAction;
