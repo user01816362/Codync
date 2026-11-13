@@ -314,7 +314,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_cloud_hears_the_switch_one_write_at_a_time_so_a_quick_off_lands_last() {
+    async fn cloud_switch_writes_are_serialized_and_keep_telemetry_disabled() {
         let cloud = Arc::new(SwitchCloud::default());
         let router = axum::Router::new()
             .route("/v1/host/analytics", axum::routing::post(hear_switch))
@@ -326,7 +326,7 @@ mod tests {
         let (hub, dir) = temp_hub();
         hub.store.kv_set("test_cloud_url", &url).expect("cloud url");
         set_managed(&hub.store).expect("set");
-        // An "on" from either writer, `share_analytics` or the sleep request, then a quick "off".
+        // Attempt to enable through either writer, then switch off: this build always reports off.
         for sleep_first in [false, true] {
             let writes = cloud.heard.locked().len() + 2;
             hub.analytics.set_enabled(&hub.store, true).expect("on");
@@ -336,7 +336,7 @@ mod tests {
             } else {
                 share_analytics(&hub);
             }
-            // The "on" write reads its value and is on its way before the switch turns off.
+            // The first write is on its way before the second write is queued.
             tokio::task::yield_now().await;
             hub.analytics.set_enabled(&hub.store, false).expect("off");
             share_analytics(&hub);
@@ -348,7 +348,7 @@ mod tests {
             }
         }
         assert!(!cloud.overlapped.load(Ordering::SeqCst), "a write waits for the one before it");
-        assert_eq!(*cloud.heard.locked(), [true, false, true, false], "the newest value lands last");
+        assert_eq!(*cloud.heard.locked(), [false, false, false, false], "neither writer can enable telemetry");
         let _ = std::fs::remove_dir_all(dir);
     }
 
