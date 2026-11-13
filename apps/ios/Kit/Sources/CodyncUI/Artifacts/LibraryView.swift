@@ -108,7 +108,7 @@ struct LibraryView: View {
             .contextActions {
                 [MenuItem("Show in chat", icon: "bubble.left") { show(entryId) }, MenuItem("Download", icon: "arrow.down.to.line") { download(file, entryId: entryId) }]
             }
-        case .attachment(let file, _) where file.isImage:
+        case .attachment(let file, let entryId) where file.isImage:
             // No message here: the viewer's menu is just Copy image and Copy name.
             Button { viewing = ImageViewing(source: .sent(file, botId: botId)) } label: {
                 LibraryRow(title: file.name) {

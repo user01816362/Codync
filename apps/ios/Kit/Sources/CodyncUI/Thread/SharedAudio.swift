@@ -44,7 +44,6 @@ final class SharedAudio {
 
     /// The card's one control: a tap while the sound loads is dropped, so it never starts a second player.
     func toggle(_ file: SharedFile, entryId: String, model: BotStore) async {
-        let fromStart = state == .idle || state == .failed
         switch state {
         case .loading: return
         case .playing:
