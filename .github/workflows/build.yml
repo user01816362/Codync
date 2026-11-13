@@ -138,6 +138,12 @@ jobs:
           }
           JS
 
+      - name: Build the iOS package
+        working-directory: apps/ios/Kit
+        run: >-
+          xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
+          -derivedDataPath build/dd -packageCachePath "$RUNNER_TEMP/swift-package-cache" CODE_SIGNING_ALLOWED=NO build
+
       - name: Add macOS targets
         working-directory: host
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -157,12 +163,6 @@ jobs:
           cargo test --test files_e2e -- --test-threads=1
           cargo test --test e2e explicitly_streamed_message_updates_one_entry_and_finishes -- --test-threads=1
           cargo test --test e2e unfinished_stream_is_cleared_after_host_restart -- --test-threads=1
-
-      - name: Build the iOS package
-        working-directory: apps/ios/Kit
-        run: >-
-          xcodebuild -scheme CodyncUI -destination 'generic/platform=iOS'
-          -derivedDataPath build/dd -packageCachePath "$RUNNER_TEMP/swift-package-cache" CODE_SIGNING_ALLOWED=NO build
 
       - name: Native pieces
         env:
