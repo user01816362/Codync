@@ -1,7 +1,7 @@
 import { MarkdownText } from '../thread/Markdown'
 import { useEffect, useState } from 'react'
 import { isGroup } from '@shared/models'
-import { Button, CardSection, ChoicePicker, Disclosure, IconButton } from '../../components/Controls'
+import { Button, CardSection, ChoicePicker, Disclosure, IconButton, ValueRow } from '../../components/Controls'
 import { ModalHeader, SheetPage } from '../../components/Overlay'
 import { Text } from '../../components/Text'
 import { HStack, VStack } from '../../components/Stack'
@@ -23,6 +23,10 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
   const [kind, setKind] = useState('consultation')
   const [delegates, setDelegates] = useState<{ botId: string; groupId?: string }[]>([])
   const [chair, setChair] = useState('')
+  const [department, setDepartment] = useState('')
+  useEffect(() => {
+    if (!delegates.some(d => d.botId === chair)) setChair(delegates[0]?.botId ?? '')
+  }, [delegates, chair])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [proposal, setProposal] = useState('')
   const [busy, setBusy] = useState(false)
@@ -33,6 +37,13 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
   useEffect(() => {
     let active = true
     if (!groupId || !store.client) return
+    const origin = store.bots.get(groupId)
+    if (origin && !origin.meeting) {
+      setDepartment(origin.id)
+      setName(current => current || `${origin.name} meeting`.slice(0, 40))
+      setAgenda(current => current || origin.description || '')
+      return
+    }
     void store.client.call<RoomState>('meetingState', { groupId }).then(value => { if (active) setRoom(value) }).catch((e: unknown) => { if (active) setError(String(e)) })
     return () => { active = false }
   }, [groupId, store.client, revision, attempt])
@@ -59,6 +70,8 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
   const meeting = room?.meeting
   const selected = new Set(delegates.map(d => d.botId))
   const disabled = busy || store.isOffline
+  const departments = store.roster.filter(bot => isGroup(bot) && !bot.meeting)
+  const candidates = store.roster.filter(bot => !isGroup(bot) && (!department || store.bots.get(department)?.members.includes(bot.id)))
   return <SheetPage>
     <ModalHeader title={meeting ? 'Meeting room' : 'New meeting room'} trailing={meeting ? <IconButton title="Refresh" icon="arrow.clockwise" onClick={() => setAttempt(n => n + 1)} /> : undefined} />
     <div className="bot-form"><div className="bot-form-content">
@@ -68,19 +81,27 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
       {!meeting ? <>
         <CardSection title="Room">
           <Field label="Name"><input dir="auto" className="field-box" value={name} maxLength={40} onChange={e => setName(e.target.value)} /></Field>
-          <Field label="Purpose"><ChoicePicker selection={kind} options={['consultation', 'meeting', 'decision'].map(id => ({ id, label: id }))} onChange={setKind} /></Field>
+          <ValueRow label="Purpose"><ChoicePicker disabled={disabled} selection={kind} options={[{ id: 'consultation', label: 'Consultation' }, { id: 'meeting', label: 'Meeting' }, { id: 'decision', label: 'Decision' }]} onChange={setKind} /></ValueRow>
           <Field label="Agenda"><AutoTextArea value={agenda} onChange={setAgenda} minRows={3} maxRows={8} maxLength={4000} className="field-box" ariaLabel="Agenda" /></Field>
         </CardSection>
-        <CardSection title={`Delegates · ${delegates.length}/5`} footer="Creating the room approves these invitations. Choose two to five delegates; each represents one department.">
-          {store.roster.filter(bot => !isGroup(bot)).map(bot => <VStack key={bot.id} gap={8}>
+        <CardSection title={`Delegates · ${delegates.length}/5`} footer="Choose a department, then its delegates. Groups are represented by bots; their full chat histories are not imported. Five delegates share a ten-turn budget.">
+          <ValueRow label="Department" detail="Choose a group to see its members, or invite individual bots."><ChoicePicker disabled={disabled} selection={department} options={[{ id: '', label: 'Individual bots' }, ...departments.map(group => ({ id: group.id, label: group.name }))]} onChange={setDepartment} /></ValueRow>
+          {candidates.length === 0 ? <Text tone="secondary">No available members in this department.</Text> : null}
+          {candidates.map(bot => <VStack key={bot.id} gap={8}>
             <button className="group-action-row press" role="checkbox" aria-checked={selected.has(bot.id)} disabled={disabled || (!selected.has(bot.id) && delegates.length >= 5)} onClick={() => {
-              setDelegates(ds => selected.has(bot.id) ? ds.filter(d => d.botId !== bot.id) : [...ds, { botId: bot.id }])
+              setDelegates(ds => selected.has(bot.id) ? ds.filter(d => d.botId !== bot.id) : [...ds, { botId: bot.id, ...(department ? { groupId: department } : {}) }])
               if (!chair) setChair(bot.id)
             }}><Text dir="auto" grow>{bot.name}</Text><Text>{selected.has(bot.id) ? '✓' : '+'}</Text></button>
-            {selected.has(bot.id) ? <ChoicePicker selection={delegates.find(d => d.botId === bot.id)?.groupId ?? ''} options={[{ id: '', label: 'Personal' }, ...store.roster.filter(g => isGroup(g) && !g.meeting && g.members.includes(bot.id)).map(g => ({ id: g.id, label: g.name }))]} onChange={id => setDelegates(ds => ds.map(d => d.botId === bot.id ? { botId: d.botId, ...(id ? { groupId: id } : {}) } : d))} /> : null}
+            {selected.has(bot.id) ? <ValueRow label="Represents"><ChoicePicker disabled={disabled} selection={delegates.find(d => d.botId === bot.id)?.groupId ?? ''} options={[{ id: '', label: 'Personal' }, ...store.roster.filter(g => isGroup(g) && !g.meeting && g.members.includes(bot.id)).map(g => ({ id: g.id, label: g.name }))]} onChange={id => setDelegates(ds => ds.map(d => d.botId === bot.id ? { botId: d.botId, ...(id ? { groupId: id } : {}) } : d))} /></ValueRow> : null}
           </VStack>)}
         </CardSection>
-        <CardSection title="Chair"><ChoicePicker selection={chair} options={delegates.map(d => ({ id: d.botId, label: store.bots.get(d.botId)?.name ?? d.botId }))} onChange={setChair} /></CardSection>
+        {delegates.length ? <CardSection title="Invited delegates">{delegates.map(d => <ValueRow key={d.botId} label={store.bots.get(d.botId)?.name ?? 'Delegate'} detail={d.groupId ? store.bots.get(d.groupId)?.name : 'Personal'}>
+          <IconButton title="Remove delegate" icon="minus.circle" disabled={disabled} onClick={() => setDelegates(ds => ds.filter(value => value.botId !== d.botId))} />
+        </ValueRow>)}</CardSection> : null}
+        <CardSection title="Coordination"><ValueRow label="Chair" detail="Organizes proposals. Each delegate records their own response; you approve the final decision.">
+          {delegates.length ? <ChoicePicker disabled={disabled} selection={chair} options={delegates.map(d => ({ id: d.botId, label: store.bots.get(d.botId)?.name ?? 'Delegate' }))} onChange={setChair} /> : <Text tone="secondary">Choose delegates first</Text>}
+        </ValueRow></CardSection>
+        <Text size="caption" tone="secondary">Delegates can read recent messages and tasks in departments they still belong to. Participation does not prove they read or remember the full history.</Text>
         <Text size="caption" tone="secondary">Ten discussion turns and ten minutes maximum. All delegates must approve the same proposal before final user approval. The room starts paused.</Text>
         <Button disabled={disabled || !name.trim() || !agenda.trim() || delegates.length < 2 || !selected.has(chair)} onClick={() => void create()}>Create room and approve invitations</Button>
       </> : <>

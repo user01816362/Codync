@@ -11,13 +11,14 @@ struct MeetingRoom: View {
     @State private var kind = "consultation"
     @State private var selected: [Delegate] = []
     @State private var chair = ""
+    @State private var department = ""
     @State private var proposal = ""
     @State private var busy = false
     @State private var notice: String?
     @State private var failure: String?
     @State private var attempt = 0
     private var candidates: [Bot] {
-        model.bots.values.filter { bot in !bot.isGroup && (!bot.hidden || selected.contains(where: { $0.botId == bot.id })) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        model.bots.values.filter { bot in !bot.isGroup && (department.isEmpty || model.bots[department]?.members.contains(bot.id) == true) && (!bot.hidden || selected.contains(where: { $0.botId == bot.id })) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
     private var group: Bot? { model.bots[groupId] }
 
@@ -84,13 +85,15 @@ struct MeetingRoom: View {
             }
         }
         .background(Palette.background)
+        .onChange(of: selected.map(\.botId)) {
+            if !selected.contains(where: { $0.botId == chair }) { chair = selected.first?.botId ?? "" }
+        }
         .task(id: "\(groupId):\(attempt):\(model.entries[room?.groupId ?? groupId]?.first(where: { $0.id == "meeting:\(room?.groupId ?? groupId)" })?.rev ?? 0)") {
             if group?.meeting == true || room != nil { await load() }
             else if name.isEmpty {
                 name = String("\(group?.name ?? "Team") meeting".prefix(40))
                 agenda = group?.description ?? ""
-                selected = Array((group?.members ?? []).prefix(5)).map { Delegate(botId: $0, groupId: groupId) }
-                chair = selected.first?.botId ?? ""
+                department = groupId
             }
         }
     }
@@ -100,27 +103,45 @@ struct MeetingRoom: View {
             CardSection("Room") {
                 Field("Name") { TextField("Name", text: $name).fieldBox() }
                 Field("Agenda") { TextField("Agenda", text: $agenda, axis: .vertical).lineLimit(3...8).fieldBox() }
-                ChoicePicker(selection: $kind, options: ["consultation", "meeting", "decision"].map { ($0, $0) })
+                ValueRow("Purpose") { ChoicePicker(selection: $kind, options: [("consultation", "Consultation"), ("meeting", "Meeting"), ("decision", "Decision")]) }
             }
             CardSection("Delegates · \(selected.count)/5") {
+                ValueRow("Department", detail: "Choose a group to see its members, or invite individual bots.") {
+                    ChoicePicker(selection: $department, options: [("", "Individual bots")] + model.roster.filter { $0.isGroup && !$0.meeting }.map { ($0.id, $0.name) })
+                }
+                if candidates.isEmpty { Text("No available members in this department.").foregroundStyle(Palette.secondary) }
                 ForEach(candidates) { bot in
                     VStack(alignment: .leading, spacing: 8) {
                         Button {
                             if selected.contains(where: { $0.botId == bot.id }) { selected.removeAll { $0.botId == bot.id } }
-                            else if selected.count < 5 { selected.append(Delegate(botId: bot.id)) }
+                            else if selected.count < 5 { selected.append(Delegate(botId: bot.id, groupId: department.isEmpty ? nil : department)) }
                         } label: {
                             HStack { Text(bot.name); Spacer(); Image(systemName: selected.contains(where: { $0.botId == bot.id }) ? "checkmark.circle.fill" : "circle") }
                         }.buttonStyle(.plain)
-                        if let index = selected.firstIndex(where: { $0.botId == bot.id }) {
-                            ChoicePicker(selection: Binding(get: { selected.first(where: { $0.botId == bot.id })?.groupId ?? "" }, set: { value in
+                        if selected.contains(where: { $0.botId == bot.id }) {
+                            ValueRow("Represents") { ChoicePicker(selection: Binding(get: { selected.first(where: { $0.botId == bot.id })?.groupId ?? "" }, set: { value in
                                 if let current = selected.firstIndex(where: { $0.botId == bot.id }) { selected[current].groupId = value.isEmpty ? nil : value }
-                            }), options: [(id: "", label: "Personal")] + model.roster.filter { $0.isGroup && !$0.meeting && $0.members.contains(bot.id) }.map { ($0.id, $0.name) })
-                            Text(selected[index].groupId.flatMap { model.bots[$0]?.name } ?? "Personal").font(.caption).foregroundStyle(Palette.secondary)
+                            }), options: [(id: "", label: "Personal")] + model.roster.filter { $0.isGroup && !$0.meeting && $0.members.contains(bot.id) }.map { ($0.id, $0.name) }) }
                         }
                     }
                 }
             }
-            CardSection("Chair") { ChoicePicker(selection: $chair, options: selected.map { ($0.botId, model.bots[$0.botId]?.name ?? "Delegate") }) }
+            if !selected.isEmpty {
+                CardSection("Invited delegates") {
+                    ForEach(selected, id: \.botId) { delegate in
+                        ValueRow(model.bots[delegate.botId]?.name ?? "Delegate", detail: delegate.groupId.flatMap { model.bots[$0]?.name } ?? "Personal") {
+                            IconButton("Remove delegate", systemImage: "minus.circle") { selected.removeAll { $0.botId == delegate.botId } }
+                        }
+                    }
+                }
+            }
+            CardSection("Coordination") {
+                ValueRow("Chair", detail: "Organizes proposals. Each delegate records their own response; you approve the final decision.") {
+                    if selected.isEmpty { Text("Choose delegates first").foregroundStyle(Palette.secondary) }
+                    else { ChoicePicker(selection: $chair, options: selected.map { ($0.botId, model.bots[$0.botId]?.name ?? "Delegate") }) }
+                }
+            }
+            Text("Five delegates share a ten-turn budget. Groups are represented by bots; full chat histories are not imported. Delegates can read recent messages and tasks in departments they still belong to.").font(.caption).foregroundStyle(Palette.secondary)
             Text("Creating the room approves these invitations. Ten turns and ten minutes maximum; all delegates must approve the current proposal before final user approval. Starts paused.").font(.caption).foregroundStyle(Palette.secondary)
             Button("Create room and approve invitations") { create() }.buttonStyle(.primary)
                 .disabled(selected.count < 2 || !selected.contains(where: { $0.botId == chair }) || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || agenda.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

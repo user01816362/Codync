@@ -85,10 +85,14 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
             return crate::chat::meetings::state(hub, id);
         }
         let group = hub.store.bot(id)?.filter(|r| !r.deleted && r.config.is_group()).context("unknown group")?.config;
-        let delegates: Vec<Value> =
-            group.members.iter().take(5).map(|id| json!({"botId":id,"groupId":group.id})).collect();
+        // A large department needs explicit representatives; never silently choose its first five members.
+        let delegates: Vec<Value> = if group.members.len() <= 5 {
+            group.members.iter().map(|id| json!({"botId":id,"groupId":group.id})).collect()
+        } else {
+            Vec::new()
+        };
         return Ok(
-            json!({"draft":{"name":group.name.chars().take(40).collect::<String>(),"agenda":group.description,"chair":group.members.first(),"delegates":delegates}}),
+            json!({"draft":{"name":group.name.chars().take(40).collect::<String>(),"agenda":group.description,"chair":delegates.first().and_then(|d| d["botId"].as_str()),"delegates":delegates}}),
         );
     }
     if method == "meetingState" {

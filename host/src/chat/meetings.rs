@@ -417,9 +417,14 @@ pub fn prompt(hub: &Hub, id: &str, actor: &str) -> Option<String> {
     let entry = entry(hub, id)?;
     let meeting = &entry.data["meeting"];
     let delegate = meeting["delegates"].as_array()?.iter().find(|d| d["botId"] == actor)?;
+    let chair = meeting["chair"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Chair".into());
+    let source = delegate["groupId"].as_str().map_or_else(
+        || "You are participating personally, not as a department delegate.".to_owned(),
+        |group| format!("Represented department id: {group}. Before stating its position, use read_group_messages with this groupId and list_group_tasks to check recent messages and recorded tasks. These tools require current membership; do not claim the entire history was read or the whole department agreed."),
+    );
     Some(format!(
-        "Meeting room: {}. You represent {} as {}. Chair: {}. Use meeting_status(groupId) and meeting_action with the current revision to propose (chair only) or record your own approve/object/abstain position. Do not infer agreement from silence. Shared agent-session history still applies: do not disclose unrelated private conversation material. Room id: {id}",
-        meeting["kind"], delegate["department"], delegate["name"], meeting["chair"]
+        "Meeting room: {}. You represent {} as {}. Chair: {}. Use meeting_status(groupId) and meeting_action with the current revision to propose (chair only) or record your own approve/object/abstain position. Do not infer agreement from silence. Shared agent-session history still applies: do not disclose unrelated private conversation material. Room id: {id}. {source}",
+        meeting["kind"], delegate["department"], delegate["name"], chair
     ))
 }
 
@@ -628,5 +633,19 @@ mod tests {
         assert_eq!(normalized[0]["department"], "Development");
         assert!(normalized[0].get("privateMaterial").is_none());
         assert_eq!(normalized[1]["department"], "Personal");
+    }
+
+    #[test]
+    fn delegates_get_a_readable_chair_and_can_check_their_department_without_importing_its_chat() {
+        let hub = fixture();
+        hub.add_entry(&Lane::main("dept"), EntryKind::User, 1, &json!({"text":"Department brief"}));
+        let instructions = prompt(&hub, "room", "a").expect("prompt");
+        assert!(instructions.contains("Chair: Alpha"));
+        assert!(instructions.contains("Represented department id: dept"));
+        assert!(instructions.contains("read_group_messages"));
+        let result = crate::chat::group_delivery::call(&hub, "a", "read_group_messages", &json!({"groupId":"dept"}))
+            .expect("authorized department read");
+        assert_eq!(result["messages"][0]["text"], "Department brief");
+        assert!(hub.store.messages_after(&Lane::main("room"), 0, 24).expect("room messages").is_empty());
     }
 }

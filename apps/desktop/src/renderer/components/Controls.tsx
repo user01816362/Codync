@@ -94,19 +94,21 @@ export function DropdownMenu({ items, children, className, style, title, disable
 }
 
 /** Picks one value: the current choice in a pill with a chevron, opening a Codync menu. */
-export function ChoicePicker<T extends string | number>({ selection, options, onChange, fill, fits = false }: {
+export function ChoicePicker<T extends string | number>({ selection, options, onChange, fill, fits = false, disabled = false }: {
   selection: T
   /** `leading`: a picture before the label, in the menu and on the picker (an agent's logo). */
   options: { id: T; label: string; leading?: ReactNode }[]
   onChange: (id: T) => void
   fill?: string
   fits?: boolean
+  disabled?: boolean
 }) {
   const tr = useTr()
   const chosen = options.find((o) => o.id === selection)
   const label = tr(chosen?.label ?? 'Choose')
   return (
     <DropdownMenu
+      disabled={disabled}
       title={label}
       className={`choice-picker${fill ? '' : ' outlined'}${fits ? ' fits' : ''}`}
       style={{ background: fill }}
