@@ -381,6 +381,7 @@ mod tests {
             name: "README.MD".into(),
             size: 10,
             sha256: "a".repeat(64),
+            plays_in_chat: false,
         };
         assert!(supported(&file.name, file.size));
         file.name = "image.png".into();

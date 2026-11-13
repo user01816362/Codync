@@ -42,32 +42,6 @@ fn started(last: Option<&str>, version: &str, service: bool) -> Map<String, Valu
     p
 }
 
-/// How a Codync Cloud computer's keeper stood when its host started (`cloud_keeper_checked`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum KeeperState {
-    /// It had its vault key.
-    Unlocked,
-    /// Still waiting for its key from the Codync cloud after the host's short wait.
-    Locked,
-    /// Nothing listening on its socket.
-    Missing,
-}
-
-/// `cloud_keeper_checked`, once per start of a cloud computer's host: how its keeper stood, and whether `sudo` still
-/// worked for its agents (which would leave the keeper's secrets open to them).
-pub fn cloud_keeper_checked(hub: &Hub, state: KeeperState, sudo: bool) {
-    let state = match state {
-        KeeperState::Unlocked => "unlocked",
-        KeeperState::Locked => "locked",
-        KeeperState::Missing => "missing",
-    };
-    capture(
-        hub,
-        Event::CloudKeeperChecked,
-        Map::from_iter([("state".into(), state.into()), ("sudo".into(), sudo.into())]),
-    );
-}
-
 /// What came of a cloud computer's host asking the cloud to put it to sleep (`cloud_sleep_asked`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SleepOutcome {

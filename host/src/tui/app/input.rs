@@ -375,7 +375,7 @@ impl App {
                     }
                 }
             }
-            KeyCode::Char('O') => {
+            KeyCode::Char('%') => {
                 let group = self.selected.clone().unwrap_or_default();
                 self.open_department(&group, "storage");
             }
