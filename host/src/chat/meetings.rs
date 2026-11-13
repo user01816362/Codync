@@ -417,7 +417,7 @@ pub fn prompt(hub: &Hub, id: &str, actor: &str) -> Option<String> {
     let entry = entry(hub, id)?;
     let meeting = &entry.data["meeting"];
     let delegate = meeting["delegates"].as_array()?.iter().find(|d| d["botId"] == actor)?;
-    let chair = meeting["chair"].as_str().map(|id| hub.bot_name(id)).unwrap_or_else(|| "Chair".into());
+    let chair = meeting["chair"].as_str().map_or_else(|| "Chair".into(), |id| hub.bot_name(id));
     let source = delegate["groupId"].as_str().map_or_else(
         || "You are participating personally, not as a department delegate.".to_owned(),
         |group| format!("Represented department id: {group}. Before stating its position, use read_group_messages with this groupId and list_group_tasks to check recent messages and recorded tasks. These tools require current membership; do not claim the entire history was read or the whole department agreed."),
