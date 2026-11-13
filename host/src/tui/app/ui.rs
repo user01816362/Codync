@@ -8,7 +8,7 @@ use super::super::manage::{
     AgentSetup, AnalyticsSheet, BotChatSheet, DevServersSheet, Fields, FilePreviewSheet, Gear, Library, Market,
     MemorySheet, NetworkSheet, RoutineForm, RoutineList, SkillSheet,
 };
-use super::{Editor, Mark};
+use super::{Editor, Mark, WhatsNew};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Focus {
@@ -61,6 +61,7 @@ pub enum Action {
     CheckUpdate,
     Analytics,
     AboutAnalytics,
+    AutoOrder,
     Language,
     ThinkingDetails,
     CollaborationActivity,
@@ -68,7 +69,7 @@ pub enum Action {
     Appearance(super::super::appearance::Appearance),
 }
 
-pub const ACTIONS: [(&str, &str, Action); 21] = [
+pub const ACTIONS: [(&str, &str, Action); 22] = [
     ("New bot…", "n", Action::NewBot),
     ("New group chat…", "m", Action::NewGroup),
     ("Extensions: agents, connectors, skills…", "A", Action::Market),
@@ -77,6 +78,7 @@ pub const ACTIONS: [(&str, &str, Action); 21] = [
     ("Library of this bot: artifacts and files…", "L", Action::Library),
     ("Collaboration activity…", "", Action::Sidechat),
     ("Refresh agents", "", Action::RefreshAgents),
+    ("Move active bots to the top", "", Action::AutoOrder),
     ("Pair a phone…", "P", Action::Pair),
     ("Network: your other computers…", "N", Action::Network),
     ("Usage", "U", Action::Usage),
@@ -364,6 +366,8 @@ pub enum Overlay {
     DevServers(DevServersSheet),
     Routines(RoutineList),
     Routine(Box<RoutineForm>),
+    /// A bot's Computer page, by the bot's id.
+    Computer(String),
     Library(Library),
     Gear(Gear),
     Market(Box<Market>),
@@ -373,6 +377,7 @@ pub enum Overlay {
     FilePreview(FilePreviewSheet),
     Analytics(AnalyticsSheet),
     Network(Box<NetworkSheet>),
+    WhatsNew(WhatsNew),
 }
 
 pub struct Toast {

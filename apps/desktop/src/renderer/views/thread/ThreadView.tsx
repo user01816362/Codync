@@ -452,6 +452,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, onEdit,
         className="transcript"
         ref={scroller}
         role="log"
+        data-find-root
         aria-label={tr('Messages')}
         onScroll={(e) => {
           const el = e.currentTarget

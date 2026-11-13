@@ -1,4 +1,5 @@
-//! Events outside API calls: the host's own start, a phone added, a phone connecting.
+//! Events outside API calls: the host's own start (and a cloud computer's keeper and sleep), a phone added, a phone
+//! connecting.
 
 use super::{Analytics, Event, capture, platform, platform_of};
 use crate::LockExt as _;
@@ -39,6 +40,60 @@ fn started(last: Option<&str>, version: &str, service: bool) -> Map<String, Valu
     }
     p.insert("service".into(), service.into());
     p
+}
+
+/// How a Codync Cloud computer's keeper stood when its host started (`cloud_keeper_checked`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeeperState {
+    /// It had its vault key.
+    Unlocked,
+    /// Still waiting for its key from the Codync cloud after the host's short wait.
+    Locked,
+    /// Nothing listening on its socket.
+    Missing,
+}
+
+/// `cloud_keeper_checked`, once per start of a cloud computer's host: how its keeper stood, and whether `sudo` still
+/// worked for its agents (which would leave the keeper's secrets open to them).
+pub fn cloud_keeper_checked(hub: &Hub, state: KeeperState, sudo: bool) {
+    let state = match state {
+        KeeperState::Unlocked => "unlocked",
+        KeeperState::Locked => "locked",
+        KeeperState::Missing => "missing",
+    };
+    capture(
+        hub,
+        Event::CloudKeeperChecked,
+        Map::from_iter([("state".into(), state.into()), ("sudo".into(), sudo.into())]),
+    );
+}
+
+/// What came of a cloud computer's host asking the cloud to put it to sleep (`cloud_sleep_asked`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SleepOutcome {
+    /// The cloud took it: the machine stops.
+    Asleep,
+    /// The cloud answered with an update to install instead.
+    Update,
+    /// Refused while a device is connected.
+    InUse,
+    /// Any other error.
+    Failed,
+}
+
+/// `cloud_sleep_asked`: an idle cloud computer's host asked to sleep; `routine`: to be woken for its next routine.
+pub fn cloud_sleep_asked(hub: &Hub, outcome: SleepOutcome, routine: bool) {
+    let outcome = match outcome {
+        SleepOutcome::Asleep => "asleep",
+        SleepOutcome::Update => "update",
+        SleepOutcome::InUse => "in_use",
+        SleepOutcome::Failed => "failed",
+    };
+    capture(
+        hub,
+        Event::CloudSleepAsked,
+        Map::from_iter([("outcome".into(), outcome.into()), ("routine".into(), routine.into())]),
+    );
 }
 
 /// How a phone stands with this computer's account after pairing (`device_paired`).
@@ -117,6 +172,17 @@ impl Analytics {
     fn first_today(&self, phone: &str, day: chrono::NaiveDate) -> bool {
         self.phones.locked().insert(phone.to_owned(), day) != Some(day)
     }
+}
+
+/// `remote_screen_finished`: how a viewer's screen session ended, on which client, whether through TURN, and how long
+/// it lasted from `screenPrepare`.
+pub fn remote_screen_finished(hub: &Hub, key: &str, ended: &crate::screen::EndedViewer) {
+    let mut p = Map::new();
+    p.insert("platform".into(), platform_of(hub, key).into());
+    p.insert("outcome".into(), ended.outcome.into());
+    p.insert("relay".into(), ended.relay.into());
+    p.insert("seconds".into(), ended.seconds.into());
+    capture(hub, Event::RemoteScreenFinished, p);
 }
 
 #[cfg(test)]

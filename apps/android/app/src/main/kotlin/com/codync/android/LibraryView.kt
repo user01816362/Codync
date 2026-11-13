@@ -94,7 +94,7 @@ import com.kyant.shapes.RoundedRectangle
         state.libraryCursor[bot.id]?.let { cursor -> SecondaryButton("Load older files", enabled = online && "library:${bot.id}" !in state.busy) { store.loadLibrary(bot.id, cursor) } }
     }
     NameDialog(naming, "Artifact title", { naming = null })
-    AttachmentImageSheet(image, bot.id, state, store) { image = null }
+    AttachmentImageSheet(image, bot.id, null, state, store) { image = null }
     CodyncSheet(textFile, { textFile = null }) { SharedTextPreview(it.file, it.entryId, store) }
     CodyncSheet(textAttachment, { textAttachment = null }) { AttachmentTextPreview(it, bot.id, store, attachmentEntryId) }
 }
@@ -125,7 +125,7 @@ import com.kyant.shapes.RoundedRectangle
     LibraryRow(Modifier.plainButton { if (item.file.canOpenPreview) preview() else if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file) },
         { Symbol(AttachmentIcon.symbol(item.file.name), size = 22.dp, tint = Palette.secondary) }) {
         IconButton("Show in chat", "bubble.left", action = show)
-        NameAndDetail(item.file.name, (state.bots.firstOrNull { it.id == botId }?.name ?: "") + " · " + detail(item.file, download) + " · " + java.util.Date(item.at).toString())
+        NameAndDetail(item.file.name, (state.bots.firstOrNull { it.id == botId }?.name ?: "") + " · " + detail(item.file, download, tr = translator()) + " · " + java.util.Date(item.at).toString())
         if (item.file.canOpenPreview) IconButton(if (busy) "Cancel download" else "Download", if (busy) "xmark" else "arrow.down.to.line") {
             if (busy) store.cancelFile(item.file.id) else store.saveFile(item.entryId, botId, item.file)
         }

@@ -87,6 +87,8 @@ export const prefs = {
   collaborationActivity: pref<'hidden' | 'compact' | 'expanded'>('collaborationActivityMode', 'compact'),
   thinkingDetails: pref('showThinkingDetails', false),
   extensionsMovedTipSeen: pref('extensionsMovedTipSeen', false),
+  /** The version this device last opened on, for What's new; `null` before it ever recorded one. */
+  whatsNewSeen: pref<string | null>('whatsNewSeen', null),
 }
 
 /** The Mac preference supplies one scale for conversation text and app chrome. */

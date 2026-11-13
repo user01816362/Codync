@@ -16,7 +16,11 @@ impl Actor {
                 self.tools_changed = true;
             }
             Cmd::Routine(id) => self.enqueue(Queued::Routine(id), done_tx).await,
-            Cmd::Send { lane, entry_id, text } => self.enqueue(Queued::User { lane, entry_id, text }, done_tx).await,
+            Cmd::Send { lane, entry_id, text } => {
+                if !self.try_decision_message(&lane, &entry_id) {
+                    self.enqueue(Queued::User { lane, entry_id, text }, done_tx).await;
+                }
+            }
             Cmd::Steer { entry_id } => self.steer(entry_id).await,
             Cmd::Steered { entry_id, outcome } => self.steer_answered(&entry_id, &outcome, done_tx).await,
             Cmd::Unqueue { entry_id } => self.unqueue(&entry_id),
@@ -75,10 +79,17 @@ impl Actor {
             Cmd::StreamMessage { action, text, reply } => {
                 let _ = reply.send(self.stream_message(&action, &text));
             }
+            Cmd::Ask { data, started_at, deadline, reply } => self.ask(data, started_at, deadline, reply),
+            Cmd::Decision { entry_id, choice, reply } => {
+                if !reply.is_closed() {
+                    let answer = self.decided(&entry_id, &choice, None);
+                    let _ = reply.send(answer);
+                }
+            }
             Cmd::React { emoji, to, reply } => {
                 let _ = reply.send(self.react(&emoji, to.as_deref()));
             }
-            Cmd::SendFile { path, name, cancelled, reply } => self.begin_file(path, name, cancelled, reply),
+            Cmd::SendFile { path, name, text, cancelled, reply } => self.begin_file(path, name, text, cancelled, reply),
             Cmd::PostArtifact { data, reply } => {
                 let _ = reply.send(self.post_artifact(data));
             }
@@ -214,6 +225,7 @@ impl Actor {
             return;
         }
         self.stop_requested = true;
+        self.expire_decisions(crate::chat::decision::Expiry::Stopped);
         self.cancel_deadline.get_or_insert_with(|| Instant::now() + CANCEL_GRACE);
         self.files.cancel();
         let ids: Vec<String> = self.perms.keys().cloned().collect();

@@ -75,13 +75,14 @@ const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences, inline
       const cols = Array.from({ length: columns }, (_, i) => i)
       return (
         <div className="md-table-scroll">
+          {/* Each cell is its own block to find in: a match never runs from one cell into the next. */}
           <div className="md-table md-body" style={{ gridTemplateColumns: `repeat(${columns}, max-content)` }}>
             {cols.map((i) => (
-              <Text dir="auto" key={`h${i}`} weight="semibold">{inline(block.header[i] ?? '', `h${i}`, open)}</Text>
+              <Text dir="auto" key={`h${i}`} weight="semibold" data-find-block>{inline(block.header[i] ?? '', `h${i}`, open)}</Text>
             ))}
             {block.rows.map((row, r) => [
               <Hairline key={`l${r}`} style={{ gridColumn: `1 / span ${columns}` }} />,
-              ...cols.map((i) => <span dir="auto" key={`${r}-${i}`}>{inline(row[i] ?? '', `${r}-${i}`, open)}</span>),
+              ...cols.map((i) => <span data-find-block dir="auto" key={`${r}-${i}`}>{inline(row[i] ?? '', `${r}-${i}`, open)}</span>),
             ])}
           </div>
         </div>
@@ -95,12 +96,12 @@ const MarkdownBlock = memo(function MarkdownBlock({ block, literalFences, inline
 }, (a, b) => a.inlineMath === b.inlineMath && a.literalFences === b.literalFences && JSON.stringify(a.block) === JSON.stringify(b.block))
 
 /** The desktop's Markdown for messages; a block that didn't change keeps its rendering. */
-export const MarkdownText = memo(function MarkdownText({ text, literalFences = false }: { text: string; literalFences?: boolean }) {
+export const MarkdownText = memo(function MarkdownText({ text, literalFences = false, findable = false }: { text: string; literalFences?: boolean; findable?: boolean }) {
   const blocks = parseMarkdown(text)
   const mathIndices = new Set<number>()
   blocks.forEach((block, index) => { if (mathIndices.size < 8 && block.kind === 'paragraph' && hasInlineMath(block.text)) mathIndices.add(index) })
   return (
-    <VStack gap={10} shrink className="markdown selectable">
+    <VStack gap={10} shrink className="markdown selectable" data-find-text={findable || undefined}>
       {blocks.map((b, i) => (
         <MarkdownBlock key={i} block={b} literalFences={literalFences} inlineMath={mathIndices.has(i)} />
       ))}

@@ -5,6 +5,7 @@ pub mod artifacts;
 pub mod calls;
 pub mod context;
 pub mod context_usage;
+pub mod decision;
 pub mod fallbacks;
 mod file_quotes;
 pub mod files;

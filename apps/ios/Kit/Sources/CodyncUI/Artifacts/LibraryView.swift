@@ -15,7 +15,7 @@ struct LibraryView: View {
     @State private var error: String?
     @State private var renaming: Artifact?
     @State private var sharing: ArtifactFile?
-    @State private var viewing: Attachment?
+    @State private var viewing: ImageViewing?
     @State private var textAttachment: Attachment?
     @State private var textFile: LibraryTextFile?
     @Environment(\.dismissModal) private var dismiss
@@ -76,10 +76,11 @@ struct LibraryView: View {
         }
         .codyncSheet(item: $renaming) { ArtifactRenameSheet(artifact: $0) }
         .artifactShareSheet($sharing)
-        .codyncSheet(item: $viewing) { AttachmentViewer(file: $0, botId: botId) }
+        .imageViewer($viewing)
+        // The picture viewer presents a download that finishes while it's open.
+        .fileExportSheet(model, botId: botId, active: viewing == nil)
         .codyncSheet(item: $textAttachment) { SharedTextPreview(attachment: $0, botId: botId, entryId: attachmentEntryId) }
         .codyncSheet(item: $textFile) { SharedTextPreview(file: $0.file, entryId: $0.entryId) }
-        .fileExportSheet(model, botId: botId)
     }
 
     @ViewBuilder private func row(_ item: ChatLibraryItem) -> some View {
@@ -107,10 +108,11 @@ struct LibraryView: View {
             .contextActions {
                 [MenuItem("Show in chat", icon: "bubble.left") { show(entryId) }, MenuItem("Download", icon: "arrow.down.to.line") { download(file, entryId: entryId) }]
             }
-        case .attachment(let file, let entryId) where file.isImage:
-            Button { viewing = file } label: {
+        case .attachment(let file, _) where file.isImage:
+            // No message here: the viewer's menu is just Copy image and Copy name.
+            Button { viewing = ImageViewing(source: .sent(file, botId: botId)) } label: {
                 LibraryRow(title: file.name) {
-                    AttachmentImage(file: file, botId: botId, maxPixels: 120, contentMode: .fill)
+                    AttachmentImage(.sent(file, botId: botId), maxPixels: 120, contentMode: .fill)
                         .frame(width: 36, height: 36)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
@@ -181,13 +183,7 @@ struct LibraryView: View {
 
     /// As the file's chat card does: download it for the share sheet, or stop the download under way.
     private func download(_ file: SharedFile, entryId: String) {
-        Motion.animate {
-            if case .downloading = model.fileDownloads.states[file.id] {
-                model.fileDownloads.cancel(file.id)
-            } else {
-                model.fileDownloads.save(client: model.client, entryId: entryId, botId: botId, file: file)
-            }
-        }
+        Motion.animate { model.fileDownloads.toggle(client: model.client, entryId: entryId, botId: botId, file: file) }
     }
 }
 

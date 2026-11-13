@@ -96,7 +96,7 @@ pub struct Group<'a> {
 
 /// Whether the chat draws this entry (the rest is trace).
 fn is_visible(e: &Entry) -> bool {
-    matches!(e.kind, Kind::User | Kind::Permission | Kind::Notice) || e.is_message()
+    matches!(e.kind, Kind::User | Kind::Permission | Kind::Decision | Kind::Notice) || e.is_message()
 }
 
 /// The chat's rows: consecutive exchanges with one peer (either direction) become one group.

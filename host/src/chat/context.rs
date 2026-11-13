@@ -226,7 +226,7 @@ pub fn render(store: &Store, cfg: &BotConfig) -> String {
         "Environment: you run inside Codync. The user talks to you through Codync (its phone, desktop or terminal app), not in {engine}'s own CLI, IDE or app. The engine Codync runs you on is {engine}: where your base instructions describe its CLI, terminal, slash commands or keyboard shortcuts, they describe that engine, not where the user is, so don't point the user to them. A chat in Codync is one conversation that goes on, with no new session or clear for the user to start, so don't suggest starting over."
     ));
     lines.push(String::new());
-    lines.push(format!("Messages: {}", crate::chat::outbox::INSTRUCTIONS));
+    lines.push(format!("Messages: {}", crate::chat::outbox::instructions()));
     lines.push(crate::chat::group_delivery::INSTRUCTIONS.to_owned());
     lines.push(crate::chat::group_mail::INSTRUCTIONS.to_owned());
     lines.push(String::new());

@@ -97,8 +97,8 @@ const channelError = (e: CallError) => new HostError(e.status ?? 0, e.message, e
 
 export type HostEvent =
   | { type: 'icons'; iconsRevision: number; icons: import('@shared/custom-icons').CustomIcons }
-  /** `network` is null from hosts before the network view. */
-  | { type: 'hello'; hostId: string; rev: number; usage: Usage; screen: ScreenState | null; network: NetworkView | null; icons?: import('@shared/custom-icons').CustomIcons }
+  /** `network` is null from hosts before the network view. `catchUp` events follow before the live ones (null from hosts before 2.32.0). */
+  | { type: 'hello'; hostId: string; rev: number; usage: Usage; screen: ScreenState | null; network: NetworkView | null; icons?: import('@shared/custom-icons').CustomIcons; catchUp: number | null }
   | { type: 'bot'; bot: Bot }
   | { type: 'botDeleted'; id: string; rev: number }
   /** A chat's transcript was emptied; its messages are gone from the computer. */
@@ -115,11 +115,15 @@ export type HostEvent =
   | { type: 'reach' }
   /** The computer took a new name (a cloud computer renamed from any device): its `hello` says it from now on. */
   | { type: 'name'; name: string }
+  /** The computer's automatic bot order was switched (from any device): its `hello` says it from now on. */
+  | { type: 'autoOrder'; enabled: boolean }
   /** This computer's network changed (members, roles, presence, offered bots) or cloud assistants were switched. */
   | { type: 'network'; network: NetworkView }
   /** For the voice of a call in this app (only the computer's own apps receive this computer's calls' cues). */
   | { type: 'call'; cue: CallCue }
   | { type: 'resync' }
+  /** One this app has no use for. */
+  | { type: 'skipped' }
   /** An event this app version couldn't read (host newer/older than the app). */
   | { type: 'undecodable'; kind: string }
 
@@ -143,6 +147,7 @@ export function parseEvent(line: string): HostEvent | null {
         screen: normalizeScreen(raw.screen as ScreenState | undefined),
         network: (raw.network as NetworkView | undefined) ?? null,
         icons: raw.icons as import('@shared/custom-icons').CustomIcons | undefined,
+        catchUp: typeof raw.catchUp === 'number' ? raw.catchUp : null,
       }
     case 'bot': {
       const bot = raw.bot as (Bot & { deleted?: boolean }) | undefined
@@ -175,6 +180,8 @@ export function parseEvent(line: string): HostEvent | null {
       return { type }
     case 'name':
       return typeof raw.name === 'string' ? { type, name: raw.name } : null
+    case 'autoOrder':
+      return typeof raw.enabled === 'boolean' ? { type, enabled: raw.enabled } : null
     case 'network':
       return raw.network ? { type, network: raw.network as NetworkView } : null
     case 'call': {
@@ -218,8 +225,8 @@ export class HostClient {
   events(since: number, client: string, onEvent: (e: HostEvent) => void, onEnd: (error: HostError | null) => void) {
     const query = new URLSearchParams({ since: String(since), client })
     return this.transport.stream(`/events?${query}`, (line) => {
-      const event = parseEvent(line)
-      if (event) onEvent(event)
+      // One this app has no use for still counts toward the catch-up `hello` announced.
+      onEvent(parseEvent(line) ?? { type: 'skipped' })
     }, onEnd)
   }
 

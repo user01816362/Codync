@@ -2,11 +2,13 @@
 
 mod analytics;
 mod approvals;
+mod auto_order;
 mod bot;
 mod editor;
 mod events;
 mod exchange;
 mod fallbacks;
+mod find;
 mod forms;
 mod group_form;
 mod input;
@@ -22,11 +24,14 @@ mod slash;
 mod steps;
 mod ui;
 mod usage_chooser;
+mod whats_new;
 
 pub use approvals::parse_modes;
 pub use bot::{AgentModel, Bot, ModelOption, OwnMemory};
 pub use editor::Editor;
 pub use exchange::{ConversationRow, Exchange, Item, Outcome, conversation, group, rows};
+pub use find::{Find, match_ranges};
+pub(in crate::tui) use kofi::URL as KOFI_URL;
 pub use model::{After, Entry, Kind, Mark, Msg, Status, VersionPick};
 pub use roster::{RosterLine, cursor_line, rename_fold, roster_lines, stops};
 pub use slash::SlashAction;
@@ -36,6 +41,7 @@ pub use ui::{
     Form, Goto, GotoItem, GroupField, GroupForm, Hits, NewBot, NewBotField, Overlay, PairCode, SHAPES, Toast, Toggle,
     TraceMode, Width,
 };
+pub use whats_new::WhatsNew;
 
 use crate::tui::l10n::tr;
 use serde_json::{Value, json};
@@ -126,6 +132,8 @@ pub struct App {
     pub versions: HashMap<String, VersionPick>,
     /// A message picked to act on: reply, react, copy, save its files (`r`, then j/k and ↵).
     pub pick: Option<String>,
+    /// Find in the open conversation (`/` or ^f).
+    pub find: Option<Find>,
     /// Chat lines showing their full text: a handoff (`o` on the picked line).
     pub unfolded: HashSet<String>,
     /// Roster sections showing their label alone (`z`); this run only.
@@ -159,6 +167,8 @@ pub struct App {
     pub hint: Option<(String, Instant)>,
     /// Whether this computer shares usage analytics (`None`: before the first `hello`).
     pub analytics: Option<bool>,
+    /// Whether a bot with a new message moves to the top of the roster (`None`: before `hello`, or an older host).
+    pub auto_order: Option<bool>,
     /// What usage analytics has reported this run (`app_opened`, `screen_viewed`).
     seen: analytics::Seen,
 }
@@ -215,6 +225,7 @@ impl App {
             editing: None,
             versions: HashMap::new(),
             pick: None,
+            find: None,
             unfolded: HashSet::new(),
             folded: HashSet::new(),
             section_order: Vec::new(),
@@ -233,6 +244,7 @@ impl App {
             floors: HashMap::new(),
             hint: None,
             analytics: None,
+            auto_order: None,
             seen: analytics::Seen::default(),
         }
     }
@@ -320,6 +332,13 @@ impl App {
         self.lane(id).into_iter().rev().find(|e| e.pending())
     }
 
+    /// The newest pending card of one kind: F-keys answer the choice card and y/a/n/N the approval, even when a
+    /// card of the other kind came after it.
+    pub fn pending_of(&self, kind: Kind) -> Option<&Entry> {
+        let id = self.selected.as_ref()?;
+        self.lane(id).into_iter().rev().find(|e| e.kind == kind && e.pending())
+    }
+
     /// The message the composer replies to, in the selected chat.
     pub fn replying_to(&self) -> Option<&Entry> {
         let (id, reply) = (self.selected.as_ref()?, self.reply.as_ref()?);
@@ -378,6 +397,7 @@ impl App {
 
     fn select(&mut self, id: &str) {
         if self.selected.as_deref() != Some(id) {
+            self.close_find();
             self.selected = Some(id.to_owned());
             self.reply = None;
             self.pick = None;

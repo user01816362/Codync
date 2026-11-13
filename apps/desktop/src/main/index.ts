@@ -3,11 +3,12 @@ import { registerAppearance } from './appearance'
 import { execFileSync } from 'node:child_process'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
-import { app, autoUpdater, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, session, shell, type IpcMainInvokeEvent, type OpenDialogOptions } from 'electron'
-import type { HostSnapshot, WindowCommand } from '../shared/ipc'
+import { app, autoUpdater, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, shell, type IpcMainInvokeEvent, type OpenDialogOptions } from 'electron'
+import type { HostSnapshot, TraySummary, WindowCommand } from '../shared/ipc'
 import { devPort, HostController } from './host-controller'
 import { registerFileSaves } from './file-saves'
 import { keepArtifactsInFrame, registerArtifacts, registerArtifactScheme } from './artifacts'
+import { registerRemoteKeyboard } from './remote-keyboard'
 import { registerHostProxy } from './host-proxy'
 import { readClipboardFiles, readFiles } from './files'
 import { Tray } from './tray'
@@ -31,6 +32,8 @@ import { registerErrorReports } from './error-reports'
 import { registerRendererRecovery } from './renderer-recovery'
 import { reportHostSetupFailure } from './analytics'
 import { launchAtLogin, openedAtLogin, setLaunchAtLogin, updateLoginItem } from './login-item'
+import { applyMenu } from './app-menu'
+import { resolvedLanguage } from '../renderer/lib/l10n'
 
 /** macOS's user-facing computer name, else the host name. */
 function computerName() {
@@ -131,34 +134,6 @@ export function send(command: WindowCommand, show = true) {
   window?.webContents.send('app:command', command)
 }
 
-function menu() {
-  const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
-    { role: 'fileMenu' },
-    { role: 'editMenu' },
-    {
-      label: 'View',
-      submenu: [
-        { label: 'Bigger', accelerator: 'CmdOrCtrl+=', click: () => send({ kind: 'stepTextSize', up: true }, false) },
-        { label: 'Smaller', accelerator: 'CmdOrCtrl+-', click: () => send({ kind: 'stepTextSize', up: false }, false) },
-        { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', click: () => send({ kind: 'stepTextSize', up: null }, false) },
-        { type: 'separator' },
-        { label: 'New Bot', accelerator: 'CmdOrCtrl+N', click: () => send({ kind: 'newBot' }) },
-        { label: 'Search Bots', accelerator: 'CmdOrCtrl+F', click: () => send({ kind: 'search' }) },
-        { label: 'Toggle Sidebar', accelerator: 'Ctrl+CmdOrCtrl+S', click: () => send({ kind: 'toggleSidebar' }, false) },
-        { label: 'Conversation Details', accelerator: 'Alt+CmdOrCtrl+I', click: () => send({ kind: 'toggleDetails' }, false) },
-        { label: 'Refresh', accelerator: 'CmdOrCtrl+R', click: () => send({ kind: 'refresh' }, false) },
-        { type: 'separator' },
-        // The dev page reload sits on ⇧⌘R, leaving ⌘R to Refresh.
-        ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' as const }, { role: 'forceReload' as const }]),
-        { role: 'togglefullscreen' },
-      ],
-    },
-    { role: 'windowMenu' },
-  ]
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
-}
-
 function registerIPC(tray: Tray) {
   registerHostProxy()
   ipcMain.on('app:hostPort', (e) => (e.returnValue = identity.port))
@@ -166,6 +141,7 @@ function registerIPC(tray: Tray) {
   ipcMain.on('app:scheme', (e) => (e.returnValue = identity.scheme))
   registerFileSaves()
   registerArtifacts()
+  registerRemoteKeyboard()
   ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()))
   ipcMain.on('app:computerName', (e) => (e.returnValue = computerName()))
   ipcMain.on('app:openedAtLogin', (e) => (e.returnValue = openedAtLogin()))
@@ -201,7 +177,10 @@ function registerIPC(tray: Tray) {
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
   ipcMain.handle('app:clipboardFiles', () => readClipboardFiles())
-  ipcMain.on('app:traySummary', (_e, summary) => tray.update(summary))
+  ipcMain.on('app:traySummary', (_e, summary: TraySummary) => {
+    tray.update(summary)
+    applyMenu(summary.language, send)
+  })
   ipcMain.on('app:showWindow', () => {
     openChat()
     if (isMac) app.focus({ steal: true })
@@ -282,7 +261,7 @@ if (yieldsToInstall()) {
     session.defaultSession.setPermissionRequestHandler((_wc, permission, done) => done(permission === 'media' || permission === 'clipboard-sanitized-write'))
     account.register(() => BrowserWindow.getAllWindows())
     updates.register(() => BrowserWindow.getAllWindows())
-    menu()
+    applyMenu(resolvedLanguage('system', app.getLocale()), send)
     host.on('change', () => {
       const s = snapshot()
       for (const w of BrowserWindow.getAllWindows()) w.webContents.send('host:change', s)

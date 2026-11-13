@@ -14,6 +14,7 @@ use tokio::sync::{mpsc, oneshot};
 type Reply = oneshot::Sender<Result<()>>;
 pub(super) struct Completed {
     epoch: u64,
+    text: Option<String>,
     cancelled: Arc<AtomicBool>,
     reply: Option<Reply>,
     image_entry: Option<String>,
@@ -58,6 +59,7 @@ impl Actor {
         &mut self,
         source: String,
         name: Option<String>,
+        text: Option<String>,
         cancelled: Arc<AtomicBool>,
         reply: Reply,
     ) {
@@ -81,7 +83,7 @@ impl Actor {
                 tokio::task::spawn_blocking(move || files::snapshot(&root, &cwd, &source, name.as_deref(), &flag))
                     .await;
             let result = result.map_err(anyhow::Error::from).and_then(std::convert::identity);
-            let _ = tx.send(Completed { epoch, cancelled, reply: Some(reply), image_entry: None, result });
+            let _ = tx.send(Completed { epoch, text, cancelled, reply: Some(reply), image_entry: None, result });
         });
     }
 
@@ -116,7 +118,7 @@ impl Actor {
             let flag = cancelled.clone();
             let result = tokio::task::spawn_blocking(move || files::snapshot_image(&root, &mime, &data, &flag)).await;
             let result = result.map_err(anyhow::Error::from).and_then(std::convert::identity);
-            let _ = tx.send(Completed { epoch, cancelled, reply: None, image_entry: Some(image_entry), result });
+            let _ = tx.send(Completed { epoch, text: None, cancelled, reply: None, image_entry: Some(image_entry), result });
         });
     }
 
@@ -161,9 +163,14 @@ impl Actor {
                 entry.data["files"] = json!([snapshot.meta]);
                 self.hub.set_entry(entry_id, &entry.data).ok_or_else(|| anyhow!("couldn't save the image message"))?;
             } else {
+                ensure!(completed.text.is_none() || snapshot.meta.plays_in_chat,
+                    "text goes only with a voice note: an mp3, m4a, wav or aac file up to 20 MiB");
                 self.close_seg();
-                self.add(EntryKind::Agent, turn, json!({"text": text, "final": true, "files": [snapshot.meta]}))
-                    .ok_or_else(|| anyhow!("couldn't save the file message"))?;
+                let text = match completed.text {
+                    Some(text) => self.post_voice_note(turn, text, &snapshot)?,
+                    None => self.post_file(turn, &snapshot)?,
+                };
+                self.files.summary = Some(text);
             }
             snapshot.commit();
             self.files.summary = Some(text);
@@ -175,6 +182,23 @@ impl Actor {
         } else if let Err(error) = result {
             tracing::warn!(bot = %self.cfg.id, error = %error, "couldn't publish agent image");
         }
+    }
+}
+
+impl Actor {
+    /// A file message: the card, with its name and size for a reader without one.
+    fn post_file(&mut self, turn: i64, snapshot: &Snapshot) -> Result<String> {
+        let text = format!("{} ({} bytes)", snapshot.meta.name, snapshot.meta.size);
+        self.add(EntryKind::Agent, turn, json!({"text": text, "final": true, "files": [snapshot.meta]}))
+            .ok_or_else(|| anyhow!("couldn't save the file message"))?;
+        Ok(text)
+    }
+
+    /// A message carrying a voice note: one bubble, the player over the text, sent like `send_message`.
+    fn post_voice_note(&mut self, turn: i64, text: String, snapshot: &Snapshot) -> Result<String> {
+        let data = json!({"text": text, "final": true, "files": [snapshot.meta], "voiceNote": true});
+        self.record_sent(turn, data, text.clone())?;
+        Ok(text)
     }
 }
 
@@ -203,4 +227,5 @@ mod tests {
         assert!(shares.images_pending());
         assert!(!new.load(Ordering::Acquire));
     }
+
 }

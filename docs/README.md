@@ -70,6 +70,7 @@ commands do not necessarily describe these distributed packages.
 - [Extensions and agent setup](features/marketplace.md)
 - [Connector setup and credentials](features/connector-credentials.md)
 - [Usage analytics and error tracking](features/analytics.md)
+- [What's new](features/whats-new.md) (an important release's highlights, once after updating to it)
 - [Widgets, Live Activities and onboarding](design/mobile-widgets.md)
 - [Notifications and background Live Activity updates](design/push-and-live-activity.md)
 
