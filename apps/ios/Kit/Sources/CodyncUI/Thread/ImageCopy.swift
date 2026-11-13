@@ -4,9 +4,7 @@ import OSLog
 import UIKit
 import UniformTypeIdentifiers
 
-enum ImageTransferError: String { case unavailable, convert, clipboard, transfer }
 enum ImageActionSource { case menu, viewer }
-enum ImageTransferOutcome: Equatable { case done, failed(ImageTransferError) }
 enum AudioFailure { case load, playback }
 
 private let log = Logger(subsystem: "com.pokai.Codync", category: "Attachments")

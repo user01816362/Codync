@@ -2,6 +2,10 @@ import CodyncKit
 import Foundation
 import Observation
 
+/// Local file-transfer results used by the viewer and download lifecycle; no analytics dependency.
+public enum ImageTransferError: String, Sendable { case unavailable, convert, clipboard, transfer }
+public enum ImageTransferOutcome: Equatable, Sendable { case done, failed(ImageTransferError) }
+
 protocol FileDownloadWriting: Sendable {
     func save(client: HostClient, entryId: String, file: SharedFile,
               directory: URL, progress: @Sendable (Int64) async -> Void) async throws -> URL
