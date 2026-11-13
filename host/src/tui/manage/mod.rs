@@ -8,8 +8,8 @@
 mod agent;
 mod analytics;
 mod bot_chat;
-mod departments;
 mod computer;
+mod departments;
 mod dev_servers;
 mod fields;
 mod file_preview;

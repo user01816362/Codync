@@ -118,7 +118,14 @@ impl Actor {
             let flag = cancelled.clone();
             let result = tokio::task::spawn_blocking(move || files::snapshot_image(&root, &mime, &data, &flag)).await;
             let result = result.map_err(anyhow::Error::from).and_then(std::convert::identity);
-            let _ = tx.send(Completed { epoch, text: None, cancelled, reply: None, image_entry: Some(image_entry), result });
+            let _ = tx.send(Completed {
+                epoch,
+                text: None,
+                cancelled,
+                reply: None,
+                image_entry: Some(image_entry),
+                result,
+            });
         });
     }
 
@@ -155,7 +162,7 @@ impl Actor {
             let turn = self.can_send_file()?;
             ensure!(self.hub.store.bot(&self.cfg.id)?.is_some_and(|bot| !bot.deleted), "bot was deleted");
             let mut snapshot = completed.result?;
-            let text = format!("{} ({} bytes)", snapshot.meta.name, snapshot.meta.size);
+            let mut text = format!("{} ({} bytes)", snapshot.meta.name, snapshot.meta.size);
             if let Some(entry_id) = &completed.image_entry {
                 let mut entry = self.hub.store.entry(entry_id).ok_or_else(|| anyhow!("image message was removed"))?;
                 entry.data["text"] = text.clone().into();
@@ -163,14 +170,15 @@ impl Actor {
                 entry.data["files"] = json!([snapshot.meta]);
                 self.hub.set_entry(entry_id, &entry.data).ok_or_else(|| anyhow!("couldn't save the image message"))?;
             } else {
-                ensure!(completed.text.is_none() || snapshot.meta.plays_in_chat,
-                    "text goes only with a voice note: an mp3, m4a, wav or aac file up to 20 MiB");
+                ensure!(
+                    completed.text.is_none() || snapshot.meta.plays_in_chat,
+                    "text goes only with a voice note: an mp3, m4a, wav or aac file up to 20 MiB"
+                );
                 self.close_seg();
-                let text = match completed.text {
+                text = match completed.text {
                     Some(text) => self.post_voice_note(turn, text, &snapshot)?,
                     None => self.post_file(turn, &snapshot)?,
                 };
-                self.files.summary = Some(text);
             }
             snapshot.commit();
             self.files.summary = Some(text);
@@ -227,5 +235,4 @@ mod tests {
         assert!(shares.images_pending());
         assert!(!new.load(Ordering::Acquire));
     }
-
 }

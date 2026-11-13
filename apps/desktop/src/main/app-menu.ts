@@ -111,4 +111,3 @@ export function applyMenu(language: TraySummary['language'], send: (command: Win
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
-

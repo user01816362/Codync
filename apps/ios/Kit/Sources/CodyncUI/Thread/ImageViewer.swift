@@ -117,8 +117,7 @@ private struct ViewerDownloadButton: View {
         let state = model.fileDownloads.states[file.id]
         IconButton(FileDownloadCard.action(state), systemImage: FileDownloadCard.symbol(state)) {
             Motion.animate {
-                model.fileDownloads.toggle(client: model.client, entryId: entryId, botId: botId, file: file) { outcome in
-                }
+                model.fileDownloads.toggle(client: model.client, entryId: entryId, botId: botId, file: file)
             }
         }
     }

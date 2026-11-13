@@ -85,18 +85,18 @@ import kotlinx.coroutines.launch
         }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (file.showsAsImage) SharedImage(file, entry.id, 720, state, store, Modifier.sizeIn(maxHeight = 280.dp)
             .clip(RoundedRectangle(10.dp)).plainButton { viewing = true })
-        FileRow(file, download, player, caption, save, play)
+        FileRow(file, download, player, caption, save, play) { viewingText = true }
     }
 
     SharedImageSheet(file.takeIf { viewing }, entry, menu, state, store) { viewing = false }
 }
 
 @Composable private fun FileRow(file: SharedFile, download: FileDownloadState?, audio: SharedAudio?, caption: String,
-    save: () -> Unit, play: () -> Unit) {
+    save: () -> Unit, play: () -> Unit, openText: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         if (audio != null) SharedAudioButton(audio, play) else Symbol(AttachmentIcon.symbol(file.name), size = 24.dp, tint = Palette.secondary)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(file.name, modifier = if (file.canOpenPreview) Modifier.plainButton { viewingText = true } else Modifier, style = Type.subheadline.semibold, color = Palette.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(file.name, modifier = if (file.canOpenPreview) Modifier.plainButton(action = openText) else Modifier, style = Type.subheadline.semibold, color = Palette.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(caption, style = Type.caption2, color = if (audio?.phase == AudioPhase.Failed) Palette.danger else Palette.secondary)
             if (audio != null && audio.duration > 0.0) AudioProgress(audio)
         }

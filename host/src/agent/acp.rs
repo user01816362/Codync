@@ -17,8 +17,8 @@ use tokio::process::ChildStdin;
 use tokio::sync::{mpsc, oneshot};
 
 pub mod codebuddy;
-mod framing;
 mod exit;
+mod framing;
 pub use exit::{exit_tail, stderr_reason};
 
 /// stderr lines kept to explain a crash.
