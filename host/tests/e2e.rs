@@ -264,6 +264,9 @@ async fn unfinished_stream_is_cleared_after_host_restart() {
     (host.child, host.base) = common::serve(&host.home).await;
     let recovered = host.wait_for(&bot, |e| e["id"] == entry["id"] && e["data"]["streaming"] == false).await;
     assert_eq!(recovered["data"]["final"], false);
+}
+
+#[tokio::test]
 async fn a_deleted_bots_card_leaves_the_groups_badge() {
     // Issue #366: the card sits in the group's chat, which outlives the bot that asked.
     if Command::new(common::python()).arg("--version").output().is_err() {

@@ -44,13 +44,6 @@ impl Actor {
                     self.on_update(&params["update"]);
                 }
             }
-                    && params["sessionId"].as_str() == self.turn_session.as_deref()
-                    && self.turn.is_some()
-                    && self.image_done.is_none()
-                {
-                    self.on_update(&params["update"]);
-                }
-            }
             Some(Incoming::Notification { .. }) => {}
             Some(Incoming::Request { id, method, params }) => {
                 if method == "session/request_permission" && self.turn.is_some() {
