@@ -260,20 +260,22 @@ mod tests {
     async fn e_shows_only_while_some_bot_has_live_or_waiting_items() {
         let mut app = test_app();
         let area = Rect::new(0, 0, 130, 44);
-        let keys = |app: &App| screen(area, |buf| help::help(buf, area, &Editor::default(), app.any_work())).join("\n");
+        let keys = |app: &App, query: &str| {
+            screen(area, |buf| help::help(buf, area, &Editor::with(query), app.any_work())).join("\n")
+        };
         let bot = |app: &mut App, statuses: &[&str]| {
             let work: Vec<_> = statuses.iter().map(|s| json!({"id": s, "title": s, "status": s})).collect();
             app.on_msg(Msg::Event(json!({"type": "bot", "bot": {"id": "a", "name": "A", "work": work}})));
         };
         bot(&mut app, &["done", "failed"]);
         assert_eq!(nav_hint(&app), "? keys");
-        assert!(!keys(&app).contains("work: every bot's items"));
-        assert!(keys(&app).contains("rename / remove folder"), "the folder's key stays");
+        assert!(!keys(&app, "work: every").contains("work: every bot's items"));
+        assert!(keys(&app, "rename").contains("rename / remove folder"), "the folder's key stays");
 
         bot(&mut app, &["waiting"]);
         assert_eq!(nav_hint(&app), "E Work · ? keys", "nothing worked on yet: no count");
         bot(&mut app, &["working", "needsYou", "waiting"]);
         assert_eq!(nav_hint(&app), "E Work 1 · ? keys", "how many items are worked on");
-        assert!(keys(&app).contains("work: every bot's items"));
+        assert!(keys(&app, "work: every").contains("work: every bot's items"));
     }
 }
