@@ -171,8 +171,9 @@ extension BotStore {
                         ids = uploaded
                     }
                     try Task.checkCancellation()
-                    return try await client.send(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo, replyPart: replyPart,
-                                                 attachments: ids, pasted: pasted, call: call, replySelection: replySelection, itemId: itemId)
+                    return try await client.send(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo,
+                                                 attachments: ids, pasted: pasted, call: call, replySelection: replySelection,
+                                                 replyPart: replyPart, itemId: itemId)
                 }
                 outgoingFiles[nonce] = nil
                 upsert(e)
@@ -237,7 +238,17 @@ extension BotStore {
             saveCache()
             return .failed
         }
-        let delivery = deliver(text, botId: botId, replyTo: replyTo, nonce: nonce, pasted: pasted)
+        let delivery = deliver(
+            text,
+            botId: botId,
+            replyTo: replyTo?.id,
+            nonce: nonce,
+            pasted: pasted,
+            replySelection: replyTo?.selected == true
+                ? ReplySelection(text: replyTo?.text ?? "", part: replyTo?.sourcePart)
+                : nil,
+            replyPart: replyTo?.selectedPart
+        )
         return await withTaskCancellationHandler {
             await delivery.value
         } onCancel: {
