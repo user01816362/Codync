@@ -66,8 +66,11 @@ export function BotEditorView({ draft: initial }: { draft: BotDraft }) {
   )
 }
 
-/** The Settings tab of the desktop inspector next to a conversation: the same form, saved as you edit. */
-export function BotSettingsPanel({ botId }: { botId: string }) {
+/** Which settings the conversation inspector shows: frequently changed or less frequently changed. */
+type FormPart = 'all' | 'often' | 'rarely'
+
+/** The desktop inspector next to a conversation: the same form, saved as you edit. */
+export function BotSettingsPanel({ botId, part }: { botId: string; part: Exclude<FormPart, 'all'> }) {
   const store = useStore()
   const plugins = usePlugins(store)
   const [draft, setDraft] = useState<BotDraft | null>(null)
@@ -94,7 +97,7 @@ export function BotSettingsPanel({ botId }: { botId: string }) {
     return () => clearTimeout(timer)
   }, [draft])
 
-  return draft ? <BotSettingsForm draft={draft} onChange={change} error={error} plugins={plugins} inspector /> : null
+  return draft ? <BotSettingsForm draft={draft} onChange={change} error={error} plugins={plugins} inspector part={part} /> : null
 }
 
 /** The bot that created this one with its team tools, and when. */
@@ -111,12 +114,13 @@ function CreatedBy({ bot, creator }: { bot: Bot; creator: string }) {
 
 /** Bot settings, in sections in the Settings style (`CardSection`): how the bot is set up, what it is told and what
  * runs it first. In the `inspector` the Computer tab holds the Use the computer switch. */
-function BotSettingsForm({ draft, onChange, error, plugins, inspector = false }: {
+function BotSettingsForm({ draft, onChange, error, plugins, inspector = false, part = 'all' }: {
   draft: BotDraft
   onChange: (update: (d: BotDraft) => BotDraft) => void
   error: string | null
   plugins: Plugins | null
   inspector?: boolean
+  part?: FormPart
 }) {
   const tr = useTr()
   const store = useStore()
@@ -169,18 +173,34 @@ function BotSettingsForm({ draft, onChange, error, plugins, inspector = false }:
   ] : null
   // Only where Codync summarizes the chat (its bot says): CardSection gives every child a row.
   const compaction = saved && saved.compaction !== null ? <CompactionRow key="compaction" draft={draft} bot={saved} onChange={onChange} /> : null
+  const frequentSettings = (
+    <>
+      <CardSection title="Instructions">{instructions}</CardSection>
+      <CardSection title="Agent">
+        {step}
+        {agent}
+        {loginProfile}
+        {fallbacks}
+        {compaction}
+      </CardSection>
+    </>
+  )
+
+  if (part === 'often') {
+    return (
+      <div className="bot-form">
+        <div className="bot-form-content">
+          {frequentSettings}
+          {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bot-form">
       <div className="bot-form-content">
-        <CardSection title="Instructions">{instructions}</CardSection>
-        <CardSection title="Agent">
-          {step}
-          {agent}
-          {loginProfile}
-          {fallbacks}
-          {compaction}
-        </CardSection>
+        {part === 'rarely' ? null : frequentSettings}
         <CardSection title="Profile">
           <ValueRow label="Avatar">
             <button ref={avatarRef} className="avatar-button small" title="Edit Bot avatar" aria-label="Edit Bot avatar" onClick={() => setPickingAvatar((p) => !p)}>

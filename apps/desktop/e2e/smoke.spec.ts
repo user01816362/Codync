@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import type { HostSnapshot } from '../src/shared/ipc.ts'
 import { appPid, attach, sandbox, setPref } from './sandbox.ts'
 
