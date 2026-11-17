@@ -119,7 +119,7 @@ struct WorkThreadView: View {
     /// The composer for an item that takes messages; for a routine's run or another bot's request, why it doesn't.
     @ViewBuilder private func footer(_ item: WorkItem, queued: [Entry]) -> some View {
         if item.talk, item.task != nil {
-            Composer(botId: botId, replyingTo: .constant(nil), queued: queued)
+            Composer(botId: botId, replyingTo: .constant(nil), editingMessage: .constant(nil), queued: queued)
                 .disabled(model.isOffline)
         } else if let line = item.readOnlyLine {
             Text(L10n.tr(line))
