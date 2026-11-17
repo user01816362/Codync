@@ -275,7 +275,7 @@ impl Actor {
                         self.on_update(&params["update"]);
                     }
                 }
-                _ => {}
+                Incoming::Closed { .. } => {}
             }
         }
         let sid = self.turn_session.clone().ok_or_else(|| anyhow!("no session"))?;

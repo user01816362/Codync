@@ -58,11 +58,6 @@ impl Requests {
         Ok((hops, collaboration))
     }
 
-    /// Kept for callers that message from the bot's own turn.
-    pub(super) fn reserve_message_scoped(&self, from: &str) -> Result<(u8, Option<String>)> {
-        self.reserve_message_in(from, from)
-    }
-
     pub(super) fn release_message(&self, from: &str) {
         let mut state = self.0.locked();
         state.messages -= 1;
