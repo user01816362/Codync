@@ -1,7 +1,9 @@
 //! Commands from clients and the queue of turns waiting for the bot.
 
 use super::sign_in::Held;
-use super::{Actor, CANCEL_GRACE, Cmd, Done, HostTurn, Inflight, NoticeStyle, Queued, RESUME_PROMPT, RoutineCompletion};
+use super::{
+    Actor, CANCEL_GRACE, Cmd, Done, HostTurn, Inflight, NoticeStyle, Queued, RESUME_PROMPT, RoutineCompletion,
+};
 use crate::agent::own_memory;
 use crate::chat::memory;
 use crate::chat::tasks::{self, Failure, Outcome};
@@ -486,9 +488,13 @@ impl Actor {
                             }
                             continue;
                         }
-                        if let Err(error) =
-                            crate::chat::group_tasks::finish(&self.hub, task, &entry_id, "running", "Dispatched to owner")
-                        {
+                        if let Err(error) = crate::chat::group_tasks::finish(
+                            &self.hub,
+                            task,
+                            &entry_id,
+                            "running",
+                            "Dispatched to owner",
+                        ) {
                             tracing::error!(%error, "couldn't mark task running");
                             continue;
                         }
@@ -514,7 +520,6 @@ impl Actor {
             }
         }
     }
-
 
     pub(super) fn start_failed(&mut self, e: &anyhow::Error) {
         if self.turn.is_some() {
@@ -695,5 +700,4 @@ impl Actor {
             tracing::warn!(bot = %self.cfg.id, error = format!("{error:#}"), "couldn't record the running turn");
         }
     }
-
 }

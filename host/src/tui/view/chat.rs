@@ -156,9 +156,15 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
                 } else {
                     "j k pick · ↵ reply · 1–6 react · o preview text · f save files · c copy".to_owned()
                 };
-                if entry.as_ref().is_some_and(Entry::editable) { hint.push_str(" · e edit"); }
-                if app.version_count(&b.id, pick) > 1 { hint.push_str(" · [ ] version"); }
-                if entry.as_ref().is_some_and(|e| e.quotes().is_some()) { hint.push_str(" · q quoted message"); }
+                if entry.as_ref().is_some_and(Entry::editable) {
+                    hint.push_str(" · e edit");
+                }
+                if app.version_count(&b.id, pick) > 1 {
+                    hint.push_str(" · [ ] version");
+                }
+                if entry.as_ref().is_some_and(|e| e.quotes().is_some()) {
+                    hint.push_str(" · q quoted message");
+                }
                 hint.push_str(" · esc");
                 hint
             }

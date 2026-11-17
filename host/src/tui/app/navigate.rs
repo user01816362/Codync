@@ -269,10 +269,14 @@ impl App {
                 }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.data["files"].is_array()) => {
-                if let Some(e) = picked { self.open_file_preview(&e.id, &e.data); }
+                if let Some(e) = picked {
+                    self.open_file_preview(&e.id, &e.data);
+                }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.data["attachments"].is_array()) => {
-                if let Some(e) = picked { self.open_upload_preview(&id, &e.data); }
+                if let Some(e) = picked {
+                    self.open_upload_preview(&id, &e.data);
+                }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| Self::workspace_link(e.text()).is_some()) => {
                 if let Some(e) = picked

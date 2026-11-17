@@ -288,7 +288,8 @@ impl Acp {
                                     continue;
                                 }
                                 if size > 0 && !reserve_image_bytes(&queued_image_bytes, size) {
-                                    input_error = Some("Agent images exceeded the 64 MiB pending-image budget.".to_owned());
+                                    input_error =
+                                        Some("Agent images exceeded the 64 MiB pending-image budget.".to_owned());
                                     break;
                                 }
                                 let _ = tx.send(Incoming::Notification { method, params: msg["params"].clone() });
