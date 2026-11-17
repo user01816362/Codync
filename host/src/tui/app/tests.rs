@@ -74,7 +74,7 @@ async fn emptying_a_chat_asks_first() {
     let mut app = test_app();
     app.bots.insert("b".into(), Bot::parse(&json!({"id": "b", "name": "Bot"})).expect("a bot with an id parses"));
     app.selected = Some("b".into());
-    app.on_key(KeyEvent::from(KeyCode::Char('E')));
+    app.on_key(KeyEvent::new(KeyCode::Char('e'), crossterm::event::KeyModifiers::CONTROL));
     assert!(matches!(
         app.overlays.last(),
         Some(Overlay::Confirm(c)) if matches!(&c.act, ConfirmAct::ClearChat(id) if id == "b")

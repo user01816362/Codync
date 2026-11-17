@@ -268,7 +268,7 @@ mod tests {
         bot(&mut app, &["done", "failed"]);
         assert_eq!(nav_hint(&app), "? keys");
         assert!(!keys(&app).contains("work: every bot's items"));
-        assert!(keys(&app).contains("rename / remove section"), "the section's key stays");
+        assert!(keys(&app).contains("rename / remove folder"), "the folder's key stays");
 
         bot(&mut app, &["waiting"]);
         assert_eq!(nav_hint(&app), "E Work · ? keys", "nothing worked on yet: no count");

@@ -48,7 +48,7 @@ const HELP: &[(&str, &str, &str)] = &[
     ("CHAT", "v", "pick a message"),
     ("CHAT", "e", "picking your message: edit it"),
     ("CHAT", "[ ]", "picking an edited message: its versions"),
-    ("CHAT", "E", "empty the chat (its memory stays)"),
+    ("CHAT", "^e", "empty the chat (its memory stays)"),
     ("CHAT", "j k  ↵", "picking: move / reply"),
     ("CHAT", "1…6", "picking: react"),
     ("CHAT", "f", "picking: save its files or artifact"),

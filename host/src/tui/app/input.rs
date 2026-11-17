@@ -388,7 +388,7 @@ impl App {
             KeyCode::Char('D') => self.unqueue_last(),
             KeyCode::Char('X') => self.ask_stop_work(),
             KeyCode::Char('*') => self.make_lead(),
-            KeyCode::Char('E') if !roster_page => self.ask_clear_chat(),
+            KeyCode::Char('e') if ctrl && !roster_page => self.ask_clear_chat(),
             KeyCode::Char('x') => {
                 // An older host keeps its lead.
                 let kept = self.bot().is_some_and(|b| b.lead) && !self.lead_choice_supported();
