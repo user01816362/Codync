@@ -37,7 +37,7 @@ impl App {
     }
 
     /// `e` on one of the user's sent messages: the composer edits it, and the bot answers the edit again.
-    pub(super) fn start_editing(&mut self, e: &super::Entry) {
+    pub(super) fn start_editing(&mut self, e: &Entry) {
         self.editing = Some(e.id.clone());
         self.drafts.insert(Self::edit_key(&e.id), Editor::with(e.text()));
         self.reply = None;
@@ -304,7 +304,7 @@ impl App {
                     self.overlays.push(Overlay::Fields(Box::new(crate::tui::manage::queued_fields(&id, &e))));
                 }
             }
-            KeyCode::Char('e') if picked.as_ref().is_some_and(super::Entry::editable) => {
+            KeyCode::Char('e') if picked.as_ref().is_some_and(Entry::editable) => {
                 if let Some(e) = picked {
                     self.start_editing(&e);
                 }

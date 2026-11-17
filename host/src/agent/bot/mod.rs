@@ -21,7 +21,6 @@ mod cmd;
 mod codex_names;
 mod commands;
 mod compaction;
-mod completion;
 mod decisions;
 mod fallback;
 mod fast_mode;

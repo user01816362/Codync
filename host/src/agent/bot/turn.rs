@@ -516,7 +516,6 @@ impl Actor {
         self.reply_hops = None;
         self.reply_collaboration = None;
         // A call's opening is heard on the call; HostTurn::Opening suppresses its alert and resume.
-        let _opening = std::mem::take(&mut self.active_prompt);
         let host_turn = self.end_host_turn(done.is_ok() && !stopped && stop_reason == "end_turn");
         if self.routine_completion.is_none() {
             self.set_inflight(false);
@@ -628,7 +627,36 @@ impl Actor {
         };
         let started = self.hub.runtime(&self.id()).started_at.unwrap_or_else(now_ms);
         let ms = now_ms() - started;
-        crate::analytics::turn_finished(&self.hub, &self.cfg, outcome, stop_reason, failure, self.source(), ms);
+        analytics::turn_finished(&self.hub, &self.cfg, outcome, stop_reason, failure, self.source(), ms);
+    }
+
+    /// The turn is a routine's run: in the chat, or a task's whose item is one.
+    pub(super) fn in_routine(&self) -> bool {
+        self.active_routine.is_some() || matches!(self.task_source, Source::Routine { .. })
+    }
+
+    /// The turn answers another bot's request: in the chat, or a task's whose item is one.
+    pub(super) fn in_request(&self) -> bool {
+        self.active_request.is_some() || matches!(self.task_source, Source::Request { .. })
+    }
+
+    /// The turn is the bot's own (a task on the bot's own work counts): not a room's, a routine's run or another
+    /// bot's request.
+    pub(super) fn in_own_chat(&self) -> bool {
+        self.active_group.is_none() && !self.in_routine() && !self.in_request()
+    }
+
+    /// What started the turn that is starting or running. A task's turn is what its item came from.
+    pub(super) fn source(&self) -> TurnSource {
+        if self.in_routine() {
+            TurnSource::Routine
+        } else if self.active_group.is_some() {
+            TurnSource::Group
+        } else if self.in_request() || self.reply_hops.is_some() {
+            TurnSource::Bot
+        } else {
+            self.host_turn.map_or(TurnSource::User, HostTurn::source)
+        }
     }
 }
 

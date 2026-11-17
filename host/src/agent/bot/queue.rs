@@ -522,6 +522,15 @@ impl Actor {
     }
 
     pub(super) fn start_failed(&mut self, e: &anyhow::Error) {
+        for id in &self.turn_entries {
+            if let Some(entry) = self.hub.store.entry(id)
+                && let Some(task) = entry.data["taskId"].as_str()
+                && let Err(error) =
+                    crate::chat::group_tasks::finish(&self.hub, task, id, "failed", &format!("Could not start: {e:#}"))
+            {
+                tracing::error!(%error, "couldn't record task start failure");
+            }
+        }
         if self.turn.is_some() {
             self.report_turn(false, Some(e), "start_failed");
         }
@@ -538,6 +547,7 @@ impl Actor {
         self.relay.carried = None;
         self.turn = None;
         self.reply_hops = None;
+        self.reply_collaboration = None;
         self.end_host_turn(false);
         memory::turns::drop_turn(&self.cfg.id);
         if self.routine_completion.is_none() {

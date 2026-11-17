@@ -57,7 +57,7 @@ pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Resul
             return Ok(reply);
         }
         if let Some(file_id) = part.strip_prefix("file:") {
-            let mut reply = quote(store, chat, id)?;
+            let mut reply = quote(store, chat, id, None)?;
             let entry = store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
             let file = ["files", "attachments"]
                 .into_iter()
@@ -75,7 +75,7 @@ pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Resul
             return Ok(reply);
         }
         if let Some(artifact) = part.strip_prefix("artifact:") {
-            let mut reply = quote(store, chat, id)?;
+            let mut reply = quote(store, chat, id, None)?;
             ensure!(reply["artifact"] == artifact, "unknown artifact source");
             let author = reply["author"].as_str().context("unknown artifact author")?;
             let saved = super::artifacts::get(store, author, artifact).context("artifact is unavailable")?;
@@ -94,7 +94,7 @@ pub fn selection(store: &Store, chat: &str, id: &str, selected: &Value) -> Resul
         let author = message[author].as_str().ok_or_else(|| anyhow!("unknown message author"))?;
         json!({"id": id, "author": author, "part": part})
     } else {
-        quote(store, chat, id)?
+        quote(store, chat, id, None)?
     };
     // Selecting an artifact card's text must not replace the excerpt with an artifact-location note.
     reply.as_object_mut().ok_or_else(|| anyhow!("invalid reply quote"))?.remove("artifact");

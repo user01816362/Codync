@@ -328,7 +328,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                 // Of the folder the bot has: one picked here and not saved yet isn't known.
                 let saved = app.bots.get(&f.bot_id).filter(|b| f.cwd == if b.managed_workspace { "" } else { &b.cwd });
                 if let Some(line) = saved.and_then(Bot::git_line)
-                    && y + 1 < inner.bottom().saturating_sub(FOOTER)
+                    && y + 1 < inner.bottom().saturating_sub(footer)
                 {
                     put(buf, vx, y + 1, vw, &tr(line), t.dim.patch(t.panel));
                 }

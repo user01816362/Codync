@@ -36,7 +36,7 @@ impl Actor {
         match self.hub.store.managed_queue(&self.cfg.id) {
             Ok(entries) => {
                 for entry in entries {
-                    let text = crate::chat::prompt::of_entry(&self.hub, &self.cfg, &entry.data);
+                    let text = crate::chat::prompt::of_entry(&self.hub, &self.cfg, &entry);
                     self.queue.push_back(Queued::User { lane: Lane::main(&self.cfg.id), entry_id: entry.id, text });
                 }
             }

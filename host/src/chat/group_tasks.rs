@@ -144,8 +144,9 @@ pub async fn update(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
         }
     );
     let message = json!({"text":text,"status":"queued","taskId":entry.id});
-    hub.add_entry_once(&run_id, &Lane::main(&owner), EntryKind::User, hub.store.max_turn(&owner) + 1, &message)?;
-    let prompt = super::prompt::of_entry(hub, &cfg, &message);
+    let (run_entry, _) =
+        hub.add_entry_once(&run_id, &Lane::main(&owner), EntryKind::User, hub.store.max_turn(&owner) + 1, &message)?;
+    let prompt = super::prompt::of_entry(hub, &cfg, &run_entry);
     if let Err(error) =
         hub.send_cmd(&owner, Cmd::Send { lane: Lane::main(&owner), entry_id: run_id.clone(), text: prompt })
     {

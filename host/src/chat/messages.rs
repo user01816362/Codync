@@ -85,16 +85,16 @@ pub fn edit(hub: &Arc<Hub>, cfg: &BotConfig, id: &str, text: &str) -> Result<Ent
     if let Err(error) = hub.mark_read(&cfg.id) {
         tracing::warn!(%error, bot = %cfg.id, "couldn't mark bot read after an edit");
     }
-    let prompt = edited_prompt(hub, cfg, &before.data, &e.data);
+    let prompt = edited_prompt(hub, cfg, &before, &e);
     hub.send_cmd(&cfg.id, Cmd::Send { lane: Lane::main(&cfg.id), entry_id: e.id.clone(), text: prompt })?;
     Ok(e)
 }
 
 /// What the agent reads for an edit: the message it replaces, then the edited one, so its session doesn't carry
 /// on from a version the user has replaced.
-fn edited_prompt(hub: &Hub, cfg: &BotConfig, before: &Value, data: &Value) -> String {
-    let prompt = crate::chat::prompt::of_entry(hub, cfg, data);
-    let previous = crate::store::message_text(before);
+fn edited_prompt(hub: &Hub, cfg: &BotConfig, before: &Entry, entry: &Entry) -> String {
+    let prompt = crate::chat::prompt::of_entry(hub, cfg, entry);
+    let previous = crate::store::message_text(&before.data);
     if previous.is_empty() {
         return prompt;
     }
