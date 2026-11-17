@@ -29,7 +29,6 @@ import { RoutineNotice } from './RoutineNotice'
 import { Composer } from './Composer'
 import { QueuedMessages } from './QueuedMessages'
 import { WorkCapsule } from './WorkCapsule'
-import { KofiInviteCard, useKofiInviteAt } from './KofiInvite'
 import { fill } from '@shared/fill'
 import { outsideQueue } from './queued-messages'
 import { ChatSidePanel } from './ChatSidePanel'
@@ -414,7 +413,6 @@ const Transcript = memo(function Transcript({ botId, reveal, openTrace, onReply,
   }, [])
   const chatOf = useCallback((list: Entry[]) => buildChat(outsideQueue(hidingCalls(list), working), versionPicks), [working, versionPicks])
   const all = useMemo(() => chatOf(entries), [chatOf, entries])
-  const kofiAt = useKofiInviteAt(botId, all)
   const steps = useMemo(() => workingSteps(entries), [entries])
   // The newest 40 items first; older pages come in near the top.
   const [firstShown, setFirstShown] = useState<string | null>(null)
@@ -554,7 +552,6 @@ const Transcript = memo(function Transcript({ botId, reveal, openTrace, onReply,
             {/* `data-entry-id`: what a quote's click looks for (a user row's `item.id` is its nonce). */}
             <div key={item.id} data-entry-id={item.kind === 'separator' ? undefined : item.entry.id} tabIndex={-1} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
               <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} onEdit={onEdit} onPickVersion={pickVersion} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} openArtifact={openArtifact} openCall={openCall} />
-              {item.id === kofiAt ? <KofiInviteCard /> : null}
             </div>
           ))}
           {bot ? <WorkingTransition bot={bot} visible={live} steps={steps} /> : null}

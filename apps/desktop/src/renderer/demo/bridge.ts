@@ -149,14 +149,13 @@ const bridge: CodyncBridge = {
 }
 
 // Every visit starts from the story: no mirror cache, drafts or computer filter, order or folding from a
-// previous visit, onboarding done, no GitHub star ask, Ko-fi invitation, What's new or tip about Extensions over the demo.
+// previous visit, onboarding done, no GitHub star ask, What's new or tip about Extensions over the demo.
 try {
   for (const key of Object.keys(localStorage)) if (key.startsWith('codync-')) localStorage.removeItem(key)
   for (const key of ['hiddenComputers', 'computerOrder', 'collapsedComputerSections']) localStorage.removeItem(key)
   localStorage.setItem('macAccountOnboardingCompleted', 'true')
   localStorage.setItem('computerAccessSetup', JSON.stringify('later'))
   localStorage.setItem('githubStarAsk', JSON.stringify({ kind: 'done' }))
-  localStorage.setItem('kofiInvite', JSON.stringify({ kind: 'done' }))
   localStorage.setItem('extensionsMovedTipSeen', 'true')
   localStorage.setItem('whatsNewSeen', JSON.stringify(version))
 } catch {}

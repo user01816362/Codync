@@ -79,6 +79,9 @@ async fn emptying_a_chat_asks_first() {
         app.overlays.last(),
         Some(Overlay::Confirm(c)) if matches!(&c.act, ConfirmAct::ClearChat(id) if id == "b")
     ));
+}
+
+#[tokio::test]
 async fn a_follow_up_sits_above_the_routines_and_x_cancels_it() {
     use crate::tui::manage::{DetailsPage, Reply};
     use crossterm::event::{KeyCode, KeyEvent};
