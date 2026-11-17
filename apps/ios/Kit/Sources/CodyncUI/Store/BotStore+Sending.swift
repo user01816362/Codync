@@ -20,7 +20,7 @@ extension BotStore {
         guard !passage.isEmpty else { return }
         var data = EntryData()
         data.selectedQuote = ReplyQuote(id: exchange.id, author: part == "reply" ? exchange.target : exchange.source,
-                                        text: passage, selected: true, part: part)
+                                        text: passage, selected: true, sourcePart: part)
         selectedReply = Entry(id: exchange.id, seq: exchange.seq, botId: exchange.chatId, rev: exchange.rev,
                               kind: "notice", turn: 0, data: data, createdAt: exchange.createdAt, updatedAt: exchange.createdAt)
     }
@@ -99,15 +99,20 @@ extension BotStore {
     static func artifactDraftKey(_ artifact: Artifact) -> String { "\(artifact.botId)/artifact/\(artifact.id)" }
 
     /// Transfer to the outbox now; an eventual acknowledgement must not erase a newer draft.
-    /// `draft`: whose draft it is (the chat's when nil). `replyTo`: the chat message it quotes.
+    /// `draft`: whose draft it is (the chat's when nil). `replyTo`: the chat message it quotes. `thread`: the item's
+    /// thread it goes to instead of the chat, as text alone.
     @discardableResult
     func sendComposerDraft(to botId: String, draft key: String? = nil, replyTo: ReplyQuote? = nil,
-                           files: [OutgoingFile] = []) -> Bool {
+                           files: [OutgoingFile] = [], thread: WorkThread? = nil) -> Bool {
         let key = key ?? botId
         let text = composerDraft(for: key)
         guard !retired, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !files.isEmpty else { return false }
         let pasted = composerPasted[key] ?? []
-        send(text, to: botId, replyTo: replyTo, nonce: UUID().uuidString, files: files, pasted: pasted)
+        if let thread {
+            send(text, to: thread)
+        } else {
+            send(text, to: botId, replyTo: replyTo, nonce: UUID().uuidString, files: files, pasted: pasted)
+        }
         setComposerDraft("", for: key)
         return true
     }
@@ -145,32 +150,29 @@ extension BotStore {
         if let bot = bots[botId] { onSent?(bot, .sending) }
         // The mailbox cannot carry selected reply metadata; those replies use normal delivery without dropping the excerpt.
         if canQueue, files.isEmpty, call == nil, replyTo?.selected != true, let remote = transport as? any RemoteTransport {
-            return enqueue(remote, text: trimmed, botId: botId, replyTo: replyTo?.id, nonce: nonce)
+            return enqueue(remote, text: trimmed, botId: botId, replyTo: replyTo, nonce: nonce, pasted: pasted)
         }
         return deliver(trimmed, botId: botId, replyTo: replyTo?.id, nonce: nonce, pasted: pasted, call: call,
-                       replySelection: replyTo?.selected == true ? ReplySelection(text: replyTo?.text ?? "", part: replyTo?.part) : nil)
+                       replySelection: replyTo?.selected == true ? ReplySelection(text: replyTo?.text ?? "", part: replyTo?.sourcePart) : nil,
+                       replyPart: replyTo?.selectedPart)
     }
 
     private func deliver(_ text: String, botId: String, replyTo: String?, nonce: String, pasted: [String] = [],
-                         call: String? = nil, replySelection: ReplySelection? = nil) -> Task<SendProgress, Never> {
+                         call: String? = nil, replySelection: ReplySelection? = nil, replyPart: String? = nil,
+                         itemId: String? = nil) -> Task<SendProgress, Never> {
         Task {
             do {
                 // Safe to repeat: the computer skips a nonce it already has.
                 let e = try await withLink(replay: true) { client in
                     var ids: [String]?
                     if let files = self.outgoingFiles[nonce] {
-                        // A fresh upload per attempt: a retry never appends to a half-sent file.
-                        ids = []
-                        for file in files {
-                            let id = UUID().uuidString
-                            try await client.upload(botId: botId, id: id, name: file.name, data: file.data)
-                            Self.cacheAttachment(id, file.data)
-                            ids?.append(id)
-                        }
+                        let uploaded = try await client.upload(botId: botId, files: files)
+                        for (id, file) in zip(uploaded, files) { Self.cacheAttachment(id, file.data) }
+                        ids = uploaded
                     }
                     try Task.checkCancellation()
-                    return try await client.send(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo, attachments: ids,
-                                                 pasted: pasted, call: call, replySelection: replySelection)
+                    return try await client.send(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo, replyPart: replyPart,
+                                                 attachments: ids, pasted: pasted, call: call, replySelection: replySelection, itemId: itemId)
                 }
                 outgoingFiles[nonce] = nil
                 upsert(e)
@@ -189,14 +191,16 @@ extension BotStore {
     }
 
     /// The computer is offline: the message waits, sealed for it, in the relay mailbox.
-    private func enqueue(_ remote: any RemoteTransport, text: String, botId: String, replyTo: String?, nonce: String) -> Task<SendProgress, Never> {
+    private func enqueue(_ remote: any RemoteTransport, text: String, botId: String, replyTo: ReplyQuote?, nonce: String,
+                         pasted: [String]) -> Task<SendProgress, Never> {
         markLocal(nonce: nonce, botId: botId, status: "waiting")
         saveCache()
         return Task {
             defer { saveCache() }
             do {
                 try Task.checkCancellation()
-                try await remote.enqueue(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo)
+                try await remote.enqueue(botId: botId, text: text, clientNonce: nonce, replyTo: replyTo?.id,
+                                         replyPart: replyTo?.selectedPart, pasted: pasted)
                 onPromptSent()
                 if let bot = bots[botId] { onSent?(bot, .queued) }
                 return .queued
@@ -204,7 +208,7 @@ extension BotStore {
                 // Presence can race the stream state. Wait for the host's events channel
                 // before trying the normal API, instead of turning that race into a failure.
                 markLocal(nonce: nonce, botId: botId, status: "sending")
-                return await deliverWhenOnline(text, botId: botId, replyTo: replyTo, nonce: nonce)
+                return await deliverWhenOnline(text, botId: botId, replyTo: replyTo, nonce: nonce, pasted: pasted)
             } catch is CancellationError {
                 // The shortcut that sent it was cancelled: the failed message says enough.
                 markLocal(nonce: nonce, botId: botId, status: "failed")
@@ -218,7 +222,7 @@ extension BotStore {
         }
     }
 
-    private func deliverWhenOnline(_ text: String, botId: String, replyTo: String?, nonce: String) async -> SendProgress {
+    private func deliverWhenOnline(_ text: String, botId: String, replyTo: ReplyQuote?, nonce: String, pasted: [String]) async -> SendProgress {
         let deadline = ContinuousClock.now + .seconds(30)
         while !retired, !Task.isCancelled, connection != .online, ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(200))
@@ -233,7 +237,7 @@ extension BotStore {
             saveCache()
             return .failed
         }
-        let delivery = deliver(text, botId: botId, replyTo: replyTo, nonce: nonce)
+        let delivery = deliver(text, botId: botId, replyTo: replyTo, nonce: nonce, pasted: pasted)
         return await withTaskCancellationHandler {
             await delivery.value
         } onCancel: {
@@ -323,7 +327,8 @@ extension BotStore {
         entry.data.attachments?.isEmpty == false && entry.data.clientNonce.flatMap { outgoingFiles[$0] } == nil
     }
 
-    public func retry(_ entry: Entry) {
+    public func retry(_ entry: Entry, in thread: WorkThread? = nil) {
+        if let thread { return resend(entry, to: thread) }
         guard !filesGone(entry) else {
             lastError = "This message's files aren't on this device anymore. Delete it and attach them again."
             return
@@ -373,7 +378,8 @@ extension BotStore {
         try? data.write(to: url)
     }
 
-    public func discard(_ entry: Entry) {
+    public func discard(_ entry: Entry, in thread: WorkThread? = nil) {
+        if let thread { return dropTaskEntry(entry.id, task: thread.task) }
         if let nonce = entry.data.clientNonce { outgoingFiles[nonce] = nil }
         entries[entry.botId]?.removeAll { $0.id == entry.id }
         scheduleSave()

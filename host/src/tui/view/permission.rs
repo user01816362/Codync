@@ -4,13 +4,38 @@ use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 
 use super::super::app::{App, Bot, Click, Entry, tilde};
-use super::super::l10n::tr;
+use super::super::l10n::{fill, tr};
 use super::super::md::{self, truncate, width as w};
 use super::buffer::u;
 use super::style::{spin, theme};
 use super::time::clock;
 use super::transcript::Built;
 use crate::chat::decision::Status;
+
+/// An answer's label: Codync's own words for the usual kinds, in the app's language; an agent's own option keeps
+/// its name, as on the other apps.
+fn option_label(name: &str, kind: &str) -> String {
+    let label = match kind {
+        "allow_once" => "Allow once",
+        "allow_always" => "Always allow",
+        "reject_once" => "Deny",
+        "reject_always" => "Never",
+        _ => return name.to_owned(),
+    };
+    tr(label).into_owned()
+}
+
+/// What a decided card says was answered, in the outcome words the other apps use; an agent's own option keeps its name.
+fn outcome_label(name: &str, kind: &str) -> String {
+    let label = match kind {
+        "allow_once" => "Allowed once",
+        "allow_always" => "Always allowed",
+        "reject_once" => "Denied",
+        "reject_always" => "Never allowed",
+        _ => return name.to_owned(),
+    };
+    tr(label).into_owned()
+}
 
 /// Keys printed on approval buttons: y / a / n for the usual kinds, digits otherwise.
 fn option_keys(opts: &[(String, String, String)]) -> Vec<String> {
@@ -37,16 +62,21 @@ fn option_keys(opts: &[(String, String, String)]) -> Vec<String> {
         .collect()
 }
 
-/// A bot's choice card (`request_decision`): its question heads it, then a button per option, the suggested one marked.
+/// A bot's choice card (`request_decision`): the bot's name heads it, its question in bold, then a button per option
+/// (the suggested one marked) and a pointer to the message box for the user's own words. A task's card says where it
+/// comes from and has no such pointer: a typed message is for the bot in the chat, and only a pick answers the task.
 pub(super) fn decision_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, width: usize) {
     let t = theme();
     let answering = app.answering.get(&e.id);
     let question = e.data["question"].as_str().unwrap_or_default();
     let bw = width.saturating_sub(1).max(20);
     let inner = bw.saturating_sub(4);
-    let ask = tr("Needs your choice");
-    card_head(out, &format!(" ◆ {} · {ask} ", truncate(&b.name, inner.saturating_sub(w(&ask) + 8))), bw);
-    for l in md::wrap(&[Span::styled(question.to_owned(), t.secondary)], inner, &[], &[]) {
+    card_head(out, &format!(" ◆ {} ", truncate(&b.name, inner.saturating_sub(4))), bw);
+    let from = background_line(e);
+    if let Some(from) = &from {
+        card_row(out, vec![Span::styled(truncate(from, inner), t.dim)], inner);
+    }
+    for l in md::wrap(&[Span::styled(question.to_owned(), t.text.add_modifier(Modifier::BOLD))], inner, &[], &[]) {
         card_row(out, l.spans, inner);
     }
     card_row(out, vec![], inner);
@@ -69,6 +99,10 @@ pub(super) fn decision_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, widt
             card_row(out, line.spans, inner);
             out.buttons.push((li, 3, u(inner), Click::Option { entry: e.id.clone(), option: option.clone() }));
         }
+    }
+    // The message box below takes the user's own words.
+    if from.is_none() {
+        card_row(out, vec![Span::styled(format!(" ↓ {}", tr("Something else")), t.dim)], inner);
     }
     card_foot(out, bw);
 }
@@ -121,6 +155,13 @@ pub(super) fn chosen_line(out: &mut Built, e: &Entry) {
     ]));
 }
 
+/// Where what a background task posts in the chat (a card, a file, an artifact) comes from: `In the background ·
+/// <its item's title>`; none for the chat's own.
+pub(super) fn background_line(e: &Entry) -> Option<String> {
+    let task = e.data["task"]["title"].as_str()?;
+    Some(format!("{} · {task}", tr("In the background")))
+}
+
 pub(super) fn permission_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, width: usize) {
     let t = theme();
     let home = app.home.as_str();
@@ -129,8 +170,13 @@ pub(super) fn permission_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, wi
     let bw = width.saturating_sub(1).max(20);
     let inner = bw.saturating_sub(4);
     let title = e.data["title"].as_str().unwrap_or("Use a tool");
-    let head = format!(" ◆ {} wants to: {} ", b.name, truncate(title, inner.saturating_sub(w(&b.name) + 14)));
+    let template = tr("{name} wants to: {title}");
+    let room = inner.saturating_sub(w(&fill(&template, &[("name", &b.name), ("title", "")])) + 4);
+    let head = format!(" ◆ {} ", fill(&template, &[("name", &b.name), ("title", &truncate(title, room))]));
     card_head(out, &head, bw);
+    if let Some(from) = background_line(e) {
+        card_row(out, vec![Span::styled(truncate(&from, inner), t.dim)], inner);
+    }
     if let Some(cmd) = e.data["command"].as_str().filter(|c| !c.is_empty()) {
         for (i, l) in md::wrap(&[Span::styled(cmd.to_owned(), t.bold)], inner.saturating_sub(2), &[], &[])
             .into_iter()
@@ -142,7 +188,10 @@ pub(super) fn permission_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, wi
             card_row(out, c, inner);
         }
         let cwd = tilde(e.data["cwd"].as_str().unwrap_or(&b.cwd), home);
-        card_row(out, vec![Span::styled(format!("  in {}", truncate(&cwd, inner.saturating_sub(5))), t.dim)], inner);
+        let template = tr("in {path}");
+        let room = inner.saturating_sub(w(&fill(&template, &[("path", "")])) + 2);
+        let row = fill(&template, &[("path", &truncate(&cwd, room))]);
+        card_row(out, vec![Span::styled(format!("  {row}"), t.dim)], inner);
     }
     for d in e.data["diffs"].as_array().into_iter().flatten().take(3) {
         let path = tilde(d["path"].as_str().unwrap_or_default(), home);
@@ -197,7 +246,7 @@ pub(super) fn permission_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, wi
         };
     for (i, (id, name, kind)) in opts.iter().enumerate() {
         let key = format!(" {} ", if answering == Some(id) { spin(app) } else { keys[i].as_str() });
-        let label = format!("{name} ");
+        let label = format!("{} ", option_label(name, kind));
         let bw_ = w(&key) + w(&label);
         if used > 0 && used + bw_ + 1 > inner {
             flush(out, &mut line, &mut used, &mut pending);
@@ -221,9 +270,9 @@ pub(super) fn permission_card(out: &mut Built, app: &App, e: &Entry, b: &Bot, wi
         used += bw_;
     }
     if !line.is_empty() {
-        let hint = "N reject + say why";
-        if used + w(hint) + 3 <= inner {
-            line.push(Span::raw(" ".repeat(inner - used - w(hint))));
+        let hint = tr("N reject + say why").into_owned();
+        if used + w(&hint) + 3 <= inner {
+            line.push(Span::raw(" ".repeat(inner - used - w(&hint))));
             line.push(Span::styled(hint, t.dim));
         }
         flush(out, &mut line, &mut used, &mut pending);
@@ -237,10 +286,12 @@ pub(super) fn decided_line(out: &mut Built, e: &Entry) {
     let sel = e.data["selected"].as_str();
     let chosen = sel.and_then(|s| e.options().into_iter().find(|o| o.0 == s));
     let (g, gs, what) = match (e.data["status"].as_str(), chosen) {
-        (Some("answered"), Some((_, name, kind))) if kind.starts_with("allow") => ("✓", t.green, name),
-        (Some("answered"), Some((_, name, _))) => ("×", t.red, name),
-        (Some("expired"), _) => ("·", t.dim, "Expired".to_owned()),
-        _ => ("·", t.dim, "Cancelled".to_owned()),
+        (Some("answered"), Some((_, name, kind))) if kind.starts_with("allow") => {
+            ("✓", t.green, outcome_label(&name, &kind))
+        }
+        (Some("answered"), Some((_, name, kind))) => ("×", t.red, outcome_label(&name, &kind)),
+        (Some("expired"), _) => ("·", t.dim, tr("Expired — the agent moved on").into_owned()),
+        _ => ("·", t.dim, tr("Cancelled").into_owned()),
     };
     out.lines.push(Line::from(vec![
         Span::styled(format!(" {g} "), gs),
@@ -259,5 +310,58 @@ mod tests {
         let o = |k: &str| (String::new(), String::new(), k.to_owned());
         let keys = option_keys(&[o("allow_once"), o("allow_always"), o("reject_once"), o("reject_always")]);
         assert_eq!(keys, ["y", "a", "n", "4"]);
+    }
+
+    #[tokio::test]
+    async fn a_tasks_card_says_it_comes_from_the_background() {
+        use serde_json::json;
+        let app = crate::tui::app::test_app();
+        let bot = Bot::parse(&json!({"id": "a", "name": "Ada"})).expect("a bot with an id parses");
+        let card = |data: serde_json::Value| {
+            let entry = json!({"id": "p", "botId": "a", "seq": 1, "kind": "permission", "data": data});
+            let (_, e) = Entry::parse(&entry).expect("an entry parses");
+            let mut out = Built::default();
+            permission_card(&mut out, &app, &e, &bot, 60);
+            out.lines.iter().map(ToString::to_string).collect::<Vec<_>>()
+        };
+        let own = card(json!({"status": "pending", "title": "Run tests", "options": []}));
+        let task = card(json!({"status": "pending", "title": "Run tests", "options": [],
+            "task": {"id": "task-1", "title": "Fix login"}}));
+        assert_eq!(task.len(), own.len() + 1);
+        assert!(task[1].contains("In the background · Fix login"), "{task:?}");
+        assert!(!own.iter().any(|l| l.contains("In the background")));
+    }
+
+    #[tokio::test]
+    async fn a_tasks_choice_card_says_where_it_comes_from_and_takes_no_typed_answer() {
+        use serde_json::json;
+        let app = crate::tui::app::test_app();
+        let bot = Bot::parse(&json!({"id": "a", "name": "Ada"})).expect("a bot with an id parses");
+        let card = |more: serde_json::Value| {
+            let mut data = json!({"decision": true, "status": "pending", "question": "Squash or merge?",
+                "choices": ["Squash", "Merge"]});
+            data.as_object_mut().expect("an object").extend(more.as_object().cloned().unwrap_or_default());
+            let entry = json!({"id": "d", "botId": "a", "seq": 1, "kind": "notice", "data": data});
+            let (_, e) = Entry::parse(&entry).expect("an entry parses");
+            let mut out = Built::default();
+            decision_card(&mut out, &app, &e, &bot, 60);
+            (out.lines.iter().map(ToString::to_string).collect::<Vec<_>>(), out.buttons.len())
+        };
+        let (own, own_buttons) = card(json!({}));
+        let (task, task_buttons) = card(json!({"task": {"id": "task-1", "title": "Fix login"}, "item": "i"}));
+        assert!(own.iter().any(|l| l.contains("↓ Something else")), "{own:?}");
+        assert!(!own.iter().any(|l| l.contains("In the background")));
+        assert!(task[1].contains("In the background · Fix login"), "{task:?}");
+        assert!(task[2].contains("Squash or merge?"), "{task:?}");
+        assert!(!task.iter().any(|l| l.contains("Something else")), "only a pick answers a task's card");
+        assert_eq!((own_buttons, task_buttons), (2, 2), "the options are pressed as on any card");
+    }
+
+    #[test]
+    fn labels_keep_an_agents_own_option_name() {
+        assert_eq!(option_label("Custom", "other"), "Custom");
+        assert_eq!(outcome_label("Custom", "other"), "Custom");
+        assert_eq!(option_label("x", "reject_once"), tr("Deny"));
+        assert_eq!(outcome_label("x", "reject_once"), tr("Denied"));
     }
 }

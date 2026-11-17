@@ -79,20 +79,24 @@ extension BotStore {
         iconsRevision = -1
         hello = h
         applyIcons(h.icons ?? [:], revision: h.iconsRevision ?? 0)
+        noteSyncStamp(Self.syncStamp(h))
         noteHostVersion(HostVersion(version: h.version, minApp: h.minApp))
     }
 
+    /// A copy synced under another mirror format or host schema may lack fields or hold rows a migration changed:
+    /// fetch it all again, underneath what's shown.
+    private func noteSyncStamp(_ stamp: String) {
+        if let cacheStamp, cacheStamp != stamp { refetchAll() }
+        cacheStamp = stamp
+    }
+
     private func noteHostVersion(_ new: HostVersion) {
-        let cached = cacheStamp.map { $0 != "\(Self.appBuild)/\(new.version)" } ?? false
-        if cached || (hostVersion.map { $0.version != new.version } ?? false) {
-            // A different host version or app build: data may carry new fields, so fetch it all again,
-            // underneath what's shown.
-            refetchAll()
+        if let hostVersion, hostVersion.version != new.version {
+            // Another host: its update is done, and what the last one sent no longer says anything.
             rewound = false
             unreadable = false
             hostUpdate = nil
         }
-        cacheStamp = nil
         // An update notice may appear or go away with it.
         if new != hostVersion { Motion.animate { hostVersion = new } }
     }
@@ -117,16 +121,18 @@ extension BotStore {
             bump(rev)
         case .bot(let received):
             let bot = putHostBot(received)
+            dropEndedTasks()
             bump(bot.rev)
             onBotUpdated?(bot)
             onRosterChanged?()
-            if bot.unread > 0 { acknowledgeVisibleConversations(bot.id) }
+            if bot.unseen > 0 { acknowledgeVisibleConversations(bot.id) }
         case let .botDeleted(id, r):
             removeComposerDrafts(for: id)
             bots[id] = nil
             entries[id] = nil
             collaborationUpdates[id] = nil
             chatClearGenerations[id, default: 0] += 1
+            dropEndedTasks()
             windowFloors[id] = nil
             bump(r)
             if selection == id { selection = nil }
@@ -152,6 +158,9 @@ extension BotStore {
             if let card = e.data.artifact { artifacts.announce(card) }
             bump(e.rev)
             acknowledgeVisibleConversations(e.botId, entry: e)
+        case let .taskEntry(task, e):
+            putTaskEntry(e, task: task)
+            bump(e.rev)
         case let .call(cue):
             // The computer decides what the voice hears; this device hands each cue over once.
             guard let id = UUID(uuidString: cue.call), let call = voiceCalls[id], cue.seq > heardCues[id, default: 0] else { break }
@@ -197,6 +206,7 @@ extension BotStore {
         persistComposerDrafts()
         bots = [:]
         entries = entries.mapValues { $0.filter { $0.id.hasPrefix("local-") } }.filter { !$0.value.isEmpty }
+        taskEntries = [:]
         selection = nil
         onRosterChanged?()
         rev = 0
@@ -255,6 +265,13 @@ extension BotStore {
     static func isOutsideLoadedWindow(_ e: Entry, floor: Int64?, held: Bool) -> Bool {
         guard !held, let floor else { return false }
         return e.seq < floor
+    }
+
+    /// A task no item names any more is gone from the computer too; its transcript goes with it.
+    private func dropEndedTasks() {
+        guard !taskEntries.isEmpty else { return }
+        let named = Set(bots.values.flatMap(\.work).compactMap(\.task))
+        taskEntries = taskEntries.filter { named.contains($0.key) }
     }
 
     func upsert(_ e: Entry) {

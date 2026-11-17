@@ -35,10 +35,17 @@ pub(super) struct RequestState {
 }
 
 impl Requests {
-    pub(super) fn reserve_message_scoped(&self, from: &str) -> Result<(u8, Option<String>)> {
+    #[cfg(test)]
+    pub(super) fn reserve_message(&self, from: &str) -> Result<u8> {
+        self.reserve_message_in(from, from).map(|(hops, _)| hops)
+    }
+
+    /// A message's hop chain follows the running turn, which may be a task acting for `from`.
+    /// Collaboration metadata follows that same turn so late replies stay attached to their room.
+    pub(super) fn reserve_message_in(&self, from: &str, turn: &str) -> Result<(u8, Option<String>)> {
         let mut state = self.0.locked();
-        let hops = state.next_hop(from)?;
-        let collaboration = state.collaborations.get(from).cloned();
+        let hops = state.next_hop(turn)?;
+        let collaboration = state.collaborations.get(turn).cloned();
         if state.messages >= MAX_PENDING_MESSAGES {
             bail!("too many pending bot messages");
         }
@@ -51,9 +58,9 @@ impl Requests {
         Ok((hops, collaboration))
     }
 
-    #[cfg(test)]
-    pub(super) fn reserve_message(&self, from: &str) -> Result<u8> {
-        self.reserve_message_scoped(from).map(|(hops, _)| hops)
+    /// Kept for callers that message from the bot's own turn.
+    pub(super) fn reserve_message_scoped(&self, from: &str) -> Result<(u8, Option<String>)> {
+        self.reserve_message_in(from, from)
     }
 
     pub(super) fn release_message(&self, from: &str) {
@@ -79,6 +86,11 @@ impl Requests {
         if let Some(id) = collaboration {
             state.collaborations.insert(bot.to_owned(), id);
         }
+    }
+
+    /// Whether `bot`'s running turn answers another bot's request.
+    pub fn answering(&self, bot: &str) -> bool {
+        matches!(self.0.locked().active.get(bot), Some(Turn::Request))
     }
 
     /// `bot`'s turn ended (or it was deleted): it can't send more until its next turn.
@@ -114,13 +126,13 @@ mod tests {
     fn collaboration_scope_is_shared_within_a_turn_and_cleared_at_end() {
         let requests = Requests::default();
         requests.start_turn_with_collaboration("a", Turn::Chat(0), Some("task-1".into()));
-        assert_eq!(requests.reserve_message_scoped("a").unwrap(), (1, Some("task-1".into())));
+        assert_eq!(requests.reserve_message_in("a", "a").unwrap(), (1, Some("task-1".into())));
         requests.release_message("a");
-        assert_eq!(requests.reserve_message_scoped("a").unwrap(), (1, Some("task-1".into())));
+        assert_eq!(requests.reserve_message_in("a", "a").unwrap(), (1, Some("task-1".into())));
         requests.release_message("a");
         requests.end_turn("a");
         requests.start_turn("a", Turn::Chat(0));
-        assert_eq!(requests.reserve_message_scoped("a").unwrap(), (1, None));
+        assert_eq!(requests.reserve_message_in("a", "a").unwrap(), (1, None));
     }
 
     #[test]

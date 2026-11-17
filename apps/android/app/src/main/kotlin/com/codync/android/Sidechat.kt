@@ -36,6 +36,8 @@ import com.kyant.shapes.Capsule
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import java.util.Date
 
 @Composable internal fun SidechatIndicator(bot: Bot, state: AppState, open: () -> Unit) {
@@ -135,7 +137,7 @@ import java.util.Date
     }
     CodyncSheet(selection, { selection = null }) { target ->
         QuoteSelectionSheet(target, structured = true) { text ->
-            store.selectReply(exchange, text, target.part ?: "request")
+            store.selectReply(exchange, text, target.part?.jsonPrimitive?.contentOrNull ?: "request")
             selection = null
         }
     }

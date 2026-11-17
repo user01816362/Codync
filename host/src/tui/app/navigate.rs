@@ -3,7 +3,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::{Value, json};
 
-use super::{After, App, Confirm, ConfirmAct, Editor, Focus, Item, Msg, Overlay, TraceMode, Width, copy, group};
+use super::{After, App, Confirm, ConfirmAct, Editor, Entry, Focus, Item, Msg, Overlay, TraceMode, Width, copy, group};
+use crate::analytics::reported::Reported;
 use crate::tui::l10n::tr;
 
 impl App {
@@ -224,6 +225,10 @@ impl App {
     pub(super) fn pick_key(&mut self, k: KeyEvent) -> bool {
         let Some(id) = self.selected.clone() else { return false };
         let picked = self.pick.as_ref().and_then(|p| self.lane(&id).into_iter().find(|e| &e.id == p).cloned());
+        // A picked card waiting for an answer: its own keys answer it (`to_answer`).
+        if picked.as_ref().is_some_and(Entry::pending) && matches!(k.code, KeyCode::Char('1'..='9')) {
+            return false;
+        }
         match k.code {
             KeyCode::Char('j') | KeyCode::Down => self.step_pick(1),
             KeyCode::Char('k') | KeyCode::Up => self.step_pick(-1),
@@ -234,12 +239,12 @@ impl App {
                     self.add_fallback(&id, &e);
                 }
             }
-            KeyCode::Enter if picked.as_ref().is_some_and(super::Entry::is_bot_message) => {
+            KeyCode::Enter if picked.as_ref().is_some_and(Entry::is_bot_message) => {
                 if let Some(e) = picked {
                     self.open_bot_chat(&e.id);
                 }
             }
-            KeyCode::Char('c') if picked.as_ref().is_some_and(super::Entry::is_bot_message) => {
+            KeyCode::Char('c') if picked.as_ref().is_some_and(Entry::is_bot_message) => {
                 if let Some(e) = picked {
                     let lane = self.lane(&id);
                     let grouped = group(&id, &lane).iter().any(|i| matches!(i, Item::Group(g) if g.first.id == e.id));
@@ -251,7 +256,7 @@ impl App {
                     }
                 }
             }
-            KeyCode::Char('r' | 'f' | '1'..='6') if picked.as_ref().is_some_and(super::Entry::is_bot_message) => {
+            KeyCode::Char('r' | 'f' | '1'..='6') if picked.as_ref().is_some_and(Entry::is_bot_message) => {
                 self.flash("Bot conversations are read-only");
             }
             KeyCode::Char('W') => self.open_workspace_browser(&id),
@@ -259,19 +264,15 @@ impl App {
                 self.open_connection();
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.artifact().is_some()) => {
-                if let Some(artifact) = picked.as_ref().and_then(super::Entry::artifact) {
+                if let Some(artifact) = picked.as_ref().and_then(Entry::artifact) {
                     self.fetch_artifact(&id, artifact, crate::tui::net::artifacts::ArtifactTo::Browser);
                 }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.data["files"].is_array()) => {
-                if let Some(e) = picked {
-                    self.open_file_preview(&e.id, &e.data);
-                }
+                if let Some(e) = picked { self.open_file_preview(&e.id, &e.data); }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| e.data["attachments"].is_array()) => {
-                if let Some(e) = picked {
-                    self.open_upload_preview(&id, &e.data);
-                }
+                if let Some(e) = picked { self.open_upload_preview(&id, &e.data); }
             }
             KeyCode::Char('o') if picked.as_ref().is_some_and(|e| Self::workspace_link(e.text()).is_some()) => {
                 if let Some(e) = picked
@@ -281,7 +282,7 @@ impl App {
                     self.open_workspace_preview(bot, path);
                 }
             }
-            KeyCode::Char('o') if picked.as_ref().is_some_and(super::Entry::unfolds) => {
+            KeyCode::Char('o') if picked.as_ref().is_some_and(Entry::unfolds) => {
                 if let Some(e) = picked
                     && !self.unfolded.remove(&e.id)
                 {
@@ -346,6 +347,21 @@ impl App {
                     self.start_typing();
                 }
             }
+            // `q`: picks the message the picked one quotes, which brings it on screen (the apps' tap on a quote).
+            // Never the quit it is outside picking: one press too many on a chain of quotes would close the app.
+            KeyCode::Char('q') => match picked.as_ref().and_then(Entry::quotes) {
+                Some(quoted) => {
+                    // ponytail: only among the loaded messages, as in the apps.
+                    let found = self.lane(&id).iter().any(|e| e.id == quoted);
+                    self.track(Reported::QuoteOpened { found });
+                    if found {
+                        self.pick = Some(quoted.to_owned());
+                    } else {
+                        self.flash("That message isn't loaded");
+                    }
+                }
+                None => self.flash("This message quotes nothing"),
+            },
             KeyCode::Enter | KeyCode::Char('r') => match picked {
                 Some(e) if !e.takes_reply() => self.flash("Only messages take replies"),
                 Some(e) => {

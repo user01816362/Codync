@@ -74,6 +74,11 @@ pub enum Reported {
     ScreenViewed {
         screen: Screen,
     },
+    /// A computer's screen stopped streaming after a while with nobody touching the app (desktop): the bot details'
+    /// picture (`bot_computer`) or the full viewer (`remote_screen`).
+    RemoteScreenPaused {
+        screen: Screen,
+    },
     /// A picture opened full size (desktop).
     ImagePreviewOpened,
     ImagePreviewAction {
@@ -90,6 +95,11 @@ pub enum Reported {
         /// Whether the search found anything; never the text searched for.
         found: bool,
     },
+    /// A quote in a bubble was opened (desktop click, terminal `q`).
+    QuoteOpened {
+        /// Whether the quoted message was among the loaded ones and came into view.
+        found: bool,
+    },
     VoiceCallStarted {
         engine: Engine,
     },
@@ -101,6 +111,12 @@ pub enum Reported {
         reconnects: u32,
         stuck: VoiceStuck,
         failure: VoiceFailure,
+        /// Gemini's Google Search was on for this engine (the computer confirmed it); left out when it wasn't.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        google_search: bool,
+        /// Answers that came with Google's search suggestions; sent only with `google_search`. Never the query.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        searches: Option<u32>,
     },
     WindowRecovery {
         outcome: WindowRecoveryOutcome,
@@ -212,6 +228,7 @@ pub enum Link {
     Privacy,
     Support,
     InstallCommand,
+    WhatsNewFilm,
     #[serde(other)]
     Other,
 }
@@ -286,6 +303,10 @@ pub enum Screen {
     Library,
     Artifact,
     Network,
+    /// A background task's details.
+    Task,
+    /// Every bot's work on one page.
+    AllWork,
     #[serde(other)]
     Other,
 }
@@ -559,6 +580,10 @@ mod tests {
                 Event::VoiceNotePlayed,
             ),
             (json!({"event": "screen_viewed", "app": "tui", "screen": "bot_details"}), Event::ScreenViewed),
+            (
+                json!({"event": "remote_screen_paused", "app": "desktop", "screen": "bot_computer"}),
+                Event::RemoteScreenPaused,
+            ),
             (json!({"event": "image_preview_opened", "app": "desktop"}), Event::ImagePreviewOpened),
             (
                 json!({"event": "image_preview_action", "app": "desktop", "action": "copy_image", "from": "menu", "outcome": "done"}),
@@ -574,10 +599,16 @@ mod tests {
                 json!({"event": "conversation_find_searched", "app": "desktop", "found": true}),
                 Event::ConversationFindSearched,
             ),
+            (json!({"event": "quote_opened", "app": "desktop", "found": false}), Event::QuoteOpened),
             (json!({"event": "voice_call_started", "app": "desktop", "engine": "on_device"}), Event::VoiceCallStarted),
             (
                 json!({"event": "voice_call_quality", "app": "desktop", "engine": "gemini", "ready_ms": 1200,
                     "reconnects": 1, "stuck": "none", "failure": "none"}),
+                Event::VoiceCallQuality,
+            ),
+            (
+                json!({"event": "voice_call_quality", "app": "desktop", "engine": "gemini", "ready_ms": 900,
+                    "reconnects": 0, "stuck": "none", "failure": "none", "google_search": true, "searches": 2}),
                 Event::VoiceCallQuality,
             ),
             (json!({"event": "window_recovery", "app": "desktop", "outcome": "reloaded"}), Event::WindowRecovery),

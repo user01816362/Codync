@@ -65,7 +65,7 @@ The TUI connects to one host at a time, so it keeps its single roster.
 - **First-run computer access** uses a capsule with one permission per panel, the app icon above it, and directional transitions (disabled with Reduce Motion). GitHub Star is the optional final panel and shares its answer history with the invitation at the fifth prompt. macOS has three permission panels; Linux combines capture and input; Windows only shows control availability. Settings and the menu-bar setup keep their permission overview. iOS, Android and the terminal UI continue to show remote permission status and direct people to this desktop setup; they cannot request these desktop OS grants.
 
 - **Local host recovery** uses the Codync character: looking around and bobbing while starting,
-  resting for setup, and a still disappointed expression with lowered eyelids and a downturned mouth if the host is missing or
+  resting for setup, and a still sad expression, open eyes whose outer corners droop and no mouth, if the host is missing or
   failed. Error text and install/retry actions remain available in both full-window and compact
   recovery layouts. Reduced motion removes the animation. This screen belongs to the desktop
   service manager; iOS, Android and the TUI connect to hosts but do not install or start that service.
@@ -143,7 +143,8 @@ CODYNC_PORT=19333 CODYNC_HOME=/path/to/home npm run dev   # against a manually r
 npm run typecheck && npm test
 ```
 
-UI checks: `CODYNC_SHOW_INACTIVE=1` opens the window without taking focus,
+UI checks: `CODYNC_HEADLESS=1` keeps every window off the screen (what `npm run dev -- --cdp` sets:
+[headless by default](../guides/test-stack.md#headless-by-default)), `CODYNC_SHOW_INACTIVE=1` opens the window without taking focus,
 `CODYNC_DEBUG_OPEN=newBot|newGroup|plugins|computers|<bot name>` opens a screen, and
 `CODYNC_REMOTE_DEBUG=<port>` lets a script drive the renderer over the DevTools protocol.
 Each packaging script names its environment:

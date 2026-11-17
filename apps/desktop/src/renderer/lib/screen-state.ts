@@ -1,6 +1,6 @@
 import type { ScreenDisplay, ScreenState } from '@shared/models'
 import type { ScreenPhase } from '../store/screen-session'
-import { fill } from './fill.ts'
+import { fill } from '../../shared/fill.ts'
 
 /** The screen can be watched: on, its helper running, and allowed to record. */
 export const screenAvailable = (s: ScreenState | null) => !!s && s.enabled && s.connected && s.capture
@@ -9,6 +9,11 @@ export const screenAvailable = (s: ScreenState | null) => !!s && s.enabled && s.
 export const controlReady = (s: ScreenState) => s.platform === 'windows' ? s.computerUse : screenAvailable(s) && s.input
 
 export const mainDisplay = (s: ScreenState): ScreenDisplay | undefined => s.displays.find((d) => d.main) ?? s.displays[0]
+
+/** The display a new session shows: the one picked before (a pause or an outage ended the last session) while the
+ * computer still has it, else the main one. */
+export const displayToShow = (s: ScreenState, picked: number | null): ScreenDisplay | undefined =>
+  s.displays.find((d) => d.id === picked) ?? mainDisplay(s)
 
 const SETUP = 'On the computer, open Codync → Settings → Computer access. Permissions are set separately on each computer.'
 
@@ -62,3 +67,9 @@ export function screenNotice(
   if (phase.kind === 'failed') return { icon: 'exclamationmark.triangle', text: tr(phase.message), retry: () => void session.start() }
   return null
 }
+
+/** How long a computer's screen streams with nobody touching the app before it pauses (it resumes on a click). */
+export const SCREEN_IDLE_MS = 5 * 60_000
+
+/** Whether a screen last touched at `touched` (ms) has gone untouched long enough by `now` to pause. */
+export const untouchedTooLong = (touched: number, now: number) => now - touched >= SCREEN_IDLE_MS

@@ -234,3 +234,8 @@
 }
 
 .composer-box textarea, .composer-measure { text-align: start; unicode-bidi: plaintext; }
+
+/* Who a group of `/` commands comes from: Codync, or the bot's agent. */
+.composer-menu .menu-section {
+  padding: 8px 10px 2px;
+}

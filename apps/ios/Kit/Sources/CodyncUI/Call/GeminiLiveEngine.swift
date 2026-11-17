@@ -15,6 +15,8 @@ final class GeminiLiveEngine: VoiceEngine {
     private(set) var phase: VoicePhase = .starting {
         didSet { onActivityChanged?(!ended && phase.holdsCall) }
     }
+    private(set) var searchResult: CallSearchResult?
+    private var searchTurn = CallSearchTurn()
     private(set) var level: Float = 0
     var muted = false {
         didSet {
@@ -26,8 +28,11 @@ final class GeminiLiveEngine: VoiceEngine {
     var provider: VoiceProvider? { .gemini }
     @ObservationIgnored var onActivityChanged: ((Bool) -> Void)?
 
+
     private let model: String
     private let voice: String
+    /// Asks the computer for Google's built-in search; it's on only when the computer's session confirms it.
+    private let googleSearch: Bool
     private let link: CallLink
     private let audio: any CallAudio
     private let openSocket: @MainActor (URL) -> any LiveSocket
@@ -61,10 +66,11 @@ final class GeminiLiveEngine: VoiceEngine {
     /// buffers that never finish would keep it on "speaking" and the bot's replies unsaid).
     static var stallTimeout: Duration = .seconds(4)
 
-    init(model: String, voice: String, link: CallLink, audio: any CallAudio = VoiceProcessingAudio(),
+    init(model: String, voice: String, googleSearch: Bool = false, link: CallLink, audio: any CallAudio = VoiceProcessingAudio(),
          socket: @escaping @MainActor (URL) -> any LiveSocket = { URLSessionLiveSocket($0) }) {
         self.model = model
         self.voice = voice
+        self.googleSearch = googleSearch
         self.link = link
         self.audio = audio
         openSocket = socket
@@ -80,9 +86,10 @@ final class GeminiLiveEngine: VoiceEngine {
 
     private func connect() async {
         do {
-            let session = try await link.start("realtime", provider: .gemini, model: model, voice: voice)
+            let session = try await link.start("realtime", provider: .gemini, model: model, voice: voice, googleSearch: googleSearch)
             guard !ended else { return }
             guard let token = session.credential else { throw VoiceError("Gemini sent no session credential.") }
+            clearSearch()
             self.session = session
             var url = URLComponents(string: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained")
             url?.queryItems = [URLQueryItem(name: "access_token", value: token)]
@@ -116,7 +123,7 @@ final class GeminiLiveEngine: VoiceEngine {
                 "speechConfig": ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": voice]]],
             ] as [String: Any],
             "systemInstruction": ["parts": [["text": session?.instructions ?? ""]]],
-            "tools": [["functionDeclarations": tools]],
+            "tools": [["functionDeclarations": tools]] + (session?.googleSearch == true ? [["googleSearch": [:]]] : []),
             // Audio sessions are otherwise capped at 15 minutes.
             "contextWindowCompression": ["slidingWindow": [String: Any]()],
             // What both sides said, for the call's line in the chat.
@@ -129,6 +136,7 @@ final class GeminiLiveEngine: VoiceEngine {
 
     func end() {
         ended = true
+        clearSearch()
         onActivityChanged?(false)
         socket?.close()
         socket = nil
@@ -138,6 +146,12 @@ final class GeminiLiveEngine: VoiceEngine {
             audio.stop()
             audioStarted = false
         }
+    }
+
+    /// Search suggestions belong to one session's answers.
+    private func clearSearch() {
+        searchTurn = CallSearchTurn()
+        searchResult = nil
     }
 
     func interrupt() {
@@ -254,6 +268,7 @@ final class GeminiLiveEngine: VoiceEngine {
         guard !ended, let msg = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
         if msg["setupComplete"] != nil { setupCompleted() }
         if let content = msg["serverContent"] as? [String: Any] {
+            searchResult = searchTurn.receive(content)
             if let heard = (content["inputTranscription"] as? [String: Any])?["text"] as? String { link.add("user", heard) }
             if let said = (content["outputTranscription"] as? [String: Any])?["text"] as? String { link.add("voice", said) }
             if content["turnComplete"] as? Bool == true || content["interrupted"] as? Bool == true { link.endTurn() }

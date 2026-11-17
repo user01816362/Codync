@@ -3,6 +3,7 @@ import { IconButton } from '../components/Controls'
 import { Icon } from '../components/Icon'
 import { HStack } from '../components/Stack'
 import { Text } from '../components/Text'
+import { UnreadBadge } from '../components/UnreadBadge'
 import { useSlide } from '../lib/slide'
 import type { pointerDrag } from '../lib/pointer-drag'
 import { useTr } from '../lib/use-language'
@@ -13,6 +14,8 @@ interface Props {
   count: number
   /** Its bots' unread messages, shown while it's folded. */
   unread: number
+  /** Its unread count a card waiting on the user: the folded badge takes the needs-you colour. */
+  waiting: boolean
   folded: boolean
   compact: boolean
   toggle: () => void
@@ -23,7 +26,8 @@ interface Props {
 }
 
 /** A section the user made (Slack's custom sidebar sections): its header folds its rows. */
-export function RosterSection({ name, count, unread, folded, compact, toggle, onContext, drag, move, children }: Props) {
+export function RosterSection({ name, count, unread, waiting, folded, compact, toggle, onContext, drag, move, children }: Props) {
+  const tr = useTr()
   const section = useRef<HTMLElement>(null)
   useSlide(section)
   return (
@@ -31,7 +35,7 @@ export function RosterSection({ name, count, unread, folded, compact, toggle, on
       <div className="roster-section-heading">
         <button data-section-heading className="roster-section-toggle" {...drag} onKeyDown={(e) => {
         if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); e.stopPropagation(); move?.(e.key === 'ArrowUp' ? -1 : 1) }
-      }} aria-expanded={!folded} aria-label={name} title={name} onClick={toggle}
+      }} aria-expanded={!folded} aria-label={folded && waiting ? `${name}, ${tr('Needs approval')}` : name} title={name} onClick={toggle}
         onContextMenu={(e) => {
           e.preventDefault()
           onContext(e.clientX, e.clientY)
@@ -41,7 +45,7 @@ export function RosterSection({ name, count, unread, folded, compact, toggle, on
           {!compact ? <Icon name="folder" size={13} color="var(--secondary)" /> : null}
           {!compact ? <Text dir="auto" size="caption" weight="semibold" truncate grow>{name}</Text> : null}
           {!compact ? <Text size="caption" tone="tertiary" tabular>{count}</Text> : null}
-          {folded && unread > 0 ? <span className="unread-badge">{unread}</span> : null}
+          {folded && unread > 0 ? <UnreadBadge count={unread} waiting={waiting} /> : null}
         </HStack>
       </button>
         {!compact ? <IconButton title="Folder options" icon="ellipsis" size={24} onClick={(event) => {

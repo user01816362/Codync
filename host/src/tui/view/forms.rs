@@ -5,7 +5,7 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 
-use super::super::app::{App, COLORS, Editor, FIELDS, Field, Form, GroupField, GroupForm, SHAPES, tilde};
+use super::super::app::{App, Bot, COLORS, Editor, FIELDS, Field, Form, GroupField, GroupForm, SHAPES, tilde};
 use super::super::l10n::tr;
 use super::super::manage::Page;
 use super::super::md::{truncate, width as w, wrap};
@@ -48,7 +48,11 @@ fn field_help(app: &App, f: &Form, agent_name: &str) -> Option<(String, Style)> 
         return Some((e.clone(), t.red));
     }
     let line = match f.current() {
-        Field::Fast => match app.bots.get(&f.bot_id).and_then(super::super::app::Bot::fast_refusal) {
+        Field::Agent => {
+            let using = app.bots.get(&f.bot_id).and_then(|b| super::fallbacks::using_line(app, b))?;
+            return Some((format!("{using} · b switches back"), t.amber));
+        }
+        Field::Fast => match app.bots.get(&f.bot_id).and_then(Bot::fast_refusal) {
             Some(why) => return Some((why, t.amber)),
             None => tr("Faster replies for more usage, on models that offer it (Claude Code, Codex)").into_owned(),
         },
@@ -80,8 +84,11 @@ fn field_help(app: &App, f: &Form, agent_name: &str) -> Option<(String, Style)> 
             );
             [usage, about.into_owned(), sizes].join(" ")
         }
+        Field::TaskWorktrees => {
+            tr("Agents that work at once in this repository each get their own branch.").into_owned()
+        }
         Field::Team => {
-            "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.".to_owned()
+            tr("Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.").into_owned()
         }
         Field::Groups => {
             "Let this bot create group chats and add or remove their members. Deleting a group stays yours.".to_owned()
@@ -111,7 +118,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         put(buf, inner.x + 1, inner.y + 9, 16, COLORS[f.color], t.secondary.patch(t.panel));
         put(buf, inner.x + 1, inner.y + 10, 16, SHAPES[f.shape], t.dim.patch(t.panel));
     }
-    let label_w = 13u16;
+    let label_w = 19u16;
     let vx = fx + label_w;
     let vw = inner.right().saturating_sub(vx);
     let mut y = inner.y + 1;
@@ -124,23 +131,28 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     let footer = help_rows.max(2) + 1;
     // The form can outgrow the terminal: it starts as far down as keeps the focused field in sight.
     let room = inner.bottom().saturating_sub(footer).saturating_sub(y);
+    let shown = |field: &Field| app.field_shown(f, *field);
+    let height = |fields: &[Field]| fields.iter().filter(|x| shown(x)).map(|x| field_rows(*x) + 1).sum::<u16>();
     let mut first = 0;
-    while first < f.field && FIELDS[first..f.field].iter().map(|field| field_rows(*field) + 1).sum::<u16>() >= room {
+    while first < f.field && height(&FIELDS[first..f.field]) >= room {
         first += 1;
     }
-    for (i, field) in FIELDS.iter().enumerate().skip(first) {
+    for (i, field) in FIELDS.iter().enumerate().skip(first).filter(|(_, field)| shown(field)) {
         let active = i == f.field;
         let base = if active { t.sel } else { t.panel };
         let lab = match field {
             Field::Name => "Name",
             Field::Instructions => "Instructions",
             Field::Agent => "Agent",
+            Field::LoginProfile => "Login profile",
             Field::Model => "Model",
             Field::ModelOptions => "Options",
             Field::Fast => "Fast mode",
             Field::Fallbacks => "Fallbacks",
             Field::SelfFallbacks => "Bot edits",
             Field::Folder => "Workspace",
+            Field::MaxAgents => "Agents at once",
+            Field::TaskWorktrees => "Worktree per agent",
             Field::Approvals => "Approvals",
             Field::Compaction => "Summarize",
             Field::Notify => "Notify",
@@ -211,7 +223,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                 // Known once the agent's model list loads, or once the bot's own sessions say.
                 let saved = app.bots.get(&f.bot_id).filter(|b| b.backend == f.backend);
                 let offered = match app.models.get(&f.backend) {
-                    _ if saved.is_some_and(super::super::app::Bot::fast_shown) => "",
+                    _ if saved.is_some_and(Bot::fast_shown) => "",
                     Some(Some(_)) if !app.fast_mode.contains(&f.backend) => "  · not offered by this agent",
                     _ => "",
                 };
@@ -250,8 +262,27 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             }
             Field::Agent => {
                 put(buf, vx, y, vw, &format!("‹ {agent_name} ›"), t.text.patch(base));
-                if let Some(note) = app.bots.get(&f.bot_id).and_then(|b| super::fallbacks::rest_note(b, &f.backend)) {
+                let bot = app.bots.get(&f.bot_id);
+                if let Some(note) =
+                    bot.and_then(|b| super::fallbacks::rest_note(b, &f.backend, f.login_profile.as_deref()))
+                {
                     rput(buf, inner.right(), y, &note, t.amber.patch(base));
+                }
+            }
+            Field::LoginProfile => {
+                let own = app
+                    .login_profiles(&f.backend)
+                    .into_iter()
+                    .flatten()
+                    .find(|a| a["id"].as_str() == f.login_profile.as_deref());
+                let name = match (&f.login_profile, own.and_then(|a| a["name"].as_str())) {
+                    (None, _) => app.default_login_profile_name(&f.backend),
+                    (Some(_), Some(name)) => name.to_owned(),
+                    (Some(_), None) => tr("New login profile").into_owned(),
+                };
+                put(buf, vx, y, vw, &format!("‹ {name} ›"), t.text.patch(base));
+                if f.login_profile.is_some() && own.is_none_or(|a| a["signedIn"] != true) {
+                    rput(buf, inner.right(), y, &tr("Not signed in"), t.amber.patch(base));
                 }
             }
             Field::Fallbacks => {
@@ -294,6 +325,21 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                     ),
                     t.text.patch(base),
                 );
+                // Of the folder the bot has: one picked here and not saved yet isn't known.
+                let saved = app.bots.get(&f.bot_id).filter(|b| f.cwd == if b.managed_workspace { "" } else { &b.cwd });
+                if let Some(line) = saved.and_then(Bot::git_line)
+                    && y + 1 < inner.bottom().saturating_sub(FOOTER)
+                {
+                    put(buf, vx, y + 1, vw, &tr(line), t.dim.patch(t.panel));
+                }
+            }
+            Field::MaxAgents => {
+                let n = f.max_agents.unwrap_or_default();
+                put(buf, vx, y, vw, &format!("‹ {n} ›"), t.text.patch(base));
+            }
+            Field::TaskWorktrees => {
+                let s = if f.task_worktrees == Some(true) { "◉ On   ○ Off" } else { "○ On   ◉ Off" };
+                put(buf, vx, y, vw, s, t.text.patch(base));
             }
             Field::Approvals => {
                 let label = app.approval(f).label;
@@ -399,10 +445,13 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         Field::ModelOptions => "←→ move · space change · tab next",
         Field::Skills => "←→ move · space toggle · i details · tab next",
         Field::Agent => "←→ change · ↵ install / sign in · tab next",
+        Field::LoginProfile => "←→ change · ↵ add login profile · tab next",
         Field::Model => "←→ pick a model · or type its id",
-        Field::Fallbacks => "←→ pick · space add / model · a agent · [ ] move · x remove",
+        Field::Fallbacks => "←→ pick · space add / model · a agent · c login profile · [ ] move · x remove",
         Field::Fast
         | Field::SelfFallbacks
+        | Field::MaxAgents
+        | Field::TaskWorktrees
         | Field::Color
         | Field::Shape
         | Field::Approvals

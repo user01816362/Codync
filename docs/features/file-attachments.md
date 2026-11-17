@@ -7,7 +7,8 @@ Files travel in both directions: users attach inputs, and bots explicitly share 
   also be dropped on the box or pasted: ⌘V / Ctrl+V on the desktop takes a copied image or file
   (`apps/desktop/src/renderer/views/thread/Composer.tsx`); on the iPhone through Paste in the
   + menu.
-  HEIC/TIFF/BMP become JPEG (`OutgoingFile.prepared`, `Thread/Attachments.swift`). Picked files show as chips above
+  Other apps' share sheets send files to a bot too, on iPhone and Android ([share to a bot](share-to-bot.md)).
+  HEIC/TIFF/BMP become JPEG (`OutgoingFile.prepared`, CodyncKit). Picked files show as chips above
   the text and can be removed; a message can be files only. Group chats take files too: they're
   kept in the group's uploads folder and listed to each member under the message. Up to 100 MB per file.
 - Upload: `upload {botId, uploadId, name, offset, data (base64), done}`, 384 KiB per call so each
@@ -61,8 +62,10 @@ Files travel in both directions: users attach inputs, and bots explicitly share 
 ## Files from a bot
 
 In its own chat, a bot calls the built-in chat MCP tool
-`send_file {path, name?}`. Paths may be absolute or relative to its working directory.
-The optional name is a display filename without folders. Any regular file type is
+`send_file {path, name?, text?, reply_to?}`. Paths may be absolute or relative to its working directory.
+The optional name is a display filename without folders; `text` makes the file
+[a voice note inside its message](#a-voice-note-inside-its-message), and `reply_to` quotes a message above the card
+([bots quote too](groups-and-replies.md#bots-quote-too)). Any regular file type is
 accepted, including binary, hidden, extensionless and empty files, up to 100 MiB.
 Directories and special files are refused. Group, routine and delegated turns cannot
 publish files.
@@ -119,6 +122,9 @@ nothing. The terminal UI shows only the card.
 On iPhone, a note preserves an active call or dictation session. Once recording ends,
 the next play resets the audio session to playback and releases it on pause, stop or
 completion; a saved recording category alone does not mean the microphone is active.
+
+On Android, removing a card while its audio is loading or preparing prevents playback;
+any player returned after the card is released is released without starting.
 
 ### A voice note inside its message
 

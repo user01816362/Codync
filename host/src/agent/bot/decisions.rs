@@ -3,7 +3,7 @@
 use super::Actor;
 use crate::agent::acp;
 use crate::analytics::{self, Event};
-use crate::chat::decision::{self, Expiry};
+use crate::chat::decision::{self, Expiry, Via};
 use crate::hub::BotStatus;
 use crate::remote::push::{self, AlertKind};
 use crate::store::{Entry, EntryKind, Lane};
@@ -31,10 +31,8 @@ impl Actor {
         }
         if self.turn.is_none()
             || self.stop_requested
-            || self.active_request.is_some()
-            || self.active_group.is_some()
-            || self.active_routine.is_some()
-            || self.active_prompt
+            || !self.in_own_chat()
+            || self.host_turn.is_some()
             || self.lane.chat != self.cfg.id
             || self.hub.runtime(&self.cfg.id).started_at != Some(started_at)
         {
@@ -46,7 +44,9 @@ impl Actor {
             return;
         }
         self.close_seg();
-        let Some(card) = self.add(EntryKind::Notice, self.turn.unwrap_or(0), data) else {
+        // A task's card is answered by a press alone: what the user types in the chat is for the bot there.
+        let data = if self.cfg.is_task() { decision::pressed_only(data) } else { data };
+        let Some(card) = self.add_for_user(EntryKind::Notice, data) else {
             let _ = reply.send(Err(anyhow!("couldn't save the card")));
             return;
         };
@@ -55,7 +55,9 @@ impl Actor {
             r.status = BotStatus::NeedsInput;
             r.activity = format!("Asks: {question}");
         });
-        push::notify(&self.hub, &self.cfg, None, &self.cfg.name, &acp::truncate(question, 120), AlertKind::NeedsInput);
+        // Tapping it opens where the card is: its bot's chat, for a task.
+        let chat = self.chat_of(&card);
+        push::notify(&self.hub, &chat, None, &chat.name, &acp::truncate(question, 120), AlertKind::NeedsInput);
         analytics::capture(
             &self.hub,
             Event::DecisionAsked,
@@ -104,7 +106,9 @@ impl Actor {
         self.expire_abandoned_decisions();
         let mut card =
             self.hub.store.entry(id).filter(decision::is_card).ok_or_else(|| anyhow!("unknown decision card"))?;
-        if !self.asked.contains_key(id) || self.stop_requested || self.turn != Some(card.turn) {
+        // A task's card is in its bot's chat, numbered with that chat's turns.
+        let this_turn = self.cfg.is_task() || self.turn == Some(card.turn);
+        if !self.asked.contains_key(id) || self.stop_requested || !this_turn {
             decision::expire(&self.hub, id);
             return Err(anyhow!("that card expired: no live call is waiting"));
         }
@@ -112,8 +116,12 @@ impl Actor {
             decision::Status::of(&card.data) == Some(decision::Status::Pending),
             "that card is already answered or expired"
         );
-        let choice = decision::pick(&decision::choices(&card), wanted, typed.is_some())
+        let (choice, via) = decision::answer(&decision::choices(&card), wanted, typed.is_some())
             .ok_or_else(|| anyhow!("no such option on that card"))?;
+        let mut answer = json!({"choice": choice});
+        if via == Via::Custom {
+            answer["custom"] = true.into();
+        }
         // Save one user entry in this same turn; typed input already has an entry, so update it instead.
         let mut data = typed.map_or_else(|| json!({"text": choice}), |e| e.data.clone());
         if data["from"].is_null() {
@@ -124,11 +132,11 @@ impl Actor {
         data["status"] = "sent".into();
         let user = match typed {
             Some(e) => self.hub.set_entry_turn(&e.id, Some(card.turn), &data),
-            None => self.hub.add_entry(&self.lane, EntryKind::User, card.turn, &data),
+            None => self.hub.add_entry(&Lane { chat: card.bot_id.clone() }, EntryKind::User, card.turn, &data),
         }
         .ok_or_else(|| anyhow!("couldn't save the user's choice"))?;
         let asked = self.asked.remove(id).ok_or_else(|| anyhow!("the card stopped waiting"))?;
-        if asked.reply.send(Ok(json!({"choice": choice}))).is_err() {
+        if asked.reply.send(Ok(answer.clone())).is_err() {
             decision::expire(&self.hub, id);
             data["status"] = "failed".into();
             self.hub.set_entry(&user.id, &data);
@@ -138,23 +146,22 @@ impl Actor {
         }
         // The tool delivered the label even when the old client typed a number. Carry both without losing either.
         let input = match typed {
-            Some(entry) => format!("{}\n[Selected: {choice}]", entry.data["text"].as_str().unwrap_or_default()),
-            None => choice.clone(),
+            Some(entry) if via == Via::Text => {
+                format!("{}\n[Selected: {choice}]", entry.data["text"].as_str().unwrap_or_default())
+            }
+            _ => choice.clone(),
         };
         self.record_joined_input(&user.id, &input);
         decision::mark_answered(&mut card.data, &choice);
         let saved = self.hub.set_entry(id, &card.data);
         self.continue_after_decision();
         ensure!(saved.is_some(), "the choice was delivered but the card could not be saved; do not repeat the action");
-        analytics::capture(
-            &self.hub,
-            Event::DecisionAnswered,
-            Map::from_iter([("via".into(), (if typed.is_some() { "text" } else { "button" }).into())]),
-        );
-        Ok(json!({"choice": choice}))
+        analytics::capture(&self.hub, Event::DecisionAnswered, Map::from_iter([("via".into(), json!(via))]));
+        Ok(answer)
     }
 
-    /// Old clients display a notice and use ordinary send. Only a plain, exact choice or its number answers it.
+    /// A plain typed message answers the waiting card: an exact choice, its number, or the user's own words.
+    /// Files, quotes, `/commands` and call speech that names no option are ordinary messages and expire it.
     pub(super) fn try_decision_message(&mut self, lane: &Lane, entry_id: &str) -> bool {
         self.expire_abandoned_decisions();
         if self.asked.len() != 1 || lane.chat != self.cfg.id {
@@ -174,7 +181,10 @@ impl Actor {
         let Some(card) = self.hub.store.entry(&id) else { return false };
         let text = entry.data["text"].as_str().unwrap_or_default();
         let plain = entry.data["attachments"].as_array().is_none_or(Vec::is_empty) && entry.data["replyTo"].is_null();
-        if plain && decision::pick(&decision::choices(&card), text, true).is_some() {
+        // Speech from a call may name an option, but only typed words are the user's own answer.
+        let answers = decision::answer(&decision::choices(&card), text, true)
+            .is_some_and(|(_, via)| via != Via::Custom || entry.data["call"].is_null());
+        if plain && answers {
             match self.decided(&id, text, Some(&entry)) {
                 Ok(_) => return true,
                 Err(error) => {

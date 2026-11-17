@@ -42,8 +42,8 @@ jobs:
       - run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - run: python3 tools/agent_icons_test.py
-      # PRs run the tests, compile and lint. The minified release build (R8) runs once a change lands on
-      # dev or main, before a tag ships it.
+      # PRs run the tests, compile and lint. The minified release build (R8) and its acceptance build
+      # (compiled only: the runner needs an emulator) run once a change lands on dev or main, before a tag ships it.
       - run: ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug ${{ github.event_name != 'pull_request' && ':app:assembleRelease' || '' }}
       - name: Upload Android test reports on failure
         if: failure()
@@ -54,6 +54,9 @@ jobs:
             apps/android/app/build/test-results/testDebugUnitTest/*.xml
             apps/android/core/build/test-results/testDebugUnitTest/*.xml
           if-no-files-found: ignore
+      # Its own run: the property switches the instrumentation runner and test build type.
+      - if: github.event_name != 'pull_request'
+        run: ./gradlew -PcodyncReleaseTests=true :app:assembleReleaseAcceptance :app:assembleReleaseAcceptanceAndroidTest
       - uses: actions/upload-artifact@v7
         with:
           name: codync-android-debug

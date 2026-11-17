@@ -51,9 +51,10 @@ internal val AppState.supportsQueueActions: Boolean
 
 /**
  * The user's messages waiting behind the bot's work, as iOS `QueuedMessages`: each one line, sent now into the running
- * turn ([steer]) or taken back ([unqueue]).
+ * turn ([steer]) or taken back ([remove]): the chat's own unless said (a thread's go by its item).
  */
-@Composable internal fun QueuedMessages(entries: List<Entry>, state: AppState, store: AppStore, modifier: Modifier = Modifier) {
+@Composable internal fun QueuedMessages(entries: List<Entry>, state: AppState, store: AppStore, modifier: Modifier = Modifier,
+    steer: (Entry) -> Unit = { store.steer(it) }, remove: (Entry) -> Unit = { store.unqueue(it) }) {
     val scope = rememberCoroutineScope()
     var paused by remember { mutableStateOf(false) }
     var reason by remember { mutableStateOf("Queued messages") }
@@ -100,7 +101,9 @@ internal val AppState.supportsQueueActions: Boolean
             }
             failure?.let { Text(it, style = Type.caption, color = Palette.danger) }
             for (entry in shown) key(entry.id) {
-                QueuedRow(entry, actions, earlier = { control("earlier", entry.id) }, later = { control("later", entry.id) }, steering = "steer:" + entry.id in state.busy, steer = { store.steer(entry) }, remove = { store.unqueue(entry) }, edit = { if (state.bots.firstOrNull { it.id == entry.botId }?.kind != "group") editing = entry })
+                QueuedRow(entry, actions, earlier = { control("earlier", entry.id) }, later = { control("later", entry.id) },
+                    steering = "steer:" + entry.id in state.busy, steer = { steer(entry) }, remove = { remove(entry) },
+                    edit = { if (state.bots.firstOrNull { it.id == entry.botId }?.kind != "group") editing = entry })
             }
         }
     }

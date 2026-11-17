@@ -11,10 +11,12 @@ public struct ThreadView: View {
     public init(botId: String) { self.botId = botId }
     @Environment(BotStore.self) var model
     @State var showTrace = false
-    /// The message the composer's next send quotes.
-    @State var replyingTo: Entry?
-    /// A sent message being edited in the composer; sending asks the bot again.
+    /// What the composer's next send quotes: a message, or the part of it the user selected.
+    @State var replyingTo: ReplyQuote?
+    /// A sent message being edited; sending asks the bot to answer the revised message.
     @State var editingMessage: Entry?
+    /// The message whose text is open for selecting a part to reply to.
+    @State var selectingText: Entry?
     @State var botChat: BotChatTarget?
     @State private var showSidechat = false
     @State var openArtifact: ArtifactTarget?
@@ -35,15 +37,20 @@ public struct ThreadView: View {
     @State var find: ConversationFind?
     /// Bumped to bring the shown match's message into view (a new text, a step).
     @State var findReveal = 0
+    /// The card last brought into view from the bot's details, or the message a tapped quote quotes.
+    @State var revealed: ConversationReveal?
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var bot: Bot? { model.bots[botId] }
+    /// The bot's work in the background, shown in its own chat only.
+    private var work: WorkSections { WorkSections(bot.flatMap { $0.isGroup ? nil : $0.work } ?? []) }
 
     /// The messages, the composer and the find bar, without the platform's top chrome.
     private var chat: some View {
         let items = chatItems
         let matches = find.map { ConversationFind.matches(in: Self.findable(items), query: $0.query) } ?? []
-        let shown = find?.index(in: matches).map { matches[$0] }
+        // A card or quote brought into view since find's last step is what the chat shows, without find's match.
+        let shown = revealed?.step == findReveal ? nil : find?.index(in: matches).map { matches[$0] }
         return transcript(items, shown: shown)
         .background(Palette.background)
         .safeAreaInset(edge: .bottom) {
@@ -61,6 +68,10 @@ public struct ThreadView: View {
                             .font(.caption2).foregroundStyle(Palette.secondary)
                             .accessibilityLabel("Agent-reported context: \(usage.used) of \(usage.size)")
                     }
+                    if !work.isIdle {
+                        WorkCapsule(botId: botId, work: work) { details = DetailsRequest() }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                     Composer(botId: botId, replyingTo: $replyingTo, editingMessage: $editingMessage,
                              queued: model.chat(botId).hidingCalls().queue(working: busy),
                              onCall: !calling && bot != nil ? { calling = true } : nil,
@@ -68,6 +79,7 @@ public struct ThreadView: View {
                 }
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: model.mismatch)
+            .animation(Motion.reduced(Motion.layout, reduceMotion), value: work.isIdle)
         }
         // Grok Bot's call: a bar floating over the chat, which stays readable and usable.
         .overlay(alignment: .top) {
@@ -111,6 +123,7 @@ public struct ThreadView: View {
 
     func openFind() {
         guard find == nil else { return }
+        revealed = nil
         withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { find = ConversationFind() }
     }
 
@@ -136,8 +149,17 @@ public struct ThreadView: View {
             .onChange(of: model.selectedReply) { _, target in
                 guard let target, target.botId == botId else { return }
                 editingMessage = nil
-                replyingTo = target
+                replyingTo = target.replyQuote
                 model.selectedReply = nil
+            }
+            .onChange(of: model.detailsRequest, initial: true) { _, _ in
+                if model.takeDetailsRequest(for: botId) { details = DetailsRequest() }
+            }
+            .onChange(of: model.cardRequest?.item.id, initial: true) { _, _ in
+                if let item = model.takeCardRequest(for: botId) { showCard(item) }
+            }
+            .onChange(of: model.threadRequest?.item.id, initial: true) { _, _ in
+                if let item = model.takeThreadRequest(for: botId) { details = DetailsRequest(thread: item) }
             }
             .onChange(of: model.voiceCallRequest, initial: true) { _, _ in
                 if model.takeVoiceCallRequest(for: botId) { startShortcutCall() }
@@ -149,11 +171,20 @@ public struct ThreadView: View {
                 TraceView(botId: botId)
             }
             .codyncSheet(isPresented: $showSidechat) { SidechatView(botId: botId) }
+            .codyncSheet(item: $selectingText) { e in
+                SelectTextSheet(text: e.data.text ?? "") { part in
+                    selectingText = nil
+                    reply(to: e.replyQuote(part: part))
+                }
+            }
             .codyncSheet(item: $botChat) { BotConversationView(botId: botId, peerId: $0.id) }
             .codyncSheet(item: $openArtifact) { ArtifactView(target: $0) }
             .codyncSheet(item: $openCall) { CallConversationView(line: $0) }
             .codyncSheet(item: $details) { request in
-                BotDetailsView(botId: request.botId ?? botId, request: request) { artifact in
+                // A card is in this chat: another bot's details (a group member's) have none to go to.
+                let own = (request.botId ?? botId) == botId
+                BotDetailsView(botId: request.botId ?? botId, request: request, openCard: own ? { showCard($0) } : nil,
+                               openInChat: own ? { showInChat($0.id) } : nil) { artifact in
                     details = nil
                     openArtifact = artifact
                 }
@@ -161,6 +192,42 @@ public struct ThreadView: View {
             .codyncSheet(isPresented: $editingGroup) {
                 if let bot { GroupEditorView(group: bot) }
             }
+    }
+
+    /// Closes the details over the chat and brings the card `item` waits on into view, read from the computer first
+    /// when this device doesn't hold it. One that can't be found leaves the chat where it was.
+    private func showCard(_ item: WorkItem) {
+        details = nil
+        Task {
+            guard let card = await model.card(for: item, in: botId) else { return }
+            reveal(card.id)
+        }
+    }
+
+    /// Brings the row `id` into view, once.
+    private func reveal(_ id: String) {
+        findReveal += 1
+        revealed = ConversationReveal(id: id, step: findReveal)
+    }
+
+    /// A quote's tap: brings the quoted message into view (a user row is keyed by its nonce, not the entry id).
+    /// ponytail: only among the loaded messages, like a card; page back until it is found if `quote_opened`
+    /// shows `found: false` often.
+    private func showQuoted(_ id: String) {
+        let shown = rowId(of: id)
+        if let shown { reveal(shown) }
+    }
+
+    /// Closes the details over the chat and brings the entry `id` into view: what an item's thread says its task put
+    /// here. Only among the loaded messages, like a quote.
+    private func showInChat(_ id: String) {
+        details = nil
+        if let shown = rowId(of: id) { reveal(shown) }
+    }
+
+    /// The chat's row that shows the entry `id`.
+    private func rowId(of id: String) -> String? {
+        chatItems.first { if case .entry(let e, _) = $0.kind { e.id == id } else { false } }?.id
     }
 
     /// Open Live Mode from Shortcuts: closes whatever covers the chat, then starts the call.
@@ -189,24 +256,25 @@ public struct ThreadView: View {
             } else {
                 ChatRow(entry: e, groupStart: groupStart, chat: bot, openTrace: { showTrace = true },
                         // An update card takes the composer's place, so there's nothing to reply with.
-                        reply: e.isReplyable && model.mismatch == nil ? { reply(to: e) } : nil,
-                        // Only a sent message of a one-to-one chat can be edited and answered again.
+                        reply: e.isReplyable && model.mismatch == nil ? { reply(to: e.replyQuote) } : nil,
                         edit: e.isEditable && bot?.isGroup != true && model.mismatch == nil ? { beginEditing(e) } : nil,
+                        selectText: model.supportsReplyPart ? { selectingText = e } : nil,
                         // In a group, the bot whose agent failed.
-                        addFallback: { details = DetailsRequest(botId: e.data.author ?? e.botId) },
+                        addFallback: { details = .fallbacks(of: e.data.author ?? e.botId) },
                         openArtifact: { openArtifact = ArtifactTarget(botId: e.botId, id: $0.id, title: $0.title) },
                         openCall: { openCall = e },
                         versions: item.versions, versionIndex: item.versionIndex,
                         pickVersion: item.versions.map { versions in
                             { version in pickVersion(versions, version) }
-                        })
+                        },
+                        openQuote: { showQuoted($0) })
                     .equatable()
             }
         }
     }
 
-    private func reply(to entry: Entry) {
-        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { replyingTo = entry }
+    private func reply(to quote: ReplyQuote) {
+        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { replyingTo = quote }
     }
 
     /// Walks to another version of an edited message: its own answer comes with it.
@@ -532,6 +600,7 @@ extension ThreadView {
         })?.id : nil
         let reveal = shown.map { ConversationReveal(id: $0.id, step: findReveal) }
             ?? linkedId.map { ConversationReveal(id: $0, step: linked?.nonce.hashValue ?? 0) }
+            ?? revealed
         return ConversationList(rows: rows, following: $following, reveal: reveal, nearTop: { showEarlier() }, refresh: {
             model.restartStream()
             _ = try? await model.ready()

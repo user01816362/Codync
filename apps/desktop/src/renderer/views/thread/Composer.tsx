@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { groupFastMode } from '@shared/fast-mode'
 import { artifactDraftKey, artifactQuote, type Artifact } from '@shared/artifacts'
-import { isGroup, isWorkingIn, quoteOf, type Bot, type Entry } from '@shared/models'
+import { isGroup, isWorkingIn, type Bot, type Entry, type ReplyQuote } from '@shared/models'
 import type { PickedFile } from '@shared/ipc'
 import { Icon } from '../../components/Icon'
 import { Text } from '../../components/Text'
@@ -16,7 +16,7 @@ import { useStore } from '../../store/context'
 import { MAX_FILE_SIZE, type OutgoingFile } from '../../store/outgoing-files'
 import { pluginsFor } from '../marketplace/plugins'
 import { pastedFiles, readPicked } from './composer-files'
-import { composerEnter } from './composer-keyboard'
+import { ComposerField } from './ComposerField'
 import { CommandMenu, MentionMenu, useComposerMenu } from './ComposerMenu'
 import { ComposerAttachment } from './ComposerAttachment'
 import { QuoteRow } from './ChatRows'
@@ -24,7 +24,7 @@ import { useDictation } from './dictation-platform'
 import { DictationEngineMenu } from './DictationEngineMenu'
 import { mentionSuggestions, returnMentions, withMention } from './mentions'
 import { builtInCommand, returnRuns, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
-import { useVoiceShortcut } from './voice-shortcut-keys'
+import { useSubmitAfterRender, useVoiceShortcut } from './voice-shortcut-keys'
 
 type Trailing = 'interrupt' | 'stop' | 'call' | 'send'
 
@@ -36,7 +36,7 @@ type Trailing = 'interrupt' | 'stop' | 'call' | 'send'
  */
 export function Composer({ botId, reply = null, editing = null, about = null, cancelReply, cancelEdit, onCall, onInterrupt }: {
   botId: string
-  reply?: Entry | null
+  reply?: ReplyQuote | null
   /** A sent message being edited: the box holds its text, and sending edits it and asks the bot again. */
   editing?: Entry | null
   about?: Artifact | null
@@ -54,7 +54,7 @@ export function Composer({ botId, reply = null, editing = null, about = null, ca
 }
 
 function DestinationComposer({ botId, reply, editing, about, cancelReply, cancelEdit, onCall, onInterrupt }: {
-  botId: string; reply: Entry | null; editing: Entry | null; about: Artifact | null; cancelReply?: () => void; cancelEdit?: () => void; onCall?: (() => void) | null; onInterrupt?: (() => void) | null
+  botId: string; reply: ReplyQuote | null; editing: Entry | null; about: Artifact | null; cancelReply?: () => void; cancelEdit?: () => void; onCall?: (() => void) | null; onInterrupt?: (() => void) | null
 }) {
   const store = useStore()
   const tr = useTr()
@@ -68,8 +68,6 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
   const [voiceSettings, setVoiceSettings] = useState(false)
   const dictation = useDictation((change) => drafts.set(draftKey, change(drafts.get(draftKey))), () => setVoiceSettings(true))
   const field = useRef<HTMLTextAreaElement>(null)
-  const measure = useRef<HTMLDivElement>(null)
-  const composing = useRef(false)
   /** Text pasted into this draft since the last send. */
   const pasted = useRef<string[]>([])
   const working = !!bot && isWorkingIn(bot, botId)
@@ -98,25 +96,6 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
     if (reply || editing) field.current?.focus()
   }, [reply, editing])
 
-  // Measure a separate, wrapping copy: collapsing the live textarea to zero breaks its
-  // height transition, caret scroll and IME composition. Observe font/width changes too.
-  useLayoutEffect(() => {
-    const el = field.current
-    const mirror = measure.current
-    if (!el || !mirror) return
-    const resize = () => {
-      const style = getComputedStyle(el)
-      const line = parseFloat(style.lineHeight)
-      const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
-      const height = Math.min(mirror.getBoundingClientRect().height, line * 8 + padding)
-      el.style.height = `${height}px`
-    }
-    resize()
-    const observer = new ResizeObserver(resize)
-    observer.observe(mirror)
-    return () => observer.disconnect()
-  }, [])
-
   const suggestions = editing ? [] : mentionSuggestions(draft, members)
   const mention = (member: Bot) => {
     setDraft(withMention(draft, member))
@@ -143,6 +122,9 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
       case 'skill':
         setDraft(`/${command.action.id} `)
         break
+      case 'agent':
+        setDraft(`/${command.name} `)
+        break
     }
     field.current?.focus()
   }
@@ -164,8 +146,8 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
   const submit = async () => {
     const command = editing ? null : files.length ? null : builtInCommand(bot, draft, members)
     if (!command && !canSend) return
-    // Words still on their way would land in the emptied box (and the shortcut's tap would send them again).
-    dictation.cancel()
+    // Sent once the words still on their way are in the box, with what was typed.
+    if (dictation.busy) return dictation.finish(submitLater)
     if (command) return run(command)
     if (editing) {
       const saved = await store.edit(editing, draft)
@@ -175,14 +157,15 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
       field.current?.focus()
       return
     }
-    store.send(draft, botId, { files, pasted: pasted.current, replyTo: reply ? quoteOf(reply) : about && artifactQuote(about) })
+    store.send(draft, botId, { files, pasted: pasted.current, replyTo: reply ?? (about && artifactQuote(about)) })
     cancelReply?.()
     pasted.current = []
     setDraft('')
     setFiles([])
     field.current?.focus()
   }
-  useVoiceShortcut(dictation, draft, submit, () => field.current?.focus())
+  const submitLater = useSubmitAfterRender(submit)
+  useVoiceShortcut(dictation, draft, submitLater, () => field.current?.focus())
 
   const trailing: Trailing = onInterrupt && !draft && !files.length ? 'interrupt' : working && !draft && !files.length ? 'stop' : onCall && !draft && !files.length ? 'call' : 'send'
   const [symbol, label] = ({
@@ -207,7 +190,7 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
         }}
       >
         <div className="composer-surface">
-          <CommandMenu menu={commandMenu} />
+          <CommandMenu menu={commandMenu} agent={{ registry: (id) => store.agentRegistry(id), name: (id) => store.backendName(id) }} />
           <MentionMenu menu={mentionMenu} />
           <ComposerReveal open={!!editing}>
             {editing ? (
@@ -221,7 +204,7 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
           <ComposerReveal open={!!reply}>
             {reply ? (
               <HStack gap={4} className="composer-reply">
-                <QuoteRow quote={quoteOf(reply)} className="composer-reply-quote" />
+                <QuoteRow quote={reply} className="composer-reply-quote" />
                 <IconButton title="Cancel reply" icon="xmark" size={24} onClick={cancelReply} />
               </HStack>
             ) : null}
@@ -240,53 +223,34 @@ function DestinationComposer({ botId, reply, editing, about, cancelReply, cancel
                 <Icon name="plus" size={13} weight="medium" color="var(--text)" />
               </button>
             ) : null}
-            <div className="composer-field">
-              <div dir="auto" ref={measure} className="composer-measure" aria-hidden="true">{draft + '\u200b'}</div>
-              <textarea dir="auto"
-                ref={field}
-                rows={1}
-                value={draft}
-                placeholder={placeholder}
-                spellCheck
-                aria-label={tr(editing ? 'Edit message' : reply ? 'Reply' : 'Message')}
-                aria-keyshortcuts="Enter Shift+Enter"
-                onCompositionStart={() => { composing.current = true }}
-                onCompositionEnd={() => { composing.current = false }}
-                onChange={(e) => {
-                  setDraft(e.target.value)
-                  // Starting a command: list the computer's skills again.
-                  if (bot && e.target.value === '/') void plugins.refresh()
-                }}
-                onKeyDown={(e) => {
-                  const inInputMethod = composing.current || e.nativeEvent.isComposing || e.keyCode === 229
-                  if (commandMenu.onKey(e, inInputMethod) || mentionMenu.onKey(e, inInputMethod)) return
-                  if (e.key === 'Escape' && (reply || editing)) {
-                    e.preventDefault()
-                    if (reply) cancelReply?.()
-                    else cancelEdit?.()
-                    return
-                  }
-                  // Return sends, Shift-Return adds a line; an input method's Return picks its candidate.
-                  const action = composerEnter({ key: e.key, shiftKey: e.shiftKey, altKey: e.altKey, repeat: e.repeat, isComposing: composing.current || e.nativeEvent.isComposing, keyCode: e.keyCode })
-                  if (e.key === 'Enter' && e.repeat && !e.shiftKey && !e.altKey) e.preventDefault()
-                  if (action === 'send') {
-                    e.preventDefault()
-                    submit()
-                  }
-                }}
-                onPaste={(e) => {
-                  const types = [...e.clipboardData.types]
-                  const hasFiles = types.includes('Files')
-                  // Pasted text is sent marked as pasted: memory never takes it as the user's own words.
-                  if (types.includes('text/plain') && !e.clipboardData.files.length) pasted.current.push(e.clipboardData.getData('text/plain'))
-                  // ⌘V with a copied file or image: attach it (the field alone would paste a name).
-                  if (!canAttach) return
-                  if (!hasFiles || (types.includes('text/plain') && !e.clipboardData.files.length)) return
-                  e.preventDefault()
-                  void pastedFiles(window.codync.app.readClipboardFiles, [...e.clipboardData.files]).then(append)
-                }}
-              />
-            </div>
+            <ComposerField
+              field={field}
+              value={draft}
+              placeholder={placeholder}
+              label={tr(editing ? 'Edit message' : reply ? 'Reply' : 'Message')}
+              onChange={(text) => {
+                setDraft(text)
+                if (bot && text === '/') void plugins.refresh()
+              }}
+              onSend={submit}
+              onKey={(e, inInputMethod) => {
+                if (commandMenu.onKey(e, inInputMethod) || mentionMenu.onKey(e, inInputMethod)) return true
+                if (e.key !== 'Escape' || (!reply && !editing)) return false
+                e.preventDefault()
+                if (reply) cancelReply?.()
+                else cancelEdit?.()
+                return true
+              }}
+              onPaste={(e) => {
+                const types = [...e.clipboardData.types]
+                const hasFiles = types.includes('Files')
+                if (types.includes('text/plain') && !e.clipboardData.files.length) pasted.current.push(e.clipboardData.getData('text/plain'))
+                if (!canAttach) return
+                if (!hasFiles || (types.includes('text/plain') && !e.clipboardData.files.length)) return
+                e.preventDefault()
+                void pastedFiles(window.codync.app.readClipboardFiles, [...e.clipboardData.files]).then(append)
+              }}
+            />
             {dictation.listening || dictation.transcribing ? (
               <RecordingPill
                 startedAt={dictation.startedAt}

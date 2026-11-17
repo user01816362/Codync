@@ -7,15 +7,27 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.46.0
+## 2.49.1
 ### zh-Hant
-- bot 詳細資料新增「電腦」分頁：顯示 bot 所在的電腦和連線狀態，以及那臺電腦螢幕的即時小畫面，可以看著 bot 操作；點一下畫面就開啟完整螢幕，需要時可以接手。「使用電腦」開關也移到這個分頁。
-- 睡著的雲電腦在你查看時會自動喚醒，畫面上會顯示「正在喚醒電腦…」直到準備好。
-- 修正雲端電腦的螢幕同時被多處開啟時，整個桌面可能凍結的問題。
-- 修正電腦螢幕重新連線或從背景回到 app 後，「接手控制」或「交還給 Bot」的選擇沒有保留的問題。
+- Bot、例行任務和其他 Bot 的請求在背景工作，聊天照常回你。
+- 「工作」按鈕列出每個 Bot 的背景工作。
+- Bot 的「詳情」有 Threads 和 Event Box。
+- 點一個 thread 會開成一頁，可以像聊天一樣傳訊息；等待中的訊息可以「現在送」或「移除」。
+- 做完的 thread 也能再接著傳訊息。
+- 每個 thread 會顯示它的資料夾或分支。
+- 「設定」會說明資料夾是不是 git repository。
+- 背景工作可以問你問題或傳檔案。
+- 背景工作也會用備援；需要登入時會在聊天裡請你登入。
+- 轉寫中、雲端電腦更新等幾段介面文字，現在會以你選的語言顯示。
 
 ### en-US
-- New Computer tab in bot details: the bot's computer, its connection, and a live picture of its screen to watch the bot work. Tap it for the full screen. Use the computer moved here.
-- A sleeping cloud computer wakes when you look.
-- Fixed a cloud computer's desktop freezing when its screen was open in several places.
-- Take over or Hand back to bots stays as you left it after a reconnect or coming back to the app.
+- Bots, routines and bot requests work in the background.
+- The Work button lists background work.
+- Details: Threads, Event box.
+- Open a thread as a page and chat in it; Send now or Remove what waits.
+- A finished thread takes messages again.
+- Each thread shows its folder or branch.
+- Settings says whether the folder is a git repository.
+- Background work can ask or send files.
+- Background work uses fallbacks; sign-ins show in the chat.
+- More interface text shows in your language.

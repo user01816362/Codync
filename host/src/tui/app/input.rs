@@ -54,6 +54,7 @@ impl App {
                 _ => None,
             },
             Overlay::Market(m) => Some(&mut m.query),
+            Overlay::Task(s) if s.typing => Some(&mut s.draft),
             Overlay::Fields(f) => f.current().map(|i| &mut i.ed),
             Overlay::Routine(f) => Some(match f.field {
                 super::super::manage::RoutineField::Name => &mut f.name,
@@ -353,7 +354,8 @@ impl App {
             KeyCode::Char('b') => self.compact = !self.compact,
             KeyCode::Char('U') => self.overlays.push(Overlay::Usage(0)),
             KeyCode::Char('M') => self.open_memory(),
-            KeyCode::Char('R') => self.open_routines(),
+            // `B` is the same page from the chat, where the line over the composer names it.
+            KeyCode::Char('R' | 'B') => self.open_details(),
             KeyCode::Char('O') => self.open_computer(),
             KeyCode::Char('L') => self.open_library(),
             KeyCode::Char('A') => self.open_market(),
@@ -384,6 +386,7 @@ impl App {
             KeyCode::Char(')') => self.control_queue("later"),
             KeyCode::Char('S') => self.steer_next(),
             KeyCode::Char('D') => self.unqueue_last(),
+            KeyCode::Char('X') => self.ask_stop_work(),
             KeyCode::Char('*') => self.make_lead(),
             KeyCode::Char('E') if !roster_page => self.ask_clear_chat(),
             KeyCode::Char('x') => {
@@ -417,6 +420,7 @@ impl App {
             }
             KeyCode::Char('w') => self.ask_section(),
             KeyCode::Char('W') => self.ask_rename_section(),
+            KeyCode::Char('E') => self.open_all_work(),
             KeyCode::Char('z') => self.toggle_section(),
             KeyCode::Char('c') => self.copy_last(),
             _ => {}

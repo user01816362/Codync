@@ -24,7 +24,10 @@ import { RoutinesView } from '../routines/RoutinesView'
 import { LibraryView } from '../library/LibraryView'
 import { DevServersSection } from './DevServersSection'
 import { ComputerTab } from './ComputerTab'
+import { WorkThread } from './WorkThread'
+import { WorkTimeline } from './WorkTimeline'
 import { MacChatButton } from './MacChatButton'
+import { useThreadPage } from './use-thread-page'
 import '../bots/bots.css'
 import './details-panel.css'
 import { useTr } from '../../lib/use-language'
@@ -40,15 +43,24 @@ const TABS: { id: DetailsTab; label: string }[] = [
   { id: 'settings', label: 'Settings' },
 ]
 
-/** The inspector beside a conversation (Grok Bot's): who the bot is, then its details, its computer, library, memory and
- * settings. */
-export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArtifact, share, close }: {
+/** The inspector beside a conversation (Grok Bot's): who the bot is, then what it does (Details), its computer, library,
+ * memory and how it is set up (Settings). A row of an item a task has slides the panel to that item's thread
+ * (`thread`); its Back returns to the page as it was left. */
+export function DetailsPanel({ botId, routineId, tab, setTab, thread, openThread, closeThread, editGroup, openArtifact, openCard, showInChat, share, close }: {
   botId: string
   routineId: string | null
   tab: DetailsTab
   setTab: (tab: DetailsTab) => void
+  /** The item whose thread shows in place of the pages; null for the pages. */
+  thread: string | null
+  openThread: (itemId: string) => void
+  closeThread: () => void
   editGroup: () => void
   openArtifact: (artifactId: string) => void
+  /** Shows the chat at the approval card of an item that needs the user. */
+  openCard: (itemId: string) => void
+  /** Shows the chat at one of its entries: what a thread's task put there. */
+  showInChat: (entryId: string) => void
   share: () => void
   close: () => void
 }) {
@@ -63,21 +75,22 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
   const bot = store.bots.get(botId) ?? null
   const group = !!bot && isGroup(bot)
   useScreenViewed('bot_details')
+  const { reading, page, shown, opening } = useThreadPage(thread, bot, closeThread)
   return (
     <div className="details-panel">
-      <div className="details-drag" />
-      <div className="details-actions">
-        {group ? <MacChatButton className="ringed" title="Edit group" icon="person.2" onClick={editGroup} /> : null}
-        {bot && !group ? <MacChatButton className="ringed" title="Create template" icon="square.and.arrow.up" onClick={share} /> : null}
-        <MacChatButton className="ringed" title="Close details" icon="xmark" onClick={close} />
-      </div>
-      <div className="details-scroll">
-        {bot ? <Identity bot={bot} /> : null}
-        {bot && group ? (
-          <>
+      <div className={reading ? 'details-page away' : 'details-page'} inert={reading}>
+        <div className="details-drag" />
+        <div className="details-actions">
+          {group ? <MacChatButton className="ringed" title="Edit group" icon="person.2" onClick={editGroup} /> : null}
+          {bot && !group ? <MacChatButton className="ringed" title="Create template" icon="square.and.arrow.up" onClick={share} /> : null}
+          <MacChatButton className="ringed" title="Close details" icon="xmark" onClick={close} />
+        </div>
+        <div className="details-scroll">
+          {bot ? <Identity bot={bot} /> : null}
+          {bot && group ? (
             <div className="group-details-content">
               <CardSection title="Group activity">
-            {bot?.meeting ? <GroupActionRow title="Meeting room" icon="person.2" onClick={() => setMeeting(true)} /> : null}
+                {bot.meeting ? <GroupActionRow title="Meeting room" icon="person.2" onClick={() => setMeeting(true)} /> : null}
                 <GroupActionRow title="Group tasks" icon="checklist" onClick={() => setTasks(true)} />
                 <GroupActionRow title="Group inbox" icon="tray" onClick={() => setInbox(true)} />
                 <GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} />
@@ -85,38 +98,47 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
               <TabChoice label="Group details" selection={tab === 'library' ? 'library' : 'details'} options={[{ id: 'details', label: 'Members' }, { id: 'library', label: 'Library' }]} onChange={setTab} />
               {tab === 'library' ? <LibraryView botId={botId} openArtifact={openArtifact} /> : <CardSection title="Members"><GroupMembersList group={bot} editGroup={editGroup} /></CardSection>}
             </div>
-          </>
-        ) : (
-          <>
-            <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
-            <div key={tab} className="details-tab fade-in">
-              {tab === 'details' ? (
-                <>
-                  <CardSection><GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} /></CardSection>
-                  {bot ? <section className="details-section">
-                    <Text className="details-section-title">{tr('Reported context')}</Text>
-                    <Text as="div" size="callout" tone="secondary">{bot.contextUsage
-                      ? `${bot.contextUsage.used.toLocaleString()} / ${bot.contextUsage.size.toLocaleString()} · ${new Date(bot.contextUsage.reportedAt).toLocaleTimeString()}`
-                      : tr('Not reported by this agent')}</Text>
-                  </section> : null}
-                  {bot?.cwd ? <button className="member-row press" onClick={() => setBrowsingWorkspace(true)}><Icon name="folder" size={18} /> Browse workspace</button> : null}
-                  {bot ? <DevServersSection bot={bot} /> : null}
-                  <BotSettingsPanel botId={botId} part="often" />
-                  <RoutinesView botId={botId} initialId={routineId} />
-                </>
-              ) : tab === 'computer' ? (
-                bot ? <ComputerTab bot={bot} /> : null
-              ) : tab === 'library' ? (
-                <LibraryView botId={botId} openArtifact={openArtifact} />
-              ) : tab === 'memory' ? (
-                <MemoryCard botId={botId} />
-              ) : (
-                <BotSettingsPanel botId={botId} part="rarely" />
-              )}
-            </div>
-          </>
-        )}
+          ) : (
+            <>
+              <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
+              <div key={tab} className="details-tab fade-in">
+                {tab === 'details' ? (
+                  bot ? (
+                    <>
+                      <CardSection><GroupActionRow title="Host storage" icon="internaldrive" onClick={() => setStorage(true)} /></CardSection>
+                      <section className="details-section">
+                        <Text className="details-section-title">{tr('Reported context')}</Text>
+                        <Text as="div" size="callout" tone="secondary">{bot.contextUsage
+                          ? `${bot.contextUsage.used.toLocaleString()} / ${bot.contextUsage.size.toLocaleString()} · ${new Date(bot.contextUsage.reportedAt).toLocaleTimeString()}`
+                          : tr('Not reported by this agent')}</Text>
+                      </section>
+                      {bot.cwd ? <button className="member-row press" onClick={() => setBrowsingWorkspace(true)}><Icon name="folder" size={18} /> Browse workspace</button> : null}
+                      <WorkTimeline bot={bot} openCard={openCard} openThread={(itemId) => { opening(); openThread(itemId) }}>
+                        <RoutinesView botId={botId} initialId={routineId} />
+                        <DevServersSection bot={bot} />
+                      </WorkTimeline>
+                      <BotSettingsPanel botId={botId} part="often" />
+                    </>
+                  ) : null
+                ) : tab === 'computer' ? (
+                  bot ? <ComputerTab bot={bot} /> : null
+                ) : tab === 'library' ? (
+                  <LibraryView botId={botId} openArtifact={openArtifact} />
+                ) : tab === 'memory' ? (
+                  <MemoryCard botId={botId} />
+                ) : (
+                  <BotSettingsPanel botId={botId} part="rarely" />
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
+      {page.mounted && shown ? (
+        <div className={page.shown && reading ? 'details-page thread shown' : 'details-page thread'} inert={!reading}>
+          <WorkThread key={shown.id} botId={botId} item={shown} openArtifact={openArtifact} showInChat={showInChat} close={closeThread} />
+        </div>
+      ) : null}
       <Sheet open={storage} onClose={() => setStorage(false)} width={600} height={640}><StorageOverview /></Sheet>
       <Sheet open={meeting} onClose={() => setMeeting(false)} width={640} height={740}><MeetingRoom groupId={botId} /></Sheet>
       <Sheet open={tasks} onClose={() => setTasks(false)} width={640} height={740}>{bot && group ? <GroupTasks group={bot} /> : null}</Sheet>

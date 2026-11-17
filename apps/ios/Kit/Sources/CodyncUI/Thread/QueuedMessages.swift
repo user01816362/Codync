@@ -2,7 +2,8 @@ import CodyncKit
 import SwiftUI
 
 /// The user's messages waiting behind the bot's work, above the composer: each one line, sent now into the running
-/// turn (`steer`) or taken back. An older computer has neither action, so the rows only show.
+/// turn (`steer`) or taken back. An older computer has neither action, so the rows only show. Under an item's thread
+/// (`workThread`) they are that thread's.
 struct QueuedMessages: View {
     let entries: [Entry]
     @State private var queueState: QueueState?
@@ -10,6 +11,7 @@ struct QueuedMessages: View {
     @State private var controlling = false
     @State private var editing: Entry?
     @Environment(BotStore.self) private var model
+    @Environment(\.workThread) private var thread
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -18,7 +20,7 @@ struct QueuedMessages: View {
             CappedHeight(max: 190) {
                 ScrollView {
                     VStack(spacing: 0) {
-                        if let first = entries.first, model.bots[first.botId]?.isGroup != true {
+                        if thread == nil, let first = entries.first, model.bots[first.botId]?.isGroup != true {
                             HStack {
                                 Text(queueState?.reason ?? "Queued messages").font(.caption).foregroundStyle(Palette.secondary)
                                 Spacer()
@@ -58,14 +60,14 @@ struct QueuedMessages: View {
                 .padding(.vertical, model.supportsQueueActions ? 0 : 9)
             if model.supportsQueueActions {
                 Group {
-                    if model.bots[entry.botId]?.isGroup != true {
+                    if thread == nil, model.bots[entry.botId]?.isGroup != true {
                         IconButton("Move earlier", systemImage: "arrow.up") { control("earlier", entryId: entry.id) }.disabled(controlling)
                         IconButton("Move later", systemImage: "arrow.down") { control("later", entryId: entry.id) }.disabled(controlling)
                         IconButton("Edit queued message", systemImage: "pencil") { editing = entry }
                             .disabled(model.answering[entry.id] != nil)
                     }
-                    IconButton("Send now", systemImage: "arrow.turn.down.right") { model.steer(entry) }
-                    IconButton("Remove", systemImage: "trash") { model.unqueue(entry) }
+                    IconButton("Send now", systemImage: "arrow.turn.down.right") { model.steer(entry, in: thread) }
+                    IconButton("Remove", systemImage: "trash") { model.unqueue(entry, in: thread) }
                 }
                 .disabled(model.answering[entry.id] != nil)
             }
@@ -76,7 +78,7 @@ struct QueuedMessages: View {
     private struct QueueState: Decodable { let paused: Bool; let reason: String }
     private struct Control: Encodable { let botId: String; let action: String; let entryId: String? }
     private func control(_ action: String, entryId: String? = nil) {
-        guard !controlling, let first = entries.first, model.bots[first.botId]?.isGroup != true, let client = model.live else { return }
+        guard thread == nil, !controlling, let first = entries.first, model.bots[first.botId]?.isGroup != true, let client = model.live else { return }
         controlling = true
         Task {
             defer { controlling = false }

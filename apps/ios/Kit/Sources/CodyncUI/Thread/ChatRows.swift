@@ -14,6 +14,9 @@ struct ChatRow: View {
     var reply: (() -> Void)?
     /// Opens this sent message in the composer; its edit is answered again.
     var edit: (() -> Void)?
+    /// Opens the message's text for selecting a part to reply to; offered with reply, on a message that has text.
+    /// Nil where the computer's host takes no part.
+    var selectText: (() -> Void)?
     /// A failure notice's "Add a fallback": the bot's details.
     var addFallback: (() -> Void)?
     /// An artifact card's artifact, full size.
@@ -24,6 +27,8 @@ struct ChatRow: View {
     var versions: [Entry]?
     var versionIndex: Int?
     var pickVersion: ((Entry) -> Void)?
+    /// A tap on the message's quote: brings the quoted message (its id) into view.
+    var openQuote: ((String) -> Void)?
     @Environment(BotStore.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -31,7 +36,7 @@ struct ChatRow: View {
         switch entry.kind {
         case "user":
             VStack(alignment: .trailing, spacing: 4) {
-                UserBubble(entry: entry, reply: reply, edit: edit)
+                UserBubble(entry: entry, reply: reply, edit: edit, selectText: selectText, openQuote: openQuote)
                 if let versions, versions.count > 1, let versionIndex, let pickVersion {
                     VersionSwitch(versions: versions, index: versionIndex, pick: pickVersion)
                 }
@@ -43,7 +48,8 @@ struct ChatRow: View {
         case "agent":
             VStack(alignment: .leading, spacing: 4) {
                 if chat?.isGroup == true, groupStart { AuthorLabel(botId: entry.data.author, department: entry.data.author.flatMap { chat?.meetingDepartments[$0] }) }
-                AgentBubble(entry: entry, openTrace: openTrace, reply: reply, openArtifact: openArtifact)
+                AgentBubble(entry: entry, openTrace: openTrace, reply: reply, selectText: selectText,
+                            openArtifact: openArtifact, openQuote: openQuote)
                 ReactionsRow(entry: entry)
                     .padding(.leading, chat?.isGroup == true ? 34 : 0)
             }
@@ -62,7 +68,10 @@ struct ChatRow: View {
             if entry.kind == "notice", entry.data.decision == true {
                 DecisionCard(entry: entry, answering: model.answering[entry.id]) { option in
                     model.decide(entry, option: option)
-                }.padding(.top, 12)
+                } reply: { text in
+                    model.send(text, to: entry.botId)
+                }
+                .padding(.top, 12)
             } else if let request = entry.data.connectionRequest {
                 ConnectionRequestCard(entry: entry, request: request).padding(.top, 12)
             } else if let card = entry.data.handoff {
@@ -111,11 +120,23 @@ struct AuthorLabel: View {
     }
 }
 
-/// The message a reply quotes, as its first line without Markdown markers.
+/// The message a reply quotes, as its first line without Markdown markers. With `open`
+/// (in a bubble), a tap brings the quoted message into view.
 struct QuoteLine: View {
     let text: String
+    var open: (() -> Void)?
 
     var body: some View {
+        if let open {
+            Button(action: open) { line }
+                .buttonStyle(.plain)
+                .accessibilityHint(L10n.tr("Show the quoted message"))
+        } else {
+            line
+        }
+    }
+
+    private var line: some View {
         Label {
             Text(L10n.tr("“\(MessagePreview.text(text))”")).lineLimit(1)
         } icon: {
@@ -167,8 +188,11 @@ struct UserBubble: View {
     let entry: Entry
     var reply: (() -> Void)?
     var edit: (() -> Void)?
+    var selectText: (() -> Void)?
+    var openQuote: ((String) -> Void)?
     @Environment(BotStore.self) private var model
-    @State private var selecting = false
+    /// The item's thread the message was written to: no reactions there, and Resend goes to the thread.
+    @Environment(\.workThread) private var thread
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -180,16 +204,14 @@ struct UserBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.leading, 56)
-        .codyncSheet(isPresented: $selecting) {
-            QuoteSelectionSheet(text: entry.data.text ?? "", author: "You", structured: true) { text in
-                model.selectReply(entry, text: text)
-            }
-        }
     }
 
     private var text: some View {
             VStack(alignment: .leading, spacing: 4) {
-                if let quote = entry.data.replyTo { QuoteLine(text: model.authorName(quote.author) + ": " + quote.text) }
+                if let quote = entry.data.replyTo {
+                    QuoteLine(text: model.authorName(quote.author) + ": " + quote.text,
+                              open: openQuote.map { open in { open(quote.id) } })
+                }
                 if let text = entry.data.text, !text.isEmpty {
                     Text(text)
                         .writingDirection(strategy: .contentBased)
@@ -201,14 +223,11 @@ struct UserBubble: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(Palette.bubbleUser, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .contextActions(reactions: menu.reactions) { menu.items(copy: menu.textCopy) }
+                .contextActions(reactions: thread == nil ? menu.reactions : nil) { menu.textItems() }
     }
 
     private var menu: MessageMenu {
-        MessageMenu(entry: entry, reactions: model.reactionPick(entry),
-                    actions: [MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") { selecting = true }]
-                        + (edit.map { [MenuItem("Edit", icon: "pencil", action: $0)] } ?? [])
-                        + (reply.map { [MenuItem("Reply", icon: "arrowshape.turn.up.left", action: $0)] } ?? []))
+        MessageMenu.of(entry, reactions: model.reactionPick(entry), reply: reply, selectText: selectText, edit: edit)
     }
 
     @ViewBuilder private var status: some View {
@@ -218,8 +237,8 @@ struct UserBubble: View {
         case "failed":
             HStack(spacing: 10) {
                 Text(L10n.tr("Failed to send")).foregroundStyle(Palette.danger)
-                Button(L10n.tr("Resend"), systemImage: "arrow.clockwise") { model.retry(entry) }.labelStyle(.iconOnly).help("Resend")
-                Button(L10n.tr("Delete"), systemImage: "trash") { model.discard(entry) }.labelStyle(.iconOnly).help("Delete")
+                Button(L10n.tr("Resend"), systemImage: "arrow.clockwise") { model.retry(entry, in: thread) }.labelStyle(.iconOnly).help("Resend")
+                Button(L10n.tr("Delete"), systemImage: "trash") { model.discard(entry, in: thread) }.labelStyle(.iconOnly).help("Delete")
             }
             .buttonStyle(.plain)
             .font(.caption2.bold())
@@ -249,13 +268,18 @@ struct AgentBubble: View {
     let entry: Entry
     let openTrace: () -> Void
     var reply: (() -> Void)?
+    var selectText: (() -> Void)?
     var openArtifact: ((ArtifactRef) -> Void)?
+    var openQuote: ((String) -> Void)?
     @Environment(BotStore.self) private var model
     @State private var workspace: WorkspacePreviewTarget?
-    @State private var selecting = false
+    /// In an item's thread a message has Copy alone: reactions and "Show what it did" are the chat's.
+    @Environment(\.workThread) private var thread
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            // The message the bot answers (`reply_to`), above its bubble.
+            if let quote = entry.data.replyTo { QuoteLine(text: quote.text, open: openQuote.map { open in { open(quote.id) } }).padding(.horizontal, 16) }
             if entry.data.artifact == nil, entry.data.voiceNoteFile == nil, let files = entry.data.files, !files.isEmpty {
                 // Each card has the menu, its picture's copy items in Copy's place.
                 ForEach(files) { file in FileDownloadCard(entry: entry, file: file, menu: menu) }
@@ -284,20 +308,16 @@ struct AgentBubble: View {
                             .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
                 }
-                .contextActions(reactions: menu.reactions) {
-                    // A voice note's Download follows Copy, as on desktop and Android.
-                    menu.items(copy: menu.textCopy + (entry.data.voiceNoteFile.map { [downloadItem($0)] } ?? []))
+                .contextActions(reactions: thread == nil ? menu.reactions : nil) {
+                    // A voice note's Download follows Copy and Select Text, as on Android.
+                    menu.textItems(more: entry.data.voiceNoteFile.map { [downloadItem($0)] } ?? [])
                 }
             }
+            TaskLine(data: entry.data).padding(.leading, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.trailing, 40)
         .codyncSheet(item: $workspace) { target in WorkspaceTextPreview(botId: entry.data.author ?? entry.botId, path: target.path) }
-        .codyncSheet(isPresented: $selecting) {
-            QuoteSelectionSheet(text: entry.data.text ?? "", author: model.authorName(entry.data.author ?? entry.botId), structured: true) { text in
-                model.selectReply(entry, text: text)
-            }
-        }
     }
 
     /// A voice-note bubble's Download row: the player's own action, on the menu.
@@ -309,9 +329,8 @@ struct AgentBubble: View {
     }
 
     private var menu: MessageMenu {
-        var actions = [MenuItem("Select text / Quote", icon: "arrowshape.turn.up.left") { selecting = true }, MenuItem("Show what it did", icon: "list.bullet", action: openTrace)]
-        if let reply { actions.insert(MenuItem("Reply", icon: "arrowshape.turn.up.left", action: reply), at: 0) }
-        return MessageMenu(entry: entry, reactions: model.reactionPick(entry), actions: actions)
+        MessageMenu.of(entry, reactions: model.reactionPick(entry), reply: reply, selectText: selectText,
+                       more: thread == nil ? [MenuItem("Show what it did", icon: "list.bullet", action: openTrace)] : [])
     }
 }
 
@@ -342,6 +361,7 @@ struct NoticeRow: View {
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
                 }
+                TaskLine(data: entry.data)
                 if entry.data.addFallback == true, let addFallback {
                     Button(L10n.tr("Add a fallback"), action: addFallback).buttonStyle(.secondary)
                 }

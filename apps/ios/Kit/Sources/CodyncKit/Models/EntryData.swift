@@ -93,6 +93,10 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var transcript: [CallLine]?
     /// agent: an artifact card, the bot's artifact as published then (the newest version shows).
     public var artifact: ArtifactRef?
+    /// permission: the background task that asks (`WorkItem.swift`); the card sits in its bot's chat.
+    public var task: TaskRef?
+    /// permission: the item that task works on.
+    public var item: ItemRef?
 
     public init(text: String? = nil, status: String? = nil, clientNonce: String? = nil) {
         self.text = text
@@ -126,19 +130,36 @@ public struct ReplyQuote: Codable, Hashable, Sendable {
     public var text: String
     public var artifact: String?
     public var selected: Bool?
-    public var part: String?
+    /// Upstream's structured part marker. A reply quotes the selected `text` when true.
+    public var part: Bool?
+    /// Fork metadata for the source subsection (for example a collaboration request/reply).
+    public var sourcePart: String?
     public var fileName: String?
     public var artifactTitle: String?
     public var startLine: Int?
     public var endLine: Int?
 
-    public init(id: String, author: String, text: String, artifact: String? = nil, selected: Bool? = nil, part: String? = nil) {
+    /// The selected part, as `send` takes it beside the message's id.
+    public var selectedPart: String? { part == true || selected == true ? text : nil }
+
+    public init(id: String, author: String, text: String, artifact: String? = nil, selected: Bool? = nil,
+                part: Bool? = nil, sourcePart: String? = nil, fileName: String? = nil, artifactTitle: String? = nil,
+                startLine: Int? = nil, endLine: Int? = nil) {
         self.id = id
         self.author = author
         self.text = text
         self.artifact = artifact
         self.selected = selected
         self.part = part
+        self.sourcePart = sourcePart
+        self.fileName = fileName
+        self.artifactTitle = artifactTitle
+        self.startLine = startLine
+        self.endLine = endLine
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, author, text, artifact, selected, part, fileName, artifactTitle, startLine, endLine
     }
 
     public init(from decoder: any Decoder) throws {
@@ -148,11 +169,27 @@ public struct ReplyQuote: Codable, Hashable, Sendable {
         text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
         artifact = try c.decodeIfPresent(String.self, forKey: .artifact)
         selected = try c.decodeIfPresent(Bool.self, forKey: .selected)
-        part = try c.decodeIfPresent(String.self, forKey: .part)
+        part = try? c.decodeIfPresent(Bool.self, forKey: .part)
+        sourcePart = try? c.decodeIfPresent(String.self, forKey: .part)
         fileName = try c.decodeIfPresent(String.self, forKey: .fileName)
         artifactTitle = try c.decodeIfPresent(String.self, forKey: .artifactTitle)
         startLine = try c.decodeIfPresent(Int.self, forKey: .startLine)
         endLine = try c.decodeIfPresent(Int.self, forKey: .endLine)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(author, forKey: .author)
+        try c.encode(text, forKey: .text)
+        try c.encodeIfPresent(artifact, forKey: .artifact)
+        try c.encodeIfPresent(selected, forKey: .selected)
+        if let part { try c.encode(part, forKey: .part) }
+        else { try c.encodeIfPresent(sourcePart, forKey: .part) }
+        try c.encodeIfPresent(fileName, forKey: .fileName)
+        try c.encodeIfPresent(artifactTitle, forKey: .artifactTitle)
+        try c.encodeIfPresent(startLine, forKey: .startLine)
+        try c.encodeIfPresent(endLine, forKey: .endLine)
     }
 }
 
@@ -226,6 +263,10 @@ public enum DecisionStatus: String, Sendable {
 }
 
 public extension EntryData {
+    /// A background task put it in the chat (a card, a file, a voice note, an artifact): its line names the task,
+    /// and typing in the chat doesn't answer it.
+    var isFromTask: Bool { !(task?.title.isEmpty ?? true) || !(item?.id.isEmpty ?? true) }
+
     /// A choice card's status; nil for a value this app doesn't know.
     var decisionStatus: DecisionStatus? { status.flatMap(DecisionStatus.init(rawValue:)) }
 }

@@ -24,10 +24,12 @@ pub enum Event {
     StarPromptAnswered,
     LinkOpened,
     ScreenViewed,
+    RemoteScreenPaused,
     ImagePreviewOpened,
     ImagePreviewAction,
     ConversationFindOpened,
     ConversationFindSearched,
+    QuoteOpened,
     BotCreated,
     BotUpdated,
     BotsReordered,
@@ -36,6 +38,8 @@ pub enum Event {
     MessageSent,
     /// The user had a queued message handled now (`agent::bot::steer`).
     MessageSteered,
+    /// The user sent one of the agent's own `/` commands (`agent::bot::commands`).
+    AgentCommandSent,
     QueuedMessageRemoved,
     TurnStopped,
     TurnFinished,
@@ -63,6 +67,24 @@ pub enum Event {
     RoutineDeleted,
     RoutineRun,
     RoutineRetried,
+    /// A bot's `save_progress` ended (`outcome`).
+    RoutineProgressSaved,
+    /// A bot's `follow_up` ended (`outcome`).
+    FollowUpSet,
+    /// A follow-up came due and its bot took it.
+    FollowUpFired,
+    /// A follow-up was dropped before it began (`by`).
+    FollowUpCancelled,
+    /// A bot's `add_work` ended (`outcome`).
+    WorkAdded,
+    /// An item of a bot's box ended (`outcome`), and how its task's session had begun.
+    WorkFinished,
+    /// An item was moved, cut in, replaced, stopped, dropped or tried again (`how`), by the bot or the user (`by`).
+    WorkSteered,
+    /// An item's turn couldn't go on until the user signs in to its agent, so it waits for them (`agent`, `source`).
+    WorkNeedsSignIn,
+    /// The user wrote to an item's thread (`chat::tasks::thread`): whether it reopened the item, and whether it waits.
+    WorkMessaged,
     /// A bot's `start_dev_server` ended (`outcome`).
     DevServerStarted,
     /// A dev server ended (`by`).
@@ -96,9 +118,16 @@ pub enum Event {
     VoiceNoteSent,
     /// A voice note played from its start, or failed to (`outcome`).
     VoiceNotePlayed,
+    /// A bot's `send_message` or `send_file` with `reply_to` (`tool`), quoted or sent without it (`outcome`).
+    BotQuoted,
     CredentialSaved,
+    /// Every saved credential deleted, for a computer whose key is gone (`outcome`).
+    CredentialsReset,
     AgentSetupStarted,
     AgentSignedIn,
+    /// A login profile was added, renamed or removed, or got its keys (`action`); never its name, who it signs in or
+    /// its variables.
+    LoginProfileChanged,
     SettingChanged,
     /// The desktop app's ask before Reach from anywhere turns on for a computer in no account.
     ReachAccountAnswered,
@@ -163,10 +192,12 @@ impl Event {
             Self::StarPromptAnswered => "star_prompt_answered",
             Self::LinkOpened => "link_opened",
             Self::ScreenViewed => "screen_viewed",
+            Self::RemoteScreenPaused => "remote_screen_paused",
             Self::ImagePreviewOpened => "image_preview_opened",
             Self::ImagePreviewAction => "image_preview_action",
             Self::ConversationFindOpened => "conversation_find_opened",
             Self::ConversationFindSearched => "conversation_find_searched",
+            Self::QuoteOpened => "quote_opened",
             Self::BotCreated => "bot_created",
             Self::BotUpdated => "bot_updated",
             Self::BotsReordered => "bots_reordered",
@@ -174,6 +205,7 @@ impl Event {
             Self::BotDeleted => "bot_deleted",
             Self::MessageSent => "message_sent",
             Self::MessageSteered => "message_steered",
+            Self::AgentCommandSent => "agent_command_sent",
             Self::QueuedMessageRemoved => "queued_message_removed",
             Self::TurnStopped => "turn_stopped",
             Self::TurnFinished => "turn_finished",
@@ -195,6 +227,15 @@ impl Event {
             Self::RoutineDeleted => "routine_deleted",
             Self::RoutineRun => "routine_run",
             Self::RoutineRetried => "routine_retried",
+            Self::RoutineProgressSaved => "routine_progress_saved",
+            Self::FollowUpSet => "follow_up_set",
+            Self::FollowUpFired => "follow_up_fired",
+            Self::FollowUpCancelled => "follow_up_cancelled",
+            Self::WorkAdded => "work_added",
+            Self::WorkFinished => "work_finished",
+            Self::WorkSteered => "work_steered",
+            Self::WorkNeedsSignIn => "work_needs_sign_in",
+            Self::WorkMessaged => "work_messaged",
             Self::DevServerStarted => "dev_server_started",
             Self::DevServerStopped => "dev_server_stopped",
             Self::DevServerAction => "dev_server_action",
@@ -218,9 +259,12 @@ impl Event {
             Self::ArtifactPublished => "artifact_published",
             Self::VoiceNoteSent => "voice_note_sent",
             Self::VoiceNotePlayed => "voice_note_played",
+            Self::BotQuoted => "bot_quoted",
             Self::CredentialSaved => "credential_saved",
+            Self::CredentialsReset => "credentials_reset",
             Self::AgentSetupStarted => "agent_setup_started",
             Self::AgentSignedIn => "agent_signed_in",
+            Self::LoginProfileChanged => "login_profile_changed",
             Self::SettingChanged => "setting_changed",
             Self::ReachAccountAnswered => "reach_account_answered",
             Self::ContinuedWithoutAccount => "continued_without_account",

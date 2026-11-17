@@ -147,19 +147,21 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
         // The apps' wording.
         let placeholder = if let Some(pick) = &app.pick {
             let entry = app.lane(&b.id).into_iter().find(|e| &e.id == pick);
-            let artifact = entry.is_some_and(|e| e.artifact().is_some());
-            let mut hint = if artifact {
-                "j k pick · o open in the browser · f save as HTML · ↵ reply · 1–6 react · c copy · esc".to_owned()
+            if entry.as_ref().is_some_and(|e| e.pending()) {
+                "its keys answer it".to_owned()
             } else {
-                "j k pick · ↵ reply · 1–6 react · o preview text · f save files · c copy · esc".to_owned()
-            };
-            if entry.is_some_and(Entry::editable) {
-                hint.push_str(" · e edit");
+                let artifact = entry.as_ref().is_some_and(|e| e.artifact().is_some());
+                let mut hint = if artifact {
+                    "j k pick · o open in the browser · f save as HTML · ↵ reply · 1–6 react · c copy".to_owned()
+                } else {
+                    "j k pick · ↵ reply · 1–6 react · o preview text · f save files · c copy".to_owned()
+                };
+                if entry.as_ref().is_some_and(Entry::editable) { hint.push_str(" · e edit"); }
+                if app.version_count(&b.id, pick) > 1 { hint.push_str(" · [ ] version"); }
+                if entry.as_ref().is_some_and(|e| e.quotes().is_some()) { hint.push_str(" · q quoted message"); }
+                hint.push_str(" · esc");
+                hint
             }
-            if app.version_count(&b.id, pick) > 1 {
-                hint.push_str(" · [ ] version");
-            }
-            hint
         } else if app.reply.is_some() {
             tr("Reply…").into_owned()
         } else if b.group {
@@ -205,7 +207,8 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
         set_cursor(Position::new(r.x + 3 + u(cursor.0), cy.min(comp_top + ch)));
     }
 
-    let strip_top = queue_band(buf, r, app, &b, box_top, typing);
+    let strip_top = super::work::work_band(buf, r, &b, box_top, typing);
+    let strip_top = queue_band(buf, r, app, &b, strip_top, typing);
 
     // Transcript.
     let body = Rect::new(r.x, top + 1, r.width, strip_top.saturating_sub(top + 1));
@@ -345,7 +348,7 @@ fn command_menu(buf: &mut Buffer, body: Rect, app: &App) {
         let x = put(buf, body.x + 3, y, 26, &truncate(&format!("/{}", c.name), 26), name.patch(bg)) + 2;
         let hint = match (i == sel, c.action) {
             (false, _) => "",
-            (true, SlashAction::Skill) => "tab fills in",
+            (true, SlashAction::Skill | SlashAction::Agent) => "tab fills in",
             (true, _) => "↵ runs",
         };
         let rx = rput(buf, body.right() - 1, y, hint, t.dim.patch(bg));
