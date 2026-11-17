@@ -200,7 +200,7 @@ impl Hub {
         for _ in 0..expired.decisions {
             crate::chat::decision::Expiry::Restart.capture(self);
         }
-        crate::chat::tasks::restore(self)?;
+        crate::chat::group_tasks::restore(self)?;
         crate::chat::meetings::restore(self)?;
         crate::chat::memory::import_old_memory(self);
         self.routines.restore(&self.store)?;

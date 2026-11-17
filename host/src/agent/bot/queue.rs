@@ -43,7 +43,7 @@ impl Actor {
                     Ok(())
                 } else {
                     self.unqueue(&entry_id);
-                    crate::chat::tasks::finish(&self.hub, &task_id, &entry_id, "paused", "Paused before dispatch")
+                    crate::chat::group_tasks::finish(&self.hub, &task_id, &entry_id, "paused", "Paused before dispatch")
                 };
                 let _ = done.send(result);
             }
@@ -225,7 +225,7 @@ impl Actor {
                 Queued::User { entry_id, .. } => {
                     if let Some(mut e) = self.hub.store.entry(&entry_id) {
                         if let Some(task) = e.data["taskId"].as_str()
-                            && let Err(error) = crate::chat::tasks::finish(
+                            && let Err(error) = crate::chat::group_tasks::finish(
                                 &self.hub,
                                 task,
                                 &entry_id,
@@ -475,7 +475,7 @@ impl Actor {
                             let mut data = entry.data.clone();
                             data["status"] = "cancelled".into();
                             self.hub.set_entry(&entry_id, &data);
-                            if let Err(error) = crate::chat::tasks::finish(
+                            if let Err(error) = crate::chat::group_tasks::finish(
                                 &self.hub,
                                 task,
                                 &entry_id,
@@ -487,7 +487,7 @@ impl Actor {
                             continue;
                         }
                         if let Err(error) =
-                            crate::chat::tasks::finish(&self.hub, task, &entry_id, "running", "Dispatched to owner")
+                            crate::chat::group_tasks::finish(&self.hub, task, &entry_id, "running", "Dispatched to owner")
                         {
                             tracing::error!(%error, "couldn't mark task running");
                             continue;

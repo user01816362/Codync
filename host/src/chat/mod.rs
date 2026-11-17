@@ -12,6 +12,7 @@ pub mod files;
 pub mod group;
 pub mod group_delivery;
 pub mod group_mail;
+pub mod group_tasks;
 pub mod handoff;
 pub mod lead;
 pub mod library;

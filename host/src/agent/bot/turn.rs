@@ -484,7 +484,7 @@ impl Actor {
         for id in &self.turn_entries {
             if let Some(entry) = self.hub.store.entry(id)
                 && let Some(task) = entry.data["taskId"].as_str()
-                && let Err(error) = crate::chat::tasks::finish(
+                && let Err(error) = crate::chat::group_tasks::finish(
                     &self.hub,
                     task,
                     id,

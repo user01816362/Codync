@@ -128,13 +128,13 @@ async fn route(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Resul
         return storage_usage::overview(hub, method == "compactStorage", &b).await;
     }
     if method == "groupTasks" {
-        return crate::chat::tasks::list(hub, str_arg(&b, "groupId")?);
+        return crate::chat::group_tasks::list(hub, str_arg(&b, "groupId")?);
     }
     if method == "createGroupTask" {
-        return crate::chat::tasks::create(hub, &b);
+        return crate::chat::group_tasks::create(hub, &b);
     }
     if method == "updateGroupTask" {
-        return crate::chat::tasks::update(hub, &b).await;
+        return crate::chat::group_tasks::update(hub, &b).await;
     }
     if method == "queueControl" {
         return queue_controls::control(hub, &b).await;

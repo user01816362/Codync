@@ -15,7 +15,7 @@ impl Actor {
             if let Some(entry) = self.hub.store.entry(id)
                 && let Some(task) = entry.data["taskId"].as_str()
                 && let Err(error) =
-                    crate::chat::tasks::finish(&self.hub, task, id, "failed", &format!("Could not start: {e:#}"))
+                    crate::chat::group_tasks::finish(&self.hub, task, id, "failed", &format!("Could not start: {e:#}"))
             {
                 tracing::error!(%error, "couldn't record task start failure");
             }
