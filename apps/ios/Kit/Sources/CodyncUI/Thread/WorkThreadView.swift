@@ -48,7 +48,6 @@ struct WorkThreadView: View {
             .hidesSystemNavigationBar()
             .task(id: Load(attempt: attempt, task: item.task, live: live, online: model.connection == .online)) { await load(item.task) }
             .stopWorkDialog(isPresented: $confirmingStop) { model.stopWork(botId, item: item.id) }
-            .tracked(.screenViewed(.task))
     }
 
     /// Back to the details, the item's title over where it stands and where it works, and Stop while a task has it.

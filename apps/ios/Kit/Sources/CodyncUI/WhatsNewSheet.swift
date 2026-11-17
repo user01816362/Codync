@@ -82,7 +82,6 @@ private struct FeatureStory: View {
             .buttonStyle(.plain)
             .padding(8)
             .accessibilityLabel(L10n.tr("Watch the full video"))
-            .trackedLinks(.whatsNewFilm)
         }
     }
 }

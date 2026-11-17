@@ -56,7 +56,6 @@ public struct AllWorkView: View {
         .background(Palette.background)
         .onChange(of: bots.isEmpty, initial: true) { if bots.isEmpty { dismiss() } }
         .onDisappear { leaving?() }
-        .tracked(.screenViewed(.allWork))
     }
 
     private func heading(_ row: RosterItem, members: [Bot]) -> some View {
