@@ -549,8 +549,8 @@ const Transcript = memo(function Transcript({ botId, reveal, openTrace, onReply,
           ) : null}
           {items.length === 0 && bot ? <div className="transcript-intro">{isGroup(bot) ? <GroupIntroCard group={bot} /> : <IntroCard bot={bot} />}</div> : null}
           {items.map((item) => (
-            {/* `data-entry-id`: what a quote's click looks for (a user row's `item.id` is its nonce). */}
             <div key={item.id} data-entry-id={item.kind === 'separator' ? undefined : item.entry.id} tabIndex={-1} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
+              {/* `data-entry-id`: what a quote's click looks for (a user row's `item.id` is its nonce). */}
               <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} onEdit={onEdit} onPickVersion={pickVersion} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} openArtifact={openArtifact} openCall={openCall} />
             </div>
           ))}
