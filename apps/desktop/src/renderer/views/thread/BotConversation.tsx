@@ -20,6 +20,7 @@ import { fill } from '@shared/fill'
 
 /** The compact chat row for bot-to-bot messages with one peer: who, never what. Opens the conversation. */
 export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; open: (peerId: string) => void }) {
+  const tr = useTr()
   const store = useStore()
   const [mode] = usePref(prefs.collaborationActivity)
   const [expanded, setExpanded] = useState<boolean | null>(null)

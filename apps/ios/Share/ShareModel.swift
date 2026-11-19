@@ -55,12 +55,10 @@ import Observation
         let (text, files) = (text, outgoing)
         let total = files.reduce(0) { $0 + $1.data.count }
         let pasted = IncomingShare.pasted(shared, in: text)
-        let recent = targets.recent.contains { $0.recipient == recipient }
         phase = .sending(sent: 0, total: total)
         task = Task {
-            var event = AnalyticsEvent.ShareSent(.sent, files: files.count, text: !text.isEmpty, recent: recent)
             do throws(ShareDelivery.Failure) {
-                let outcome = try await ShareDelivery.deliver(text, files: files, pasted: pasted, nonce: nonce, to: recipient,
+                _ = try await ShareDelivery.deliver(text, files: files, pasted: pasted, nonce: nonce, to: recipient,
                                                               in: context) { sent in
                     Task { @MainActor [weak self] in
                         guard let self, case .sending = self.phase else { return }
@@ -69,14 +67,9 @@ import Observation
                 }
                 guard !Task.isCancelled else { return }
                 context.shareRecipients = recipient.remembered(in: context.shareRecipients)
-                if outcome == .queued { event.outcome = .queued }
-                Analytics.queueShare(event)
                 finish(sent: true)
             } catch {
                 guard !Task.isCancelled else { return }
-                event.outcome = .failed
-                event.error = error.kind
-                Analytics.queueShare(event)
                 phase = .failed(error.message)
             }
         }
@@ -94,10 +87,6 @@ import Observation
         message = loaded.text
         files = loaded.files
         phase = .ready
-        // A file left behind unread is reported once, as Android reports one it couldn't copy in.
-        if loaded.files.contains(where: \.isUnreadable) {
-            Analytics.queueShare(.init(.failed, error: .read, files: loaded.files.count, text: !loaded.text.isEmpty, recent: false))
-        }
     }
 
     private func finish(sent: Bool) {

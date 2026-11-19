@@ -111,7 +111,7 @@ internal data class OpenArtifact(val botId: String, val id: String, val title: S
             }
         }
         selectionFailure?.let { Text(it, color = Palette.danger) }
-        // No card (a routine run published it): nothing a message could reply to.
+        // No card (a group chat or another bot's request published it): nothing a message could reply to.
         val quote = (artifact?.entryId ?: open.entryId)?.let { artifactQuote(it, bot.id, open.id, title) }
         if (quote != null) MessageComposer(bot, state, store, onCall = null, replyTo = quote, about = title, draftKey = artifactDraftKey(bot.id, open.id))
     }

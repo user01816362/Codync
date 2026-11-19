@@ -18,6 +18,7 @@ import { errorText } from './drafts'
 import { AnchoredPanel, AutoTextArea, Field } from './parts'
 import './bots.css'
 import { useTr } from '../../lib/use-language'
+import { fill } from '@shared/fill'
 
 
 /**
@@ -141,7 +142,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
           {current ? (
             <button className="press group-delete" onClick={() => setConfirmDelete(current)}>
-              Delete group chat
+              {tr('Delete group chat')}
             </button>
           ) : null}
         </div>
@@ -166,7 +167,7 @@ function DeleteBotDialog({ bot, onClose, onDeleted }: { bot: Bot | null; onClose
   return (
     <Dialog
       open={bot !== null}
-      title={`Delete ${bot?.name ?? 'bot'}?`}
+      title={fill(tr('Delete {name}?'), { name: bot?.name ?? 'bot' })}
       message={tr(bot && isGroup(bot) ? 'Its bots and their own chats stay.' : 'Files it changed on your computer stay as they are.')}
       actions={[
         {

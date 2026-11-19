@@ -393,7 +393,9 @@ export class BotStore extends BotSync {
     show(local)
     // Safe to repeat: the computer answers a nonce it already has with the same entry.
     void this.withLink((c) => c.call<{ entry: Entry }>('send', { ...thread, text: trimmed, clientNonce: nonce }), true).then(
-      (res) => show({ ...res.entry, data: res.entry.data ?? {} }),
+      (res) => {
+        show({ ...res.entry, data: res.entry.data ?? {} })
+      },
       (error: unknown) => {
         this.lastError = errorText(error)
         // Unless the computer's copy came in on the events stream after all.

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @State private var notificationsAllowed: Bool?
+    @AppStorage(IconBadge.enabledKey, store: SharedStore.defaults) private var iconBadge = false
     @State private var confirmStartOver = false
 
     var body: some View {
@@ -29,6 +30,8 @@ struct SettingsView: View {
 
             CardSection("Notifications", footer: "Get a result summary, a request for input, or a failure notice. Notification previews follow your iOS settings.") {
                 notificationsRow
+                Toggle(isOn: Binding(get: { iconBadge }, set: { app.setIconBadge($0) })) { Text(L10n.tr("Unread count on app icon")).foregroundStyle(Palette.text) }
+                    .toggleStyle(.codync)
             }
 
             CardSection {

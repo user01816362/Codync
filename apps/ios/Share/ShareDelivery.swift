@@ -7,12 +7,11 @@ enum ShareDelivery {
     enum Outcome { case sent, queued }
 
     struct Failure: Error {
-        let kind: AnalyticsEvent.ShareSent.Failure
         /// An interface phrase (`L10n`).
         let message: String
 
         static let retry = "Couldn't send. Try again."
-        static let unreachable = Failure(kind: .unreachable, message: HostError.unreachable.localizedDescription)
+        static let unreachable = Failure(message: HostError.unreachable.localizedDescription)
     }
 
     /// `pasted`: what came from the other app rather than the user, which memory never takes as their own words.
@@ -32,28 +31,28 @@ enum ShareDelivery {
             try await send(text, files: files, pasted: pasted, nonce: nonce, to: recipient.botId, over: transport, sent: sent)
             return .sent
         case .hostOffline:
-            guard files.isEmpty else { throw Failure(kind: .offline, message: "Files go out once your computer is online.") }
+            guard files.isEmpty else { throw Failure(message: "Files go out once your computer is online.") }
             do { try await transport.enqueue(botId: recipient.botId, text: text, clientNonce: nonce, pasted: pasted) }
-            catch { throw Failure(kind: .send, message: Failure.retry) }
+            catch { throw Failure(message: Failure.retry) }
             return .queued
         case .connecting, .failed:
             throw Failure.unreachable
         case let .unauthorized(message):
-            throw Failure(kind: .unauthorized, message: message)
+            throw Failure(message: message)
         }
     }
 
     @MainActor private static func connect(_ recipient: ShareRecipient, in context: SharedStore.Context) async throws(Failure) -> ChannelTransport {
         guard let computer = context.computers.first(where: { $0.id == recipient.computerId }),
               let identity = try? DeviceIdentity.load(context: context) else {
-            throw Failure(kind: .unauthorized, message: "Open Codync and connect a computer first.")
+            throw Failure(message: "Open Codync and connect a computer first.")
         }
         do {
             return try await HostConnector.connect(computer, identity: identity)
         } catch let HostError.unauthorized(message) {
-            throw Failure(kind: .unauthorized, message: message)
+            throw Failure(message: message)
         } catch HostError.upgradeRequired {
-            throw Failure(kind: .unauthorized, message: HostError.upgradeRequired.localizedDescription)
+            throw Failure(message: HostError.upgradeRequired.localizedDescription)
         } catch {
             throw Failure.unreachable
         }
@@ -64,11 +63,11 @@ enum ShareDelivery {
         let client = HostClient(transport: transport)
         let ids: [String]
         do { ids = try await client.upload(botId: botId, files: files, sent: sent) }
-        catch { throw Failure(kind: .upload, message: Failure.retry) }
+        catch { throw Failure(message: Failure.retry) }
         do {
             _ = try await client.send(botId: botId, text: text, clientNonce: nonce, attachments: ids.isEmpty ? nil : ids, pasted: pasted)
         } catch {
-            throw Failure(kind: .send, message: Failure.retry)
+            throw Failure(message: Failure.retry)
         }
     }
 }

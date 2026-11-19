@@ -70,6 +70,7 @@ const bridge: CodyncBridge = {
       onEnd({ status: 503, message: DEMO_UNAVAILABLE })
       return () => {}
     },
+    onPresence: none,
   },
   account: {
     state: async () => account,

@@ -81,22 +81,3 @@ private func bot(_ id: String, kind: String = "bot", members: [String] = [], hid
     #expect(IncomingShare.pasted(article, in: "Rust 2024 is out").isEmpty, "edited: words taken out never leave the phone")
     #expect(IncomingShare.pasted("", in: "typed").isEmpty)
 }
-
-@MainActor
-@Test func sharesFromTheExtensionGoOutAsTheAppsOwn() throws {
-    let shared = try #require(UserDefaults(suiteName: "ShareAnalytics-\(UUID())"))
-    let analytics = Analytics(defaults: try #require(UserDefaults(suiteName: "AnalyticsTests-\(UUID())"))) { _ in false }
-    Analytics.queueShare(.init(.sent, files: 2, text: true, recent: true), in: shared)
-    Analytics.queueShare(.init(.failed, error: .offline, files: 1, text: false, recent: false), in: shared)
-    analytics.takeQueuedShares(from: shared)
-    #expect(analytics.pending.map(\.event) == ["share_sent", "share_sent"])
-    let failed = try #require(analytics.pending.last?.properties)
-    #expect(failed["outcome"] == .string("failed"))
-    #expect(failed["error"] == .string("offline"))
-    #expect(failed["files"] == .int(1))
-    #expect(failed["text"] == .bool(false))
-    #expect(failed["recent"] == .bool(false))
-    #expect(analytics.pending.first?.properties["error"] == nil)
-    analytics.takeQueuedShares(from: shared)
-    #expect(analytics.pending.count == 2, "taken once")
-}
