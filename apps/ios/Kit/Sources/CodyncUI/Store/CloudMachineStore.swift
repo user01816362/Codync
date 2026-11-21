@@ -71,6 +71,12 @@ public final class CloudMachineStore {
     /// One was created but isn't in the account yet: it's booting and installing the host (about ten seconds).
     public var isPreparing: Bool { machines.contains(where: \.isPreparing) }
 
+    /// The one a first run waits for: the newest still preparing that it didn't leave with Back (`passed`), else, once
+    /// `started` there, the newest.
+    public func starting(started: Bool, passed: Set<String> = []) -> CloudMachine? {
+        machines.last { $0.isPreparing && !passed.contains($0.id) } ?? (started ? machines.last : nil)
+    }
+
     /// The account has as many as it may: one has to go before another can be made.
     public var atLimit: Bool { machines.count >= limit }
 
@@ -106,13 +112,6 @@ public final class CloudMachineStore {
         }
         if machine.isPreparing { return ("Preparing your cloud computer…", false) }
         return (machine.hosting.state.label, machine.hosting.state == .failed)
-    }
-
-    /// The provider New cloud computer creates on: `picked` while its key works, else the first whose key does. One
-    /// picked before its key was added (or fixed) is chosen once it is.
-    public func provider(picked: String?) -> String? {
-        let ready = providers.filter(\.isReady)
-        return (ready.first { $0.provider == picked } ?? ready.first)?.provider
     }
 
     /// A key can go unless a computer runs on that provider (the cloud needs it to put them to sleep).

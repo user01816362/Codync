@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { quoteSelection } from '../thread/selection-quote'
+import { quoteSelection } from '../chat/selection-quote'
 import type { ReplyQuote } from '@shared/models'
 import type { Artifact } from '@shared/artifacts'
 import { DropdownMenu, Spinner } from '../../components/Controls'
@@ -9,8 +9,8 @@ import { Text } from '../../components/Text'
 import { useTr } from '../../lib/use-language'
 import { useScreenViewed } from '../../store/analytics'
 import { useStore } from '../../store/context'
-import { Composer } from '../thread/Composer'
-import { MacChatButton } from '../thread/MacChatButton'
+import { Composer } from '../chat/Composer'
+import { MacChatButton } from '../chat/MacChatButton'
 import { ArtifactFrame, artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
 
 /**

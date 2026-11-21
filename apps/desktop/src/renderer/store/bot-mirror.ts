@@ -1,3 +1,4 @@
+import type { HostAlert } from '@shared/alerts'
 import { checkVersions, isBelow, type VersionMismatch } from '@shared/compat'
 import { mixesAgents } from '@shared/fallbacks'
 import {
@@ -23,12 +24,15 @@ import { Observable } from '../lib/observable'
 import { hostHasSections } from '../lib/roster-sections'
 import { ComposerDrafts } from '@shared/composer-drafts'
 import { canLoadHistory } from '@shared/mirror-window'
+import { fromOldBot, fromOldEntry } from '@shared/old-host'
 import { loadIconCache, saveIconCache } from '../lib/icon-cache'
 import { trNow } from '../lib/l10n.ts'
-import { TaskTranscripts } from './task-transcripts'
+import { ThreadTranscripts } from './thread-transcripts'
 
 /** The first host where the user picks the lead and may delete it. */
 const LEAD_CHOICE_HOST = '2.33.0'
+/** The first host the user names (`setComputerName`). */
+const COMPUTER_NAME_HOST = '2.50.0'
 
 export type Connection =
   | { kind: 'unpaired' }
@@ -90,7 +94,7 @@ export class BotMirror extends Observable {
   /** Changes whenever a chat is cleared, invalidating open historical snapshots. */
   chatClearGenerations = new Map<string, number>()
   collaborationUpdates = new Map<string, Entry[]>()
-  private taskTranscripts = new TaskTranscripts()
+  private threadTranscripts = new ThreadTranscripts()
   usage: Usage = { providers: [] }
   screen: ScreenState | null = null
   accessRequests: AccessRequest[] = []
@@ -111,6 +115,8 @@ export class BotMirror extends Observable {
   answering = new Map<string, string>()
 
   onRosterChanged: (() => void) | null = null
+  /** The host's alerts for bots no chat on screen shows (a system notification, if the user turned those on). */
+  onAlert: ((alert: HostAlert) => void) | null = null
   onComputerChanged: ((c: Computer) => void) | null = null
 
   protected waiting = 0
@@ -185,10 +191,10 @@ export class BotMirror extends Observable {
     return this.connection.kind === 'computerOffline' && (this.isWaking || this.cloudHosting?.state === 'stopped' || this.cloudHosting?.state === 'stopping')
   }
 
-  /** The relay is waking this cloud computer (about 10 to 30 seconds), or its provider says it's starting: it's coming,
-   * not offline. */
+  /** The relay is waking this cloud computer (about 10 to 30 seconds): it's coming, not offline. Only the relay says so:
+   * the account list's `starting` stays after a wake whose host never came back. */
   get isWaking() {
-    return this.connection.kind === 'computerOffline' && (this.connection.waking === true || this.cloudHosting?.state === 'starting')
+    return this.connection.kind === 'computerOffline' && this.connection.waking === true
   }
 
   /** A Codync Cloud computer older than this app's `minHost`: the cloud updates it on its own (this app's `Codync-App` header asks for it). */
@@ -212,6 +218,12 @@ export class BotMirror extends Observable {
   /** The user picks the lead (`setLead`) and may delete it: an older host refuses both. */
   get hasLeadChoice() {
     return this.hostVersion !== null && !isBelow(this.hostVersion.version, LEAD_CHOICE_HOST)
+  }
+
+  /** The user names this computer here, on a host that takes it: a cloud computer is named in Codync Cloud. */
+  get canRename() {
+    return this.connection.kind === 'online' && this.hello?.device !== 'cloud'
+      && this.hostVersion !== null && !isBelow(this.hostVersion.version, COMPUTER_NAME_HOST)
   }
 
   /** What the update notice offers while this computer is behind this app. */
@@ -332,19 +344,19 @@ export class BotMirror extends Observable {
     this.entries.set(e.botId, list)
   }
 
-  /** Holds a task's transcript from now until the returned function is called: its details are open. */
-  watchTask(taskId: string): () => void {
-    return this.taskTranscripts.watch(taskId)
+  /** Holds a thread's transcript from now until the returned function is called: its details are open. */
+  watchThread(threadId: string): () => void {
+    return this.threadTranscripts.watch(threadId)
   }
 
-  /** A watched task's transcript, oldest first. */
-  taskEntriesOf(taskId: string): Entry[] {
-    return this.taskTranscripts.of(taskId)
+  /** A watched thread's transcript, oldest first. */
+  threadEntriesOf(threadId: string): Entry[] {
+    return this.threadTranscripts.of(threadId)
   }
 
-  /** More of a task's transcript (fetched, or a live `taskEntry`). */
-  protected mergeTask(taskId: string, entries: Entry[]) {
-    this.taskTranscripts.merge(taskId, entries)
+  /** More of a thread's transcript (fetched, or a live `threadEntry`). */
+  protected mergeThread(threadId: string, entries: Entry[]) {
+    this.threadTranscripts.merge(threadId, entries)
   }
 
   setError(message: string | null) {
@@ -379,10 +391,11 @@ export class BotMirror extends Observable {
       this.cacheStamp = cache.stamp ?? ''
       this.hostId = cache.hostId ?? null
       this.rev = cache.rev
-      // A copy cached by an older app lacks the fields added since.
-      this.bots = new Map(cache.bots.map((b) => [b.id, normalizeBot(b)]))
+      // A copy cached by an older app lacks the fields added since. One from before 2.51.0 has the old names
+      // (hosts before 2.51.0: `fromOld…` goes when MIN_HOST reaches 2.51.0).
+      this.bots = new Map(cache.bots.map((b) => [b.id, normalizeBot(fromOldBot(b) as Bot)]))
       const grouped = new Map<string, Entry[]>()
-      for (const e of cache.entries) grouped.set(e.botId, [...(grouped.get(e.botId) ?? []), e])
+      for (const e of cache.entries.map(fromOldEntry)) grouped.set(e.botId, [...(grouped.get(e.botId) ?? []), e])
       this.entries = grouped
     } catch {}
   }

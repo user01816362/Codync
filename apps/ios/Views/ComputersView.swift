@@ -161,6 +161,8 @@ private struct ComputerRows: View {
     let remove: () -> Void
     @Environment(AccountStore.self) private var accounts
     @State private var coloring = false
+    @State private var renaming = false
+    @State private var newName = ""
     @State private var voiceSettings = false
     @State private var networkSheet = false
     @State private var reachSheet = false
@@ -227,6 +229,12 @@ private struct ComputerRows: View {
             var items = [
                 MenuItem("Color", icon: "paintpalette") { coloring = true },
             ]
+            if store.canRename {
+                items.append(MenuItem("Rename…", icon: "pencil") {
+                    newName = store.hostName
+                    renaming = true
+                })
+            }
             if store.connection == .online {
                 items.append(MenuItem("Extensions", icon: "square.grid.2x2", action: openMarketplace))
                 items.append(MenuItem("Voice chat", icon: "waveform") { voiceSettings = true })
@@ -247,6 +255,14 @@ private struct ComputerRows: View {
                 items.append(MenuItem("Remove", icon: "trash", destructive: true, divider: revoke == nil, action: remove))
             }
             return items
+        }
+        .codyncDialog("Computer name", isPresented: $renaming, message: "Leave it empty to use the hostname.",
+                      field: DialogField("Name", text: $newName)) {
+            [DialogAction("Save") { store.setComputerName(newName.trimmingCharacters(in: .whitespacesAndNewlines)) }]
+        }
+        .onChange(of: newName) {
+            let limited = CloudMachineStore.limited(newName)
+            if limited != newName { newName = limited }
         }
         .codyncSheet(isPresented: $voiceSettings) { VoiceChatSettingsView().environment(store) }
         .codyncSheet(isPresented: $networkSheet) { NetworkSheet().environment(store) }

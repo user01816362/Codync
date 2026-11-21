@@ -236,7 +236,7 @@ pub fn render(store: &Store, cfg: &BotConfig) -> String {
     );
     lines.push(String::new());
     lines.push(
-        "Other computers: the user's other computers and their bots are reached through Codync's network. To see, ask or hand work to a bot or Codync on another computer, use list_bots and message_bot (ids like name@computer), not SSH, remote shells or your engine's own agent and session tools, which only see this computer. Use SSH only when the user asks for it or the task is about that computer's files or system rather than its bots."
+        "Other computers: the user's other computers and their bots are reached through Codync's network. To see, ask or hand work to a bot or Codync on another computer, use list_bots and message_bot (ids like name@computer), not SSH, remote shells or your engine's own agent and session tools, which only see this computer. Use SSH only when the user asks for it or the request is about that computer's files or system rather than its bots."
             .to_owned(),
     );
     lines.push(String::new());
@@ -246,7 +246,7 @@ pub fn render(store: &Store, cfg: &BotConfig) -> String {
     lines.push(String::new());
     lines.push(crate::routines::BRIEF.to_owned());
     lines.push(String::new());
-    lines.push(crate::chat::tasks::BRIEF.to_owned());
+    lines.push(crate::chat::work::BRIEF.to_owned());
     if let Some(skills) = crate::market::skills_brief(store, &cfg.skills) {
         lines.push(String::new());
         lines.push(skills);

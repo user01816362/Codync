@@ -1,4 +1,4 @@
-import { MarkdownText } from '../thread/Markdown'
+import { MarkdownText } from '../chat/Markdown'
 import { useEffect, useState } from 'react'
 import { isGroup } from '@shared/models'
 import { Button, CardSection, ChoicePicker, Disclosure, IconButton, ValueRow } from '../../components/Controls'

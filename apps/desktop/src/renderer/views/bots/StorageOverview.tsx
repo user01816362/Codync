@@ -4,7 +4,7 @@ import { Dialog, ModalHeader } from '../../components/Overlay'
 import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
-import { byteCount } from '../thread/file-card'
+import { byteCount } from '../chat/file-card'
 interface Category { count: number; bytes: number; truncated: boolean; unavailable: number }
 interface Usage { databaseBytes: number; reusableBytes: number; entries: number; sharedFiles: Category; uploads: Category; artifacts: Category }
 export function StorageOverview() {

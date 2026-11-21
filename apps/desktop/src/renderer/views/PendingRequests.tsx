@@ -8,7 +8,7 @@ import { useModels } from '../lib/observable'
 import { useTr } from '../lib/use-language'
 import type { BotStore } from '../store/bot-store'
 import { useApp } from '../store/context'
-import { PermissionCard } from './thread/PermissionCard'
+import { PermissionCard } from './chat/PermissionCard'
 import './pending-requests.css'
 
 type Request = { key: string; store: BotStore; entry: Entry; author: string; chat: string }
