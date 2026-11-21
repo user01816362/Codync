@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { MarkdownText } from '../chat/Markdown'
 import { useEffect, useState } from 'react'
 import { isGroup } from '@shared/models'
@@ -86,7 +87,7 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
         </CardSection>
         <CardSection title={`Delegates · ${delegates.length}/5`} footer="Choose a department, then its delegates. Groups are represented by bots; their full chat histories are not imported. Five delegates share a ten-turn budget.">
           <ValueRow label="Department" detail="Choose a group to see its members, or invite individual bots."><ChoicePicker disabled={disabled} selection={department} options={[{ id: '', label: 'Individual bots' }, ...departments.map(group => ({ id: group.id, label: group.name }))]} onChange={setDepartment} /></ValueRow>
-          {candidates.length === 0 ? <Text tone="secondary">No available members in this department.</Text> : null}
+          {candidates.length === 0 ? <Text tone="secondary">{tr("No available members in this department.")}</Text> : null}
           {candidates.map(bot => <VStack key={bot.id} gap={8}>
             <button className="group-action-row press" role="checkbox" aria-checked={selected.has(bot.id)} disabled={disabled || (!selected.has(bot.id) && delegates.length >= 5)} onClick={() => {
               setDelegates(ds => selected.has(bot.id) ? ds.filter(d => d.botId !== bot.id) : [...ds, { botId: bot.id, ...(department ? { groupId: department } : {}) }])
@@ -99,7 +100,7 @@ export function MeetingRoom({ groupId, created }: { groupId?: string; created?: 
           <IconButton title="Remove delegate" icon="minus.circle" disabled={disabled} onClick={() => setDelegates(ds => ds.filter(value => value.botId !== d.botId))} />
         </ValueRow>)}</CardSection> : null}
         <CardSection title="Coordination"><ValueRow label="Chair" detail="Organizes proposals. Each delegate records their own response; you approve the final decision.">
-          {delegates.length ? <ChoicePicker disabled={disabled} selection={chair} options={delegates.map(d => ({ id: d.botId, label: store.bots.get(d.botId)?.name ?? 'Delegate' }))} onChange={setChair} /> : <Text tone="secondary">Choose delegates first</Text>}
+          {delegates.length ? <ChoicePicker disabled={disabled} selection={chair} options={delegates.map(d => ({ id: d.botId, label: store.bots.get(d.botId)?.name ?? 'Delegate' }))} onChange={setChair} /> : <Text tone="secondary">{tr("Choose delegates first")}</Text>}
         </ValueRow></CardSection>
         <Text size="caption" tone="secondary">Delegates can read recent messages and tasks in departments they still belong to. Participation does not prove they read or remember the full history.</Text>
         <Text size="caption" tone="secondary">Ten discussion turns and ten minutes maximum. All delegates must approve the same proposal before final user approval. The room starts paused.</Text>

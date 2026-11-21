@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { Button } from '../../components/Controls'
 import { ModalHeader, Sheet } from '../../components/Overlay'
 import { VStack } from '../../components/Stack'
@@ -47,7 +48,7 @@ export function RichReportView({ report, submit }: { report: RichReport; submit:
         <VStack gap={12} style={{ padding: '0 20px 20px' }}>
           <Text weight="semibold">{sourceDetail.title}</Text>
           <Text size="footnote" className="selectable" style={{ overflowWrap: 'anywhere' }}>{sourceDetail.url}</Text>
-          <Text tone="secondary" size="caption">Supplied by the agent. Listing a source does not independently verify its claims.</Text>
+          <Text tone="secondary" size="caption">{tr("Supplied by the agent. Listing a source does not independently verify its claims.")}</Text>
           <Button onClick={() => window.codync.app.openExternal(sourceDetail.url)}>Open source</Button>
           <Button onClick={() => window.codync.app.copy(sourceDetail.url)}>Copy URL</Button>
         </VStack>

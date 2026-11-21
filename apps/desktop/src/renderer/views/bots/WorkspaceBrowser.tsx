@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import { canPreview } from '../../../shared/text-preview'
 import { IconButton, Spinner, Switch } from '../../components/Controls'
@@ -43,11 +44,11 @@ export function WorkspaceBrowser({ botId, open }: { botId: string; open: (botId:
       <Text size="caption" grow style={{ overflowWrap: 'anywhere' }}>{directory?.path || path}</Text>
       <IconButton title="Retry" icon="arrow.clockwise" disabled={!directory && !error} onClick={() => setAttempt(value => value + 1)} />
     </HStack>
-    <HStack style={{ padding: '0 20px' }}><Text size="caption" grow>Hidden files</Text><Switch label="Hidden files" on={hidden} onChange={setHidden} /></HStack>
+    <HStack style={{ padding: '0 20px' }}><Text size="caption" grow>{tr("Hidden files")}</Text><Switch label="Hidden files" on={hidden} onChange={setHidden} /></HStack>
     <div className="sidechat-scroll">
       {error ? <Text role="alert" tone="danger">{error}</Text> : !directory ? <Spinner /> : <VStack gap={6}>
-        {directory.entries.length === 0 && <Text tone="secondary">This folder is empty.</Text>}
-        {directory.truncated && <Text size="caption" tone="secondary">Listing limited to 500 items from at most 2,000 entries.</Text>}
+        {directory.entries.length === 0 && <Text tone="secondary">{tr("This folder is empty.")}</Text>}
+        {directory.truncated && <Text size="caption" tone="secondary">{tr("Listing limited to 500 items from at most 2,000 entries.")}</Text>}
         {directory.entries.map(entry => {
           const folder = entry.kind === 'directory'
           const readable = entry.kind === 'file' && canPreview({ id: entry.path, ...entry })

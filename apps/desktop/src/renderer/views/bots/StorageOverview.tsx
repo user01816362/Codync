@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import { Button, IconButton, Spinner } from '../../components/Controls'
 import { Dialog, ModalHeader } from '../../components/Overlay'
@@ -24,7 +25,7 @@ export function StorageOverview() {
   useEffect(() => { void load() }, [store.client, attempt])
   return <div className="sidechat"><ModalHeader title="Host storage" trailing={<IconButton title="Refresh storage" icon="arrow.clockwise" disabled={busy} onClick={() => setAttempt(value => value + 1)} />} />
     <div className="sidechat-scroll"><VStack gap={20}>
-      <Text size="caption" tone="secondary">Stored on the connected computer. File sizes are a bounded scan of managed file roots; workspace project files, logs, caches and database journals are excluded.</Text>
+      <Text size="caption" tone="secondary">{tr("Stored on the connected computer. File sizes are a bounded scan of managed file roots; workspace project files, logs, caches and database journals are excluded.")}</Text>
       {error && <Text role="alert" tone="danger">{error}</Text>}{busy && <Spinner />}
       {value && <><Text>Conversation database: {byteCount(value.databaseBytes)} · {value.entries.toLocaleString()} entries</Text><Text>Reusable database pages: {byteCount(value.reusableBytes)}</Text>
         {(['sharedFiles', 'uploads', 'artifacts'] as const).map(key => <VStack key={key} gap={4}><Text>{({ sharedFiles: 'Shared files', uploads: 'Uploads', artifacts: 'Artifacts' })[key]}: {byteCount(value[key].bytes)} · {value[key].count} files</Text>{(value[key].truncated || value[key].unavailable > 0) && <Text size="caption" tone="secondary">Partial scan · {value[key].unavailable} unavailable paths</Text>}</VStack>)}

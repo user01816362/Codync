@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import type { Bot } from '@shared/models'
 import { Button, ChoicePicker, IconButton, Spinner } from '../../components/Controls'
@@ -45,7 +46,7 @@ export function GroupTasks({ group }: { group: Bot }) {
       <Button disabled={busy || !title.trim() || !text.trim() || !group.members.includes(owner)} onClick={() => void run('createGroupTask', { groupId: group.id, owner, title, text, requestId })}>Create task</Button>
       {error && <Text role="alert" tone="danger">{error}</Text>}
       {!loaded && !error && <Spinner />}
-      {loaded && items.length === 0 && <Text tone="secondary">No tasks yet.</Text>}
+      {loaded && items.length === 0 && <Text tone="secondary">{tr("No tasks yet.")}</Text>}
       {items.map(entry => { const task = entry.data.groupTask; const stopped = ['draft', 'paused', 'failed', 'interrupted'].includes(task.status); return <VStack key={entry.id} gap={8}>
         <Text weight="semibold">{task.title}</Text><Text size="caption" tone="secondary">{store.bots.get(task.owner)?.name ?? 'Unavailable owner'} · {task.status}</Text>
         <Text style={{ whiteSpace: 'pre-wrap' }}>{task.text}</Text>

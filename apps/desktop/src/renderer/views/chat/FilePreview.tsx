@@ -104,7 +104,7 @@ function TextFilePreview({ preview, close }: { preview: PreviewFile; close: () =
     } : undefined}>
       {table.tabular && !source && table.result && ('error' in table.result
         ? <div role="status">{table.result.error}</div>
-        : table.result.truncated ? <div role="status">Table preview truncated. Source shows the full text.</div> : null)}
+        : table.result.truncated ? <div role="status">{tr("Table preview truncated. Source shows the full text.")}</div> : null)}
       {!result ? tr('Loading') : 'error' in result ? <div role="alert">{result.error}</div> : !source && (markdown || tableText !== null) ? <MarkdownText text={tableText ?? result.text} /> :
         <pre style={{ whiteSpace: wrap ? 'pre-wrap' : 'pre', overflowWrap: wrap ? 'anywhere' : undefined, overflowX: 'auto', margin: 0 }}>{result.text}</pre>}
     </Bubble>

@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import type { Bot } from '@shared/models'
 import { Button, ChoicePicker, Switch, IconButton, Spinner } from '../../components/Controls'
@@ -58,16 +59,16 @@ export function GroupInbox({ group }: { group: Bot }) {
     <ModalHeader title="Group inbox" subtitle={group.name} trailing={<IconButton title="Refresh inbox" icon="arrow.clockwise" disabled={busy !== null} onClick={() => setAttempt(value => value + 1)} />} />
     <div className="sidechat-scroll">
       <VStack gap={20}>
-        <Text size="caption" tone="secondary">Approve an external request and choose who handles it. The sender receives only that handler’s reply, with no access to this conversation.</Text>
+        <Text size="caption" tone="secondary">{tr("Approve an external request and choose who handles it. The sender receives only that handler’s reply, with no access to this conversation.")}</Text>
         <Switch on={policy.autoApprove} disabled={!items || busy !== null || !group.members.length} label="Automatically approve incoming mail" onChange={autoApprove => void savePolicy({ autoApprove, handler: group.members.includes(policy.handler) ? policy.handler : group.members[0] ?? '' })} />
-        <Text size="caption" tone="secondary">New requests go directly to the selected bot. Existing pending requests still need approval. If the handler leaves, incoming requests wait for approval.</Text>
+        <Text size="caption" tone="secondary">{tr("New requests go directly to the selected bot. Existing pending requests still need approval. If the handler leaves, incoming requests wait for approval.")}</Text>
         <Field label="Automatic mail handler">
           <fieldset disabled={!items || busy !== null} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
             <ChoicePicker selection={policy.handler} options={group.members.map(id => ({ id, label: store.bots.get(id)?.name ?? 'Unavailable member' }))} onChange={handler => void savePolicy({ ...policy, handler })} />
           </fieldset>
         </Field>
         {error && <Text role="alert" tone="danger">{error}</Text>}
-        {!items && !error ? <Spinner /> : items?.length === 0 ? <Text tone="secondary">No group mail.</Text> : null}
+        {!items && !error ? <Spinner /> : items?.length === 0 ? <Text tone="secondary">{tr("No group mail.")}</Text> : null}
         {items?.map(item => <VStack key={item.id} gap={8}>
           <Text weight="semibold">{item.mail.subject}</Text>
           <Text size="caption" tone="secondary">From {item.from} · {new Date(item.createdAt).toLocaleString()}</Text>
@@ -85,7 +86,7 @@ export function GroupInbox({ group }: { group: Bot }) {
             </HStack>
           </> : item.mail.status === 'approved' && !item.delivered ? <Button disabled={busy !== null} onClick={() => void decide(item, true)}>Retry approved delivery</Button> : null}
         </VStack>)}
-        {items?.length === 100 && <Text size="caption" tone="secondary">Showing up to 100 requests, pending first.</Text>}
+        {items?.length === 100 && <Text size="caption" tone="secondary">{tr("Showing up to 100 requests, pending first.")}</Text>}
       </VStack>
     </div>
   </div>

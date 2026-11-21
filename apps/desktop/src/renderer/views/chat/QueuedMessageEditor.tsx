@@ -1,3 +1,4 @@
+import { trNow as tr } from '../../lib/use-language'
 import { useState } from 'react'
 import type { Entry } from '@shared/models'
 import { Button, Spinner } from '../../components/Controls'
@@ -26,8 +27,8 @@ export function QueuedMessageEditor({ entry }: { entry: Entry }) {
   return <VStack gap={16}>
     <ModalHeader title="Edit queued message" />
     <VStack gap={12} style={{ padding: '0 20px 20px' }}>
-      <Text tone="secondary" size="caption">Changes apply only while the message is waiting. Files and reply context stay attached.</Text>
-      <textarea className="field-box" aria-label="Message" rows={6} value={text} onChange={event => setText(event.target.value)} disabled={saving} />
+      <Text tone="secondary" size="caption">{tr("Changes apply only while the message is waiting. Files and reply context stay attached.")}</Text>
+      <textarea className="field-box" aria-label={tr("Message")} rows={6} value={text} onChange={event => setText(event.target.value)} disabled={saving} />
       {error && <Text tone="danger" role="alert">{error}</Text>}
       {saving ? <Spinner /> : <Button disabled={!text.trim() || !store.client || new TextEncoder().encode(text).length > 65536} onClick={() => void save()}>Save</Button>}
     </VStack>
