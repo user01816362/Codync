@@ -34,7 +34,7 @@ for name, (version, url, member) in PACKAGES.items():
 template = (ROOT / 'tools/rich-renderer.html').read_text()
 html = template.replace('__CODYNC_ASSETS__', json.dumps(assets, separators=(',', ':')))
 for target in [
-    'apps/desktop/src/renderer/views/thread/rich-renderer.html',
+    'apps/desktop/src/renderer/views/chat/rich-renderer.html',
     'apps/ios/Kit/Sources/CodyncUI/Resources/rich-renderer.html',
     'apps/android/app/src/main/assets/rich-renderer.html',
 ]:
