@@ -389,7 +389,7 @@ public final class AccountStore {
                 default: "The request was withdrawn: \(target.name) or this iPhone was removed from your account."
                 }
                 // Withdrawn by the account: the list shows what's left of it.
-                if reason == .cancelled { await refreshCloud() }
+                if status.status == .cancelled { await refreshCloud() }
                 // A cloud computer is asked again by itself on the next refresh.
                 askedCloud.remove(ticket.computerId)
                 return
