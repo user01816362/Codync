@@ -249,6 +249,8 @@ mod tests {
             c.execute_batch(
                 "CREATE TABLE kv(k TEXT PRIMARY KEY, v TEXT NOT NULL);
                  INSERT INTO kv VALUES('schema', '8');
+                 CREATE TABLE entries(data TEXT NOT NULL);
+                 CREATE TABLE bots(config TEXT NOT NULL);
                  CREATE TABLE devices(key TEXT PRIMARY KEY);
                  INSERT INTO devices VALUES('paired-phone');",
             )

@@ -288,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn a_threads_turn_says_where_its_task_came_from() {
+    fn chat_and_thread_turns_do_not_queue_analytics() {
         use crate::LockExt as _;
         use crate::chat::calls::context::tests::{bot, hub};
         let hub = hub();
@@ -307,11 +307,7 @@ mod tests {
             turn_finished(&hub, cfg, turn);
         }
         let mut rx = hub.analytics.rx.locked().take().expect("nothing read it yet");
-        let mut work = Vec::new();
-        while let Ok(super::super::Msg::Event(event)) = rx.try_recv() {
-            work.push(event["properties"]["work"].clone());
-        }
-        assert_eq!(work, [Value::Null, json!("routine")], "the bot's own turn in its chat has none");
+        assert!(rx.try_recv().is_err(), "turns must not queue telemetry");
     }
 
     #[test]
