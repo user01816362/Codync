@@ -35,7 +35,7 @@ mod work;
 pub use all_work::{AllWork, AllWorkRow};
 pub use analytics::AnalyticsSheet;
 pub use dev_servers::{DevServer, DevServerSummary, DevServersSheet, LogsView, summary as dev_server_summary};
-pub use fields::{handoff_fields, name_fields, queued_fields, section_fields};
+pub use fields::{handoff_fields, name_fields, queued_fields};
 pub use file_preview::FilePreviewSheet;
 pub use gear::{Gear, GearRow};
 pub use icons::icon_fields;

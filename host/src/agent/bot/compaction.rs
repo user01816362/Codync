@@ -154,11 +154,12 @@ impl Actor {
     pub(super) fn track_usage(&mut self, used: u64, size: u64) {
         let Some(sid) = self.turn_session.clone() else { return };
         let Some(conn) = self.conn.as_mut() else { return };
+        let before = conn.usage.get(&sid).map(|(used, _)| *used);
         let inferred = record_usage(&mut conn.usage, &sid, used, size);
         if !conn.reports_compaction && inferred {
             self.compacted(&format!("usage-{}", now_ms()), None);
         }
-        if let Some(before) = before.filter(|before| used < *before)
+        if let Some(before) = before.filter(|before| used > 0 && used < *before)
             && let Some(id) = &self.compaction_notice
             && let Some(mut entry) = self.hub.store.entry(id)
             && now_ms() - entry.created_at <= 60_000

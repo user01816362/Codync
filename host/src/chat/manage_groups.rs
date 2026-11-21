@@ -5,7 +5,7 @@
 //! chat records it. Deleting a group stays the user's.
 
 use crate::chat::group::valid_members;
-use crate::chat::manage::{MAX_CARD_DETAIL, MAX_CREATED, approve, notice, text};
+use crate::chat::manage::{APPROVAL_TIMEOUT, MAX_CARD_DETAIL, MAX_CREATED, approve, notice, text};
 use crate::chat::naming::MAX_NAME_CHARS;
 use crate::chat::profile::{MAX_INSTRUCTIONS_CHARS, checked_instructions, checked_name};
 use crate::hub::Hub;
@@ -13,6 +13,7 @@ use crate::store::{AVATAR_COLORS, AVATAR_SHAPES, BotConfig};
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
+use tokio::time::Instant;
 
 pub const INSTRUCTIONS: &str = "Use propose_meeting for a temporary cross-department consultation or decision, only when the user asks for that coordination. It always needs user approval and starts paused. You manage the user's group chats. list_groups shows every group with its members, \
 and the bots a member can be. create_group makes a group of bots; update_group renames it, rewrites what it works on, \
@@ -64,6 +65,7 @@ pub fn tools() -> Value {
 }
 
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
+    let deadline = Instant::now() + APPROVAL_TIMEOUT;
     let source =
         hub.store.bot(bot)?.filter(|r| !r.deleted && !r.config.is_group()).map(|r| r.config).context("unknown bot")?;
     if !source.manage_groups {
@@ -73,7 +75,7 @@ pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result
         let mut approving = source.clone();
         approving.permission = crate::store::Permission::Ask;
         let detail = crate::chat::meetings::approval_detail(hub, args)?;
-        approve(hub, &approving, "Create meeting room and invite delegates".into(), detail).await?;
+        approve(hub, &approving, "Create meeting room and invite delegates".into(), detail, deadline).await?;
         return crate::chat::meetings::create(hub, args, Some(bot));
     }
     match name {
@@ -101,6 +103,7 @@ fn list(hub: &Hub, actor: &str) -> Result<Value> {
 }
 
 async fn create(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Value> {
+    let deadline = Instant::now() + APPROVAL_TIMEOUT;
     let made = hub.store.bots()?.iter().filter(|b| !b.deleted && b.config.created_by.is_some()).count();
     if made >= MAX_CREATED {
         bail!(
@@ -133,7 +136,7 @@ async fn create(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Valu
     if detail.encode_utf16().count() > MAX_CARD_DETAIL {
         bail!("this change is too long for its approval card to show in full: shorten the instructions");
     }
-    approve(hub, source, format!("Create group {name}"), detail).await?;
+    approve(hub, source, format!("Create group {name}"), detail, deadline).await?;
     let created = {
         let hub = hub.clone();
         tokio::task::spawn_blocking(move || hub.create_bot(cfg)).await??
@@ -144,6 +147,7 @@ async fn create(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Valu
 }
 
 async fn update(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Value> {
+    let deadline = Instant::now() + APPROVAL_TIMEOUT;
     let group_id = text(args, "groupId")?.context("groupId is required")?;
     let before = hub
         .store
@@ -186,7 +190,7 @@ async fn update(hub: &Arc<Hub>, source: &BotConfig, args: &Value) -> Result<Valu
     if detail.encode_utf16().count() > MAX_CARD_DETAIL {
         bail!("this change is too long for its approval card to show in full: shorten the instructions");
     }
-    approve(hub, source, format!("Change group {}", before.name), detail).await?;
+    approve(hub, source, format!("Change group {}", before.name), detail, deadline).await?;
     let patch = {
         let mut patch = Value::Object(fields);
         patch["id"] = group_id.clone().into();
