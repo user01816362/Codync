@@ -96,8 +96,8 @@ jobs:
               await page.close()
               console.log(`${kind}: rendered offline inside sandbox`)
             }
-            const layoutCSS = await readFile('src/renderer/views/thread/thread.css', 'utf8')
-            const traceCSS = await readFile('src/renderer/views/thread/trace.css', 'utf8')
+            const layoutCSS = await readFile('src/renderer/views/chat/chat.css', 'utf8')
+            const traceCSS = await readFile('src/renderer/views/chat/trace.css', 'utf8')
             const command = 'cp "/Users/user/' + 'a'.repeat(400) + '/cosmic.jpg" "/Users/user/output.jpg"'
             for (const width of [220, 480, 900]) {
               const page = await context.newPage()
