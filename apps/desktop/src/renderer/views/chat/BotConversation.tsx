@@ -36,7 +36,7 @@ export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; o
     <button
       className={failed ? 'press bot-message-row failed' : 'press bot-message-row'}
       onClick={() => setExpanded(!shown)}
-      title={shown ? "Collapse collaboration" : "Expand collaboration"}
+      title={tr(shown ? 'Collapse collaboration' : 'Expand collaboration')}
       aria-expanded={shown}
       aria-label={`${lead} ${name}${failed ? ', failed' : ''}`}
     >
