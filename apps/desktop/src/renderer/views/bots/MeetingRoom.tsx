@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { MarkdownText } from '../chat/Markdown'
 import { useEffect, useState } from 'react'
 import { isGroup } from '@shared/models'
@@ -16,6 +16,7 @@ type RoomState = { groupId: string; rev: number; meeting: { kind: string; status
 
 /** One host-owned meeting, rendered with ordinary profile cards and explicit owner actions. */
 export function MeetingRoom({ groupId, created }: { groupId?: string; created?: (id: string) => void }) {
+  const tr = useTr()
   const store = useStore()
   useModel(store)
   const [room, setRoom] = useState<RoomState | null>(null)

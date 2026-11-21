@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import { canPreview } from '../../../shared/text-preview'
 import { IconButton, Spinner, Switch } from '../../components/Controls'
@@ -19,6 +19,7 @@ interface Directory {
 
 /** Reads only registered workspace directories; opening a file keeps the same host confinement. */
 export function WorkspaceBrowser({ botId, open }: { botId: string; open: (botId: string, path: string) => void }) {
+  const tr = useTr()
   const store = useStore()
   const [path, setPath] = useState('.')
   const [hidden, setHidden] = useState(false)

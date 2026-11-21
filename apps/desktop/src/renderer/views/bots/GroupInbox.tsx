@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import type { Bot } from '@shared/models'
 import { Button, ChoicePicker, Switch, IconButton, Spinner } from '../../components/Controls'
@@ -20,6 +20,7 @@ interface MailItem {
 
 /** Approval never adds the sender to the group or exposes group history. */
 export function GroupInbox({ group }: { group: Bot }) {
+  const tr = useTr()
   const store = useStore()
   const [items, setItems] = useState<MailItem[] | null>(null)
   const [policy, setPolicy] = useState({ autoApprove: false, handler: '' })

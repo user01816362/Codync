@@ -227,7 +227,7 @@ function GeneralSettings() {
             { id: 'hidden', label: 'Hidden' }, { id: 'compact', label: 'Compact' }, { id: 'expanded', label: 'Expanded' },
           ]} onChange={setCollaborationActivity} />
         </ValueRow>
-        <Text size="footnote" tone="secondary">Controls the activity indicator and exchange messages on this device. Bots continue collaborating.</Text>
+        <Text size="footnote" tone="secondary">{tr('Controls the activity indicator and exchange messages on this device. Bots continue collaborating.')}</Text>
       </CardSection>
       <CardSection title="System">
         {window.codync.platform === 'darwin' ? <Switch on={showInDock} onChange={(on) => void window.codync.app.setShowInDock(on).then(setShowInDock)}>Show in Dock</Switch> : null}

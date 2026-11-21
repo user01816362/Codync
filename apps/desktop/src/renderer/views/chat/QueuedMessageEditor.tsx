@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { useState } from 'react'
 import type { Entry } from '@shared/models'
 import { Button, Spinner } from '../../components/Controls'
@@ -9,6 +9,7 @@ import { useStore } from '../../store/context'
 
 /** Keeps the edit intent distinct from editing a message that has already been dispatched. */
 export function QueuedMessageEditor({ entry }: { entry: Entry }) {
+  const tr = useTr()
   const store = useStore()
   const dismiss = useDismiss()
   const [text, setText] = useState(entry.data.text ?? '')

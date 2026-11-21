@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import type { Bot } from '@shared/models'
 import { Button, ChoicePicker, IconButton, Spinner } from '../../components/Controls'
@@ -10,6 +10,7 @@ import { AutoTextArea, Field } from './parts'
 
 interface TaskEntry { id: string; rev: number; data: { groupTask: { title: string; text: string; owner: string; status: string; history: { at: number; status: string; owner: string; detail: string }[] } } }
 export function GroupTasks({ group }: { group: Bot }) {
+  const tr = useTr()
   const store = useStore()
   const [items, setItems] = useState<TaskEntry[]>([])
   const [title, setTitle] = useState('')

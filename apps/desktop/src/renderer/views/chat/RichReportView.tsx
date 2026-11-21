@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { Button } from '../../components/Controls'
 import { ModalHeader, Sheet } from '../../components/Overlay'
 import { VStack } from '../../components/Stack'
@@ -8,6 +8,7 @@ import type { RichReport } from '@shared/models'
 
 /** Host-validated, inert native content. The message text remains the copy/old-client fallback. */
 export function RichReportView({ report, submit }: { report: RichReport; submit: (text: string) => void }) {
+  const tr = useTr()
   const [sourceDetail, setSourceDetail] = useState<{ number: number; title: string; url: string } | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [sent, setSent] = useState<Set<number>>(new Set())

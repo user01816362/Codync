@@ -1,4 +1,4 @@
-import { trNow as tr } from '../../lib/use-language'
+import { useTr } from '../../lib/use-language'
 import { useEffect, useState } from 'react'
 import { Button, IconButton, Spinner } from '../../components/Controls'
 import { Dialog, ModalHeader } from '../../components/Overlay'
@@ -9,6 +9,7 @@ import { byteCount } from '../chat/file-card'
 interface Category { count: number; bytes: number; truncated: boolean; unavailable: number }
 interface Usage { databaseBytes: number; reusableBytes: number; entries: number; sharedFiles: Category; uploads: Category; artifacts: Category }
 export function StorageOverview() {
+  const tr = useTr()
   const store = useStore()
   const [value, setValue] = useState<Usage | null>(null)
   const [error, setError] = useState<string | null>(null)
