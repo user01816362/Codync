@@ -404,7 +404,6 @@ export class BotStore extends BotSync {
       return c.call<{ entry: Entry }>('send', { ...thread, text: trimmed, clientNonce: nonce, ...(attachments ? { attachments } : {}) })
     }, true).then(
       (res) => {
-        noteActiveDay()
         this.outgoingFiles.delete(nonce)
         show({ ...res.entry, data: res.entry.data ?? {} })
       },
