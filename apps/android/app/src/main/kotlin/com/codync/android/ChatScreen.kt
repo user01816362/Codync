@@ -379,7 +379,8 @@ private fun AppState.chatItems(bot: Bot) =
     val reveal = items.rowOf(target)?.let { row ->
         ConversationReveal(items[row].id, row + if (more) 1 else 0, linked?.takeIf { found == null && revealed == null }?.third?.hashCode() ?: findStep)
     }
-    ConversationList(list, items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop,
+    ConversationList(list, first = items.firstOrNull()?.id, last = items.lastOrNull()?.id, rev = entries.lastOrNull()?.rev, working = working,
+        padding = padding, refresh = store::refreshConnection, indicatorTop = indicatorTop,
         reveal = reveal, onOpened = { settled = true }) {
         if (more) item("earlier") {
             Box(Modifier.fillMaxWidth().padding(vertical = 14.dp).clearAndSetSemantics { contentDescription = "Loading earlier messages" },

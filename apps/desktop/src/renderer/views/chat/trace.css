@@ -19,10 +19,14 @@
 .trace-thought {
   white-space: pre-wrap;
 }
-
 /* Expanded task details retain the complete command, including paths with no break points. */
 .trace-tool-title {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: normal;
+}
+
+/* A subagent's step, under the call that launched it. */
+.trace-nested {
+  margin-left: 24px;
 }

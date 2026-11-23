@@ -61,6 +61,14 @@ impl Requests {
         Ok((hops, collaboration))
     }
 
+    /// Takes `from`'s place again for a message the last host process admitted (`restart`): past the limits, which
+    /// held when it came in.
+    pub(super) fn readmit(&self, from: &str) {
+        let mut state = self.0.locked();
+        *state.messages_by_sender.entry(from.to_owned()).or_default() += 1;
+        state.messages += 1;
+    }
+
     pub(super) fn release_message(&self, from: &str) {
         let mut state = self.0.locked();
         state.messages -= 1;

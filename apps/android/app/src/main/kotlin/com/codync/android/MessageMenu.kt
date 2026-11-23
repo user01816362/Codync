@@ -10,7 +10,7 @@ import com.codync.android.design.ReactionPick
 
 /** Message actions shared by text, attachment, image, and audio menus. */
 internal class MessageMenu(
-    val reactions: ReactionPick,
+    val reactions: ReactionPick?,
     val reply: (() -> Unit)?,
     val trace: (() -> Unit)?,
     val selectText: (() -> Unit)? = null,
@@ -33,6 +33,9 @@ internal class MessageMenu(
             reactionPick(entry, store), reply, trace,
             selectText.takeIf { offersSelectText(entry, replyable = reply != null) }, edit,
         )
+
+        /** A message of a thread's own transcript: its copy items alone, no reactions, reply or steps. */
+        val copyOnly = MessageMenu(reactions = null, reply = null, trace = null)
 
         /** Select Text goes where Reply does, on a message with text of its own (an artifact card's is only its title). */
         fun offersSelectText(entry: Entry, replyable: Boolean) = replyable && entry.text.isNotBlank() && entry.artifact == null

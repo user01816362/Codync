@@ -200,7 +200,7 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
     }
     let request = uuid::Uuid::new_v4().to_string();
     let back = Back::Assistant { request: request.clone() };
-    let mut lifetime = MessageLifetime::new(hub, &request, message, back, &target.name, None);
+    let mut lifetime = MessageLifetime::new(hub, &request, message, back, &target.name, None, 1);
     let (source, name) = (asker.id.as_str(), asker.name.as_str());
     let exchange = Exchange {
         request: &request,
@@ -209,10 +209,11 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
         text: message,
         collaboration_id: None,
         peer_name: Some(name),
+        hops: None,
     };
     lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {name}: {message}"), true)?);
     hub.assistant.add(Reply::queued(&asker.id, &request, &target.name, message));
-    lifetime.deliver(&target.id, 1, Access::Allow, request_prompt(&asker.who, name, Access::Allow, message))?;
+    lifetime.deliver(&target.id, Access::Allow, request_prompt(&asker.who, name, Access::Allow, message))?;
     Ok(json!({
         "requestId": request, "botId": target.id, "name": target.name, "status": RequestStatus::Queued,
         "note": "Queued. Bots can take minutes: get the reply later with read_replies.",
@@ -292,7 +293,7 @@ impl Reply {
             asker: asker.into(),
             request: request.into(),
             bot: bot.into(),
-            quote: crate::agent::acp::truncate(message, super::REQUEST_QUOTE_BYTES),
+            quote: codync_agent::acp::truncate(message, super::REQUEST_QUOTE_BYTES),
             status: RequestStatus::Queued,
             text: None,
             at: now_ms(),

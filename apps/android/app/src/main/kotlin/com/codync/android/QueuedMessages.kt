@@ -113,7 +113,12 @@ internal val AppState.supportsQueueActions: Boolean
 @Composable private fun QueuedRow(entry: Entry, actions: Boolean, steering: Boolean, earlier: () -> Unit, later: () -> Unit, steer: () -> Unit, remove: () -> Unit, edit: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(messagePreview(entry.replyQuote.text), Modifier.weight(1f).padding(vertical = if (actions) 0.dp else 9.dp),
+        val files = entry.attachments
+        // Its files show as a symbol, and by name when it has no words.
+        if (files.isNotEmpty()) Symbol(if (files.all { it.isImage }) "photo" else "doc", size = 13.dp, tint = Palette.secondary,
+            modifier = Modifier.padding(end = 4.dp))
+        val text = entry.replyQuote.text.ifEmpty { files.joinToString(", ") { it.name } }
+        Text(messagePreview(text), Modifier.weight(1f).padding(vertical = if (actions) 0.dp else 9.dp),
             style = Type.subheadline, color = Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (actions) {
             IconButton("Move earlier", "arrow.up", enabled = !steering, action = earlier)

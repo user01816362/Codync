@@ -16,6 +16,7 @@ mod storage_usage;
 mod workspaces;
 
 pub use devices::{Device, DeviceAccount, DeviceSource, Scope};
+pub use entries::INTERRUPTED;
 pub use model::{
     AVATAR_COLORS, AVATAR_SHAPES, BotConfig, BotKind, BotRow, DEFAULT_THREADS, Entry, EntryKind, Fallback, Lane,
     MAX_THREADS, Permission, THREAD_PREFIX, is_thread_id, message_text, run_session_key,

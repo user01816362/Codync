@@ -8,13 +8,13 @@ use super::{
     RequestStatus, STOPPED, check_request, finish_entry, request_prompt, visible_bot,
 };
 use crate::LockExt;
-use crate::agent::acp::truncate;
 use crate::agent::bot::Cmd;
 use crate::analytics::NetworkStage;
 use crate::hub::Hub;
 use crate::network::Target;
 use crate::store::{BotConfig, EntryKind, Lane};
 use anyhow::{Result, anyhow};
+use codync_agent::acp::truncate;
 use codync_network::{Address, Letter, Message, Node, Sent};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -154,6 +154,7 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, to: &Target, lett
         text: &letter.body,
         collaboration_id: collaboration.as_deref(),
         peer_name: Some(&peer),
+        hops: None,
     };
     let entry = exchange.notice(hub, &source.id, &heading, false)?;
     let quote = truncate(&letter.body, REQUEST_QUOTE_BYTES);
@@ -177,7 +178,7 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, to: &Target, lett
         Err(error) => {
             hub.waiting.take(&id);
             crate::analytics::network_failed(hub, NetworkStage::Send);
-            finish_entry(hub, &entry, RequestStatus::Failed, &format!("{error:#}"), None);
+            finish_entry(hub, &entry, RequestStatus::Failed, &format!("{error:#}"), None, None);
             return Err(error);
         }
     };
@@ -248,8 +249,15 @@ fn requested(hub: &Arc<Hub>, network: &str, target: &BotConfig, m: &Message, bac
         .and_then(|meta| meta["collaborationId"].as_str())
         .filter(|id| !id.is_empty() && id.len() <= 128)
         .map(str::to_owned);
-    let mut lifetime =
-        MessageLifetime::new(hub, &m.id, &m.body, Back::Remote(back), &target.name, collaboration.clone());
+    let mut lifetime = MessageLifetime::new(
+        hub,
+        &m.id,
+        &m.body,
+        Back::Remote(back),
+        &target.name,
+        collaboration.clone(),
+        m.hops,
+    );
     let exchange = Exchange {
         request: &m.id,
         source: &from,
@@ -257,10 +265,11 @@ fn requested(hub: &Arc<Hub>, network: &str, target: &BotConfig, m: &Message, bac
         text: &m.body,
         collaboration_id: collaboration.as_deref(),
         peer_name: Some(&peer),
+        hops: None,
     };
     lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {peer}: {}", m.body), true)?);
     let who = format!("{peer}, an agent on another of the user's computers,");
-    lifetime.deliver(&target.id, m.hops, m.access, request_prompt(&who, &peer, m.access, &m.body))
+    lifetime.deliver(&target.id, m.access, request_prompt(&who, &peer, m.access, &m.body))
 }
 
 /// A letter that starts no turn: the bot's chat shows it.
@@ -305,8 +314,8 @@ fn send_back(hub: &Arc<Hub>, to: &Return, mut body: String, status: RequestStatu
     });
 }
 
-/// The outcome of a request this computer's bot sent: its notice ends and, unless the other
-/// side's user stopped the work, the sender gets a reply turn.
+/// The outcome of a request this computer's bot sent: its notice ends and the sender gets a reply turn, also when
+/// the other side's user stopped the work.
 fn replied(hub: &Hub, id: &str, waiter: Waiter, m: &Message) {
     let peer = &waiter.peer;
     let status = m.meta.as_ref().and_then(|meta| serde_json::from_value(meta["codync"].clone()).ok());
@@ -321,18 +330,18 @@ fn replied(hub: &Hub, id: &str, waiter: Waiter, m: &Message) {
     let outcome = match status {
         Some(RequestStatus::Cancelled) => {
             let detail = format!("{peer} was stopped before finishing. Partial work may have happened.");
-            finish_entry(hub, &entry, RequestStatus::Cancelled, &detail, None);
-            return;
+            finish_entry(hub, &entry, RequestStatus::Cancelled, &detail, None, None);
+            Err(detail)
         }
         Some(RequestStatus::Failed) => {
-            finish_entry(hub, &entry, RequestStatus::Failed, &m.body, None);
+            finish_entry(hub, &entry, RequestStatus::Failed, &m.body, None, None);
             Err(m.body.clone())
         }
         // A reply, also from an agent that isn't a Codync bot (it sends no `meta`).
         _ => {
             let reply = truncate(&m.body, NOTICE_REPLY_BYTES);
             let detail = format!("Reply from {peer}:\n{reply}");
-            finish_entry(hub, &entry, RequestStatus::Completed, &detail, Some(&reply));
+            finish_entry(hub, &entry, RequestStatus::Completed, &detail, Some(&reply), None);
             Ok(truncate(&m.body, MAX_MESSAGE_BYTES))
         }
     };
@@ -344,6 +353,7 @@ fn replied(hub: &Hub, id: &str, waiter: Waiter, m: &Message) {
         outcome,
         hops: m.hops,
         access: m.access,
+        entry: None,
     };
     let _ = hub.send_cmd(&sender, Cmd::BotReply(reply));
 }
