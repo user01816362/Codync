@@ -10,6 +10,7 @@ use crate::chat::work::{self, Failure, Outcome};
 use crate::hub::BotStatus;
 use crate::store::{Lane, now_ms};
 use anyhow::{Result, anyhow};
+use codync_agent::events::Event;
 use codync_network::Access;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -83,7 +84,7 @@ impl Actor {
             }
             Cmd::ResearchProgress { entries, reply } => {
                 let result = if self.turn.is_some() && !self.stop_requested {
-                    self.on_update(&serde_json::json!({"sessionUpdate": "plan", "entries": entries, "research": true}));
+                    self.on_update(Event::Plan { entries, research: true });
                     Ok(())
                 } else {
                     Err(anyhow::anyhow!("research progress requires a running turn"))

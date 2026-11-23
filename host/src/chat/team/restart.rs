@@ -122,6 +122,7 @@ fn relay(hub: &Hub, notice: &Entry) {
     };
     let reply = BotReply {
         request_id: id.to_owned(),
+        collaboration_id: data["collaborationId"].as_str().map(str::to_owned),
         quote: truncate(message["text"].as_str().unwrap_or_default(), REQUEST_QUOTE_BYTES),
         from_name: hub.bot_name(target),
         outcome,

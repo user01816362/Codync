@@ -693,6 +693,7 @@ async fn a_reply_turn_takes_its_replies_and_is_marked_running_in_one_write() {
     assert!(f.hub.store.kv_get(&relaying_key(&notice.id)).is_some(), "the whole reply waits with it");
     let reply = BotReply {
         request_id: "r".into(),
+        collaboration_id: None,
         quote: String::new(),
         from_name: "b".into(),
         outcome: Ok("reply".into()),
