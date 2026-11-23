@@ -249,15 +249,8 @@ fn requested(hub: &Arc<Hub>, network: &str, target: &BotConfig, m: &Message, bac
         .and_then(|meta| meta["collaborationId"].as_str())
         .filter(|id| !id.is_empty() && id.len() <= 128)
         .map(str::to_owned);
-    let mut lifetime = MessageLifetime::new(
-        hub,
-        &m.id,
-        &m.body,
-        Back::Remote(back),
-        &target.name,
-        collaboration.clone(),
-        m.hops,
-    );
+    let mut lifetime =
+        MessageLifetime::new(hub, &m.id, &m.body, Back::Remote(back), &target.name, collaboration.clone(), m.hops);
     let exchange = Exchange {
         request: &m.id,
         source: &from,
